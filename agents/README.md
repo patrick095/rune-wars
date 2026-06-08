@@ -25,6 +25,7 @@ Cada skill recebe apenas o contexto necessário para a tarefa atual. Nunca o pro
 | Analista de Qualidade | `analista-de-qualidade.md` | QA, critérios de aceite, regressão |
 | Analista de Teste | `analista-de-teste.md` | Planos de teste, casos críticos, bugs |
 | Analista Sonoro | `analista-sonoro.md` | SFX por arma/ação, integração Phaser |
+| Art Director | `art-director.md` | Direção visual, arte, HUD, sprites, VFX, mapas |
 
 ### Produto e Orquestração
 | Skill | Arquivo | Responsabilidade |
@@ -68,7 +69,7 @@ Cada skill recebe apenas o contexto necessário para a tarefa atual. Nunca o pro
 | 028-v100-craft-upgrade | `dev-backend`, `databaser` |
 | 029-v100-market | `dev-backend`, `databaser` |
 | 030-v100-guilds | `dev-backend` |
-| 031-v100-frontend-screens | `dev-frontend`, `ui-ux`, `dev-mobile` |
+| 031-v100-frontend-screens | `dev-frontend`, `ui-ux`, `dev-mobile`, `art-director` |
 | 032-v100-qa-consolidation | `analista-de-qualidade`, `analista-de-teste` |
 
 ## Fluxo recomendado de uso
