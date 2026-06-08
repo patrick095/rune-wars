@@ -49,5 +49,7 @@ v0.8.0 — Dungeon Local Simulada
 - Correção aplicada para spawn inicial de inimigos baseado no grid do mapa, evitando posições fora do mapa em resoluções diferentes.
 - Correção aplicada para controles por teclado com movimento/ângulo contínuos.
 - Correção aplicada para IA local: mira por simulação de trajetória e reset completo ao jogar novamente.
+- Correção aplicada para preview/ângulo/movimento no castelo: ângulo inteiro, trajetória estável e movimento horizontal sem snap para plataformas acima.
+- IA local reposiciona quando o melhor tiro simulado não é viável.
 - Próximo passo:
   - Iniciar v0.9.0 com backend mínimo, autenticação e PvP multiplayer.

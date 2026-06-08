@@ -11,6 +11,8 @@
 - Corrigido spawn inicial de inimigos em `/playground` e `/dungeon` para não depender da largura bruta da tela como coordenada de mapa.
 - Adicionados controles por teclado em `/playground` e `/dungeon`: setas esquerda/direita movem, cima/baixo ajustam ângulo continuamente e espaço dispara.
 - Corrigida IA local em `/playground` para mirar por simulação de trajetória e corrigido reset de HP/turnos/efeitos ao clicar em "Jogar Novamente".
+- Corrigidos ângulos quebrados por teclado, preview de trajetória instável e movimento no castelo que puxava o jogador para plataformas suspensas.
+- IA local agora tenta reposicionar quando está sem tiro viável contra o jogador.
 
 ## v1.2 — 2026-06-07
 - Ajustado o pacote para implementação 100% orientada por IA.

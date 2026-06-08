@@ -47,6 +47,7 @@ const AI_SEARCH_BY_DIFFICULTY: Record<Difficulty, { angleStep: number; forceStep
   medium: { angleStep: 5, forceStep: 8, angleError: 7, forceError: 8 },
   hard: { angleStep: 3, forceStep: 5, angleError: 3, forceError: 4 },
 };
+const AI_REPOSITION_THRESHOLD = 70;
 
 export class BattleScene extends Phaser.Scene {
   private turnManager = new TurnManager();
@@ -104,6 +105,7 @@ export class BattleScene extends Phaser.Scene {
   private powerInterval: ReturnType<typeof setInterval> | null = null;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
+  private previewRefreshMs = 0;
 
   // Control buttons
   private angleText!: Phaser.GameObjects.Text;
@@ -222,6 +224,12 @@ export class BattleScene extends Phaser.Scene {
       this.aiStats.y = this.aiSprite.y;
     }
 
+    this.previewRefreshMs += delta;
+    if (this.turnManager.isPlayerTurn && !this.isAnimating && this.previewRefreshMs >= 120) {
+      this.previewRefreshMs = 0;
+      this.updateTrajectoryPreview();
+    }
+
     // Update effects HUD every frame
     if (this.effectsHud) {
       this.effectsHud.update(
@@ -331,7 +339,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
     // FREEZE blocks angle/force controls
     if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
-    this.currentAngle = Math.max(5, Math.min(175, this.currentAngle + delta));
+    this.currentAngle = Math.round(Math.max(5, Math.min(175, this.currentAngle + delta)));
     this.angleText.setText(`${this.currentAngle}°`);
     this.updateTrajectoryPreview();
   }
@@ -339,9 +347,11 @@ export class BattleScene extends Phaser.Scene {
   private movePlayer(deltaX: number): void {
     if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
     const nextX = this.clampInitialX(this.playerSprite.x + deltaX, this.scale.width);
-    const floorY = this.terrainEngine.getFloorBelow(nextX, 0);
+    const floorY = this.terrainEngine.getFloorBelow(nextX, this.playerSprite.y + this.playerSprite.height / 2);
     this.playerSprite.setX(nextX);
-    if (floorY !== null) this.playerSprite.setY(floorY - this.playerSprite.height / 2);
+    if (floorY !== null && floorY < this.playerSprite.y + this.playerSprite.height) {
+      this.playerSprite.setY(floorY - this.playerSprite.height / 2);
+    }
     this.playerStats.x = this.playerSprite.x;
     this.playerStats.y = this.playerSprite.y;
   }
@@ -447,6 +457,10 @@ export class BattleScene extends Phaser.Scene {
   private fireAiShot(): void {
     const wind = this.windSystem.getCurrent();
     const shot = this.calculateAiShot();
+    if (shot.score > AI_REPOSITION_THRESHOLD && this.tryRepositionAi()) {
+      this.time.delayedCall(350, () => this.endTurn(false));
+      return;
+    }
 
     const profile = this.aiWeapon.physicsProfile;
     const config: ProjectileConfig = {
@@ -523,7 +537,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private calculateAiShot(): { angle: number; force: number } {
+  private calculateAiShot(): { angle: number; force: number; score: number } {
     const profile = this.aiWeapon.physicsProfile;
     const wind = this.windSystem.getCurrent();
     const search = AI_SEARCH_BY_DIFFICULTY[this.difficulty];
@@ -547,7 +561,50 @@ export class BattleScene extends Phaser.Scene {
     return {
       angle: Math.max(95, Math.min(175, best.angle + Phaser.Math.FloatBetween(-search.angleError, search.angleError))),
       force: Math.max(20, Math.min(100, Math.round(best.force + Phaser.Math.FloatBetween(-search.forceError, search.forceError)))),
+      score: best.score,
     };
+  }
+
+  private tryRepositionAi(): boolean {
+    const currentX = this.aiSprite.x;
+    const candidates = [-96, -64, -32, 32, 64, 96]
+      .map(offset => this.clampInitialX(currentX + offset, this.scale.width))
+      .filter((x, index, values) => Math.abs(x - currentX) > 4 && values.indexOf(x) === index);
+
+    let best = { x: currentX, y: this.aiSprite.y, score: Number.POSITIVE_INFINITY };
+
+    for (const x of candidates) {
+      const floorY = this.terrainEngine.getFloorBelow(x, this.aiSprite.y + this.aiSprite.height / 2);
+      if (floorY === null) continue;
+      const original = { x: this.aiStats.x, y: this.aiStats.y };
+      this.aiStats.x = x;
+      this.aiStats.y = floorY - this.aiSprite.height / 2;
+      const shot = this.calculateAiShot();
+      if (shot.score < best.score) best = { x: this.aiStats.x, y: this.aiStats.y, score: shot.score };
+      this.aiStats.x = original.x;
+      this.aiStats.y = original.y;
+    }
+
+    if (best.score >= AI_REPOSITION_THRESHOLD) return false;
+
+    this.aiSprite.setPosition(best.x, best.y);
+    this.aiStats.x = best.x;
+    this.aiStats.y = best.y;
+    const label = this.add.text(best.x, best.y - 48, 'Reposicionando', {
+      fontSize: '12px',
+      color: '#ffdd66',
+      fontFamily: 'monospace',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(20).setAlpha(0.95);
+    this.tweens.add({
+      targets: label,
+      y: best.y - 78,
+      alpha: 0,
+      duration: 700,
+      onComplete: () => label.destroy(),
+    });
+    return true;
   }
 
   private scoreAiPath(path: Array<{ x: number; y: number }>): number {
