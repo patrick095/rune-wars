@@ -44,7 +44,7 @@ export const HUB_POIS: HubPointOfInterest[] = [
         rasterKey: "poi_academy_painted",
         rasterPath: "/assets/hub/poi-raster/poi_academy_painted.png?v=20260608-alpha-fix",
         spriteWidth: 400,
-        spriteHeight: 350,
+        spriteHeight: 269,
         labelOffsetY: -132,
     },
     {
@@ -64,7 +64,7 @@ export const HUB_POIS: HubPointOfInterest[] = [
         rasterKey: "poi_blacksmith_painted",
         rasterPath: "/assets/hub/poi-raster/poi_blacksmith_painted.png?v=20260608-alpha-fix",
         spriteWidth: 365,
-        spriteHeight: 315,
+        spriteHeight: 341,
         labelOffsetY: -178,
     },
     {
@@ -84,7 +84,7 @@ export const HUB_POIS: HubPointOfInterest[] = [
         rasterKey: "poi_dungeon_painted",
         rasterPath: "/assets/hub/poi-raster/poi_dungeon_painted.png?v=20260608-alpha-fix",
         spriteWidth: 290,
-        spriteHeight: 345,
+        spriteHeight: 313,
         labelOffsetY: -50,
     },
     {
@@ -104,7 +104,7 @@ export const HUB_POIS: HubPointOfInterest[] = [
         rasterKey: "poi_pvp_painted",
         rasterPath: "/assets/hub/poi-raster/poi_pvp_painted.png?v=20260608-alpha-fix",
         spriteWidth: 370,
-        spriteHeight: 295,
+        spriteHeight: 341,
         labelOffsetY: -150,
     },
     {
@@ -124,7 +124,7 @@ export const HUB_POIS: HubPointOfInterest[] = [
         rasterKey: "poi_guild_painted",
         rasterPath: "/assets/hub/poi-raster/poi_guild_painted.png?v=20260608-alpha-fix",
         spriteWidth: 340,
-        spriteHeight: 320,
+        spriteHeight: 304,
         labelOffsetY: -165,
     },
     {
@@ -144,7 +144,7 @@ export const HUB_POIS: HubPointOfInterest[] = [
         rasterKey: "poi_market_painted",
         rasterPath: "/assets/hub/poi-raster/poi_market_painted.png?v=20260608-alpha-fix",
         spriteWidth: 335,
-        spriteHeight: 250,
+        spriteHeight: 268,
         labelOffsetY: -145,
     },
     {
@@ -164,7 +164,7 @@ export const HUB_POIS: HubPointOfInterest[] = [
         rasterKey: "poi_village_painted",
         rasterPath: "/assets/hub/poi-raster/poi_village_painted.png?v=20260608-alpha-fix",
         spriteWidth: 370,
-        spriteHeight: 330,
+        spriteHeight: 322,
         labelOffsetY: -135,
     },
 ];

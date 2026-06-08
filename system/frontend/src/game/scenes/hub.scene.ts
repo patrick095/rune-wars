@@ -90,6 +90,7 @@ export class HubScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
     this.usingPaintedBackdrop = this.createPaintedBackdropFromAsset(worldWidth, worldHeight);
+    this.configurePaintedTextureFiltering();
 
     if (!this.usingPaintedBackdrop) {
       this.createPaintedBackdrop(worldWidth, worldHeight);
@@ -105,6 +106,13 @@ export class HubScene extends Phaser.Scene {
     this.setupCamera(worldWidth, worldHeight);
     this.setupInput();
     this.cameras.main.fadeIn(450, 6, 10, 28);
+  }
+
+  private configurePaintedTextureFiltering(): void {
+    this.textures.get('hub_forest_painted')?.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    HUB_POIS.forEach(poi => {
+      this.textures.get(poi.rasterKey)?.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    });
   }
 
   override update(_time: number, delta: number): void {
