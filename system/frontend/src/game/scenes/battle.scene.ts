@@ -4,8 +4,15 @@ import { WindSystem } from '../../app/shared/game-core/wind-system';
 import { ProjectilePhysics } from '../../app/shared/game-core/projectile-physics';
 import { DamageCalculator } from '../../app/shared/game-core/damage-calculator';
 import { AiLocal, Difficulty } from '../../app/shared/game-core/ai-local';
-import { PlayerStats } from '../../app/shared/game-core/player-stats';
 import { ProjectileConfig } from '../../app/shared/game-core/projectile-config';
+
+interface BattleCharacterState {
+  hp: number;
+  maxHp: number;
+  x: number;
+  y: number;
+  isPlayer: boolean;
+}
 import { TerrainEngine } from '../../app/shared/game-core/terrain-engine';
 import { TerrainMaterial } from '../../app/shared/game-core/terrain-types';
 import { TerrainRenderer } from '../terrain/terrain-renderer';
@@ -16,6 +23,9 @@ import { ResultOverlay } from '../ui/result-overlay';
 import { WeaponSystem } from '../../app/shared/game-core/weapon-system';
 import { WeaponDefinition } from '../../app/shared/game-core/weapon-definition';
 import { ProjectileRenderer } from '../projectiles/projectile-renderer';
+import { StatusEffectManager } from '../../app/shared/game-core/status-effect-manager';
+import { RunicEffect, RunicEffectType, rollRunicEffect, getWeaponRunicEffect } from '../../app/shared/game-core/runic-effect-system';
+import { EffectsHud } from '../hud/effects-hud';
 import mapPlains from '../../app/shared/game-core/maps/map-plains.json';
 import mapCastle from '../../app/shared/game-core/maps/map-castle.json';
 
@@ -37,9 +47,18 @@ export class BattleScene extends Phaser.Scene {
   private damageCalc = new DamageCalculator();
   private ai = new AiLocal();
   private weaponSystem = new WeaponSystem();
+  private statusEffects = new StatusEffectManager();
 
-  private playerStats: PlayerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true };
-  private aiStats: PlayerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false };
+  // v0.6.0 runic effects
+  private playerLuck = 10;
+  private lastImpactPoint: { x: number; y: number } | null = null;
+
+  // Control buttons references for FREEZE lock
+  private _btnAngleMinus!: Phaser.GameObjects.Rectangle;
+  private _btnAnglePlus!: Phaser.GameObjects.Rectangle;
+
+  private playerStats: BattleCharacterState = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true };
+  private aiStats: BattleCharacterState = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false };
   private currentAngle = 45;
   private difficulty: Difficulty = 'medium';
   private isAnimating = false;
@@ -63,6 +82,7 @@ export class BattleScene extends Phaser.Scene {
 
   // HUD & UI helpers
   private hud!: CombatHud;
+  private effectsHud!: EffectsHud;
   private trajectory = new TrajectoryIndicator();
   private resultOverlay = new ResultOverlay();
 
@@ -135,6 +155,7 @@ export class BattleScene extends Phaser.Scene {
 
     // HUD
     this.hud = new CombatHud(this);
+    this.effectsHud = new EffectsHud(this);
     this.refreshHud();
 
     // Controls
@@ -160,6 +181,14 @@ export class BattleScene extends Phaser.Scene {
       this.aiStats.x = this.aiSprite.x;
       this.aiStats.y = this.aiSprite.y;
     }
+
+    // Update effects HUD every frame
+    if (this.effectsHud) {
+      this.effectsHud.update(
+        this.statusEffects.getEffects('player'),
+        this.statusEffects.getEffects('ai')
+      );
+    }
   }
 
   // ──────────────────────────────────────────────────────────
@@ -173,7 +202,7 @@ export class BattleScene extends Phaser.Scene {
     const btnW = 70;
 
     // Angle - button
-    const btnAngleMinus = this.add.rectangle(40, btnY, btnW, btnH, 0x335588).setInteractive().setDepth(15);
+    this._btnAngleMinus = this.add.rectangle(40, btnY, btnW, btnH, 0x335588).setInteractive().setDepth(15);
     this.add.text(40, btnY, 'Ang -', { fontSize: '13px', color: '#ffffff', fontFamily: 'monospace' })
       .setOrigin(0.5).setDepth(16);
 
@@ -183,7 +212,7 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(16);
 
     // Angle + button
-    const btnAnglePlus = this.add.rectangle(200, btnY, btnW, btnH, 0x335588).setInteractive().setDepth(15);
+    this._btnAnglePlus = this.add.rectangle(200, btnY, btnW, btnH, 0x335588).setInteractive().setDepth(15);
     this.add.text(200, btnY, 'Ang +', { fontSize: '13px', color: '#ffffff', fontFamily: 'monospace' })
       .setOrigin(0.5).setDepth(16);
 
@@ -205,8 +234,8 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(16);
 
     // Events
-    btnAngleMinus.on('pointerdown', () => this.adjustAngle(-5));
-    btnAnglePlus.on('pointerdown', () => this.adjustAngle(5));
+    this._btnAngleMinus.on('pointerdown', () => this.adjustAngle(-5));
+    this._btnAnglePlus.on('pointerdown', () => this.adjustAngle(5));
 
     btnFire.on('pointerover', () => btnFire.setFillStyle(0xaa6600));
     btnFire.on('pointerout', () => btnFire.setFillStyle(0x884400));
@@ -217,6 +246,8 @@ export class BattleScene extends Phaser.Scene {
 
   private adjustAngle(delta: number): void {
     if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
+    // FREEZE blocks angle/force controls
+    if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
     this.currentAngle = Math.max(5, Math.min(175, this.currentAngle + delta));
     this.angleText.setText(`${this.currentAngle}°`);
     this.updateTrajectoryPreview();
@@ -227,6 +258,8 @@ export class BattleScene extends Phaser.Scene {
     btnText: Phaser.GameObjects.Text
   ): void {
     if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
+    // FREEZE blocks power charging
+    if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
     if (this.isChargingPower) return;
 
     this.isChargingPower = true;
@@ -234,8 +267,11 @@ export class BattleScene extends Phaser.Scene {
     btn.setFillStyle(0xcc8800);
     btnText.setText('...');
 
+    // WEAK_SHOT limits max force to 40
+    const maxForce = this.statusEffects.hasEffect('player', 'WEAK_SHOT') ? 40 : 100;
+
     this.powerInterval = setInterval(() => {
-      this.powerValue = Math.min(100, this.powerValue + 2);
+      this.powerValue = Math.min(maxForce, this.powerValue + 2);
       this.powerBarFill.setDisplaySize(this.powerValue * 2, 20);
       this.powerBarLabel.setText(`Força: ${this.powerValue}`);
     }, 30);
@@ -398,14 +434,25 @@ export class BattleScene extends Phaser.Scene {
     impactX: number,
     impactY: number,
     isPlayerShot: boolean,
-    targetStats: PlayerStats,
+    targetStats: BattleCharacterState,
     baseDamage: number
   ): void {
-    const damage = this.damageCalc.calculate(
+    // Track last impact point (for teleport consumable)
+    this.lastImpactPoint = { x: impactX, y: impactY };
+
+    let damage = this.damageCalc.calculate(
       impactX, impactY,
       targetStats.x, targetStats.y,
       baseDamage
     );
+
+    const shooterId = isPlayerShot ? 'player' : 'ai';
+    const targetId = isPlayerShot ? 'ai' : 'player';
+
+    // VULNERABILITY multiplies damage received by 1.5
+    if (this.statusEffects.hasEffect(targetId, 'VULNERABILITY')) {
+      damage = Math.round(damage * 1.5);
+    }
 
     if (isPlayerShot) {
       this.aiStats.hp = Math.max(0, this.aiStats.hp - damage);
@@ -414,6 +461,41 @@ export class BattleScene extends Phaser.Scene {
       this.playerStats.hp = Math.max(0, this.playerStats.hp - damage);
       this.showDamageText(this.playerStats.x, this.playerStats.y, damage, '#44aaff');
     }
+
+    // Roll runic effect from shooter's weapon
+    const shooterWeapon = isPlayerShot ? this.playerWeapon : this.aiWeapon;
+    const luck = isPlayerShot ? this.playerLuck : 10;
+    if (rollRunicEffect(luck)) {
+      const runicEffect = getWeaponRunicEffect(shooterWeapon.id);
+      if (runicEffect) {
+        this.statusEffects.apply(targetId, runicEffect);
+        this.showEffectFloatingText(
+          isPlayerShot ? this.aiStats.x : this.playerStats.x,
+          isPlayerShot ? this.aiStats.y : this.playerStats.y,
+          runicEffect.type
+        );
+
+        // RANDOM_TELEPORT: move target sprite to random X position
+        if (runicEffect.type === 'RANDOM_TELEPORT') {
+          const { width } = this.scale;
+          const newX = Phaser.Math.Between(60, width - 60);
+          const targetSprite = isPlayerShot ? this.aiSprite : this.playerSprite;
+          const floorY = this.terrainEngine.getFloorBelow(newX, 0);
+          const newY = floorY !== null ? floorY - 30 : targetSprite.y;
+          targetSprite.setPosition(newX, newY);
+          if (isPlayerShot) {
+            this.aiStats.x = newX;
+            this.aiStats.y = newY;
+          } else {
+            this.playerStats.x = newX;
+            this.playerStats.y = newY;
+          }
+        }
+      }
+    }
+
+    // BLIND: hide angle display for the affected player (next turn it kicks in)
+    this.updateBlindState();
 
     this.refreshHud();
 
@@ -433,7 +515,36 @@ export class BattleScene extends Phaser.Scene {
   private endTurn(_wasPlayerShot: boolean): void {
     this.turnManager.nextTurn();
     this.windSystem.generate();
+
+    // Tick status effects for the player whose turn is starting
+    const activePlayerId = this.turnManager.isPlayerTurn ? 'player' : 'ai';
+    const activeStats = this.turnManager.isPlayerTurn ? this.playerStats : this.aiStats;
+    const tickResult = this.statusEffects.tick(activePlayerId, activeStats.hp, activeStats.maxHp);
+
+    if (activeStats.hp !== tickResult.newHp) {
+      const bleedDamage = activeStats.hp - tickResult.newHp;
+      activeStats.hp = tickResult.newHp;
+      if (bleedDamage > 0) {
+        this.showDamageText(activeStats.x, activeStats.y, bleedDamage, '#ff4444');
+      }
+    }
+
+    // Update BLIND state for current turn
+    this.updateBlindState();
+    // Update FREEZE lock state
+    this.updateFreezeState();
+
     this.refreshHud();
+
+    // Check game over from BLEED
+    if (this.aiStats.hp <= 0) {
+      this.resultOverlay.show(this, true);
+      return;
+    }
+    if (this.playerStats.hp <= 0) {
+      this.resultOverlay.show(this, false);
+      return;
+    }
 
     if (!this.turnManager.isPlayerTurn) {
       // AI turn with 1s delay
@@ -443,6 +554,73 @@ export class BattleScene extends Phaser.Scene {
     } else {
       // Back to player — show trajectory preview
       this.updateTrajectoryPreview();
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Runic effect helpers
+  // ──────────────────────────────────────────────────────────
+
+  private showEffectFloatingText(x: number, y: number, effectType: RunicEffectType): void {
+    const labels: Record<RunicEffectType, string> = {
+      BLEED: '💀 BLEED!',
+      FREEZE: '❄ FREEZE!',
+      BLIND: '🌫 BLIND!',
+      WEAK_SHOT: '↓ WEAK SHOT!',
+      ITEM_BLOCK: '🚫 ITEM BLOCK!',
+      RANDOM_TELEPORT: '⚡ TELEPORT!',
+      VULNERABILITY: '💢 VULNERABILITY!',
+    };
+    const colors: Record<RunicEffectType, string> = {
+      BLEED: '#ff4444',
+      FREEZE: '#44aaff',
+      BLIND: '#ffdd44',
+      WEAK_SHOT: '#ff8800',
+      ITEM_BLOCK: '#888888',
+      RANDOM_TELEPORT: '#cc44ff',
+      VULNERABILITY: '#ff88cc',
+    };
+    const text = this.add.text(x, y - 50, labels[effectType] ?? effectType, {
+      fontSize: '16px',
+      color: colors[effectType] ?? '#ffffff',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(22);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 100,
+      alpha: 0,
+      duration: 1200,
+      ease: 'Power2',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  /**
+   * Hides or shows the angle text based on BLIND effect on player.
+   * Called after each hit and at turn start.
+   */
+  private updateBlindState(): void {
+    if (this.turnManager.isPlayerTurn && this.statusEffects.hasEffect('player', 'BLIND')) {
+      this.angleText.setVisible(false);
+    } else {
+      this.angleText.setVisible(true);
+    }
+  }
+
+  /**
+   * Updates FREEZE lock visual state on angle buttons.
+   */
+  private updateFreezeState(): void {
+    if (this.turnManager.isPlayerTurn && this.statusEffects.hasEffect('player', 'FREEZE')) {
+      this._btnAngleMinus.setFillStyle(0x223355);
+      this._btnAnglePlus.setFillStyle(0x223355);
+    } else {
+      this._btnAngleMinus.setFillStyle(0x335588);
+      this._btnAnglePlus.setFillStyle(0x335588);
     }
   }
 
@@ -576,5 +754,48 @@ export class BattleScene extends Phaser.Scene {
   paintCell(worldX: number, worldY: number, material: number): void {
     this.terrainEngine.setMaterialAt(worldX, worldY, material as TerrainMaterial);
     this.terrainRenderer.renderFull();
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // v0.6.0 Debug API
+  // ──────────────────────────────────────────────────────────
+
+  applyDebugEffect(target: 'player' | 'ai', type: string): void {
+    const validTypes: RunicEffectType[] = [
+      'BLEED', 'FREEZE', 'BLIND', 'WEAK_SHOT', 'ITEM_BLOCK', 'RANDOM_TELEPORT', 'VULNERABILITY',
+    ];
+    if (!validTypes.includes(type as RunicEffectType)) return;
+    const effect: RunicEffect = {
+      type: type as RunicEffectType,
+      duration: type === 'RANDOM_TELEPORT' ? 0 : 2,
+      value: type === 'BLEED' ? 0.05 : undefined,
+    };
+    this.statusEffects.apply(target, effect);
+
+    // If RANDOM_TELEPORT applied via debug, move sprite immediately
+    if (type === 'RANDOM_TELEPORT') {
+      const { width } = this.scale;
+      const newX = Phaser.Math.Between(60, width - 60);
+      const targetSprite = target === 'player' ? this.playerSprite : this.aiSprite;
+      const floorY = this.terrainEngine.getFloorBelow(newX, 0);
+      const newY = floorY !== null ? floorY - 30 : targetSprite.y;
+      targetSprite.setPosition(newX, newY);
+      if (target === 'player') {
+        this.playerStats.x = newX; this.playerStats.y = newY;
+      } else {
+        this.aiStats.x = newX; this.aiStats.y = newY;
+      }
+    }
+  }
+
+  setPlayerLuck(luck: number): void {
+    this.playerLuck = Math.max(0, Math.min(100, luck));
+  }
+
+  getActiveEffects(): { player: RunicEffect[]; ai: RunicEffect[] } {
+    return {
+      player: this.statusEffects.getEffects('player'),
+      ai: this.statusEffects.getEffects('ai'),
+    };
   }
 }

@@ -149,6 +149,53 @@ import { WeaponDefinition } from '../../shared/game-core/weapon-definition';
         <div class="debug-value">Raio impacto: {{ selectedWeaponInfo.impactRadius }}</div>
         <div class="debug-value">Raio escavação: {{ selectedWeaponInfo.excavationRadius }}</div>
       </div>
+
+      <hr class="debug-divider" />
+
+      <!-- v0.6.0 Effects Controls -->
+      <div class="debug-section-title">Efeitos v0.6.0</div>
+
+      <div class="debug-section">
+        <label class="debug-label">Sorte do Jogador (0-100)</label>
+        <input
+          type="number" min="0" max="100"
+          [(ngModel)]="playerLuck"
+          (ngModelChange)="onPlayerLuckChange($event)"
+          class="debug-input"
+        />
+      </div>
+
+      <div class="debug-section">
+        <label class="debug-label">Aplicar Efeito ao Jogador</label>
+        <select [(ngModel)]="effectTargetPlayer" class="debug-select">
+          <option *ngFor="let e of effectTypes" [value]="e">{{ e }}</option>
+        </select>
+        <button class="debug-btn-effect" (click)="onApplyEffect('player', effectTargetPlayer)">Aplicar</button>
+      </div>
+
+      <div class="debug-section">
+        <label class="debug-label">Aplicar Efeito à IA</label>
+        <select [(ngModel)]="effectTargetAi" class="debug-select">
+          <option *ngFor="let e of effectTypes" [value]="e">{{ e }}</option>
+        </select>
+        <button class="debug-btn-effect" (click)="onApplyEffect('ai', effectTargetAi)">Aplicar</button>
+      </div>
+
+      <div class="debug-section">
+        <div class="debug-label">Efeitos Ativos — Jogador</div>
+        <div *ngFor="let ef of activeEffects.player" class="debug-value effect-tag">
+          {{ ef.type }} ({{ ef.duration }}t)
+        </div>
+        <div *ngIf="activeEffects.player.length === 0" class="debug-value">Nenhum</div>
+      </div>
+
+      <div class="debug-section">
+        <div class="debug-label">Efeitos Ativos — IA</div>
+        <div *ngFor="let ef of activeEffects.ai" class="debug-value effect-tag">
+          {{ ef.type }} ({{ ef.duration }}t)
+        </div>
+        <div *ngIf="activeEffects.ai.length === 0" class="debug-value">Nenhum</div>
+      </div>
     </div>
   `,
   styles: [`
@@ -266,6 +313,29 @@ import { WeaponDefinition } from '../../shared/game-core/weapon-definition';
       padding: 4px 6px;
       gap: 3px;
     }
+
+    .debug-btn-effect {
+      background: #226644;
+      color: #ffffff;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 11px;
+      cursor: pointer;
+      margin-top: 3px;
+    }
+
+    .debug-btn-effect:hover {
+      background: #338855;
+    }
+
+    .effect-tag {
+      background: rgba(255,255,255,0.05);
+      border-left: 2px solid #cc44ff;
+      padding: 1px 4px;
+      margin: 1px 0;
+    }
   `]
 })
 export class DebugOverlayComponent implements OnInit, OnDestroy {
@@ -297,7 +367,20 @@ export class DebugOverlayComponent implements OnInit, OnDestroy {
     return this._weaponSystem.getById(this.playerWeaponId) ?? this._weaponSystem.getDefault();
   }
 
+  // v0.6.0 effects controls
+  readonly effectTypes = [
+    'BLEED', 'FREEZE', 'BLIND', 'WEAK_SHOT', 'ITEM_BLOCK', 'RANDOM_TELEPORT', 'VULNERABILITY',
+  ] as const;
+  effectTargetPlayer: string = 'BLEED';
+  effectTargetAi: string = 'BLEED';
+  playerLuck = 10;
+  activeEffects: { player: Array<{ type: string; duration: number }>; ai: Array<{ type: string; duration: number }> } = {
+    player: [],
+    ai: [],
+  };
+
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  private effectsIntervalId: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit() {
     this.intervalId = setInterval(() => {
@@ -307,10 +390,20 @@ export class DebugOverlayComponent implements OnInit, OnDestroy {
         this.height = this.game.scale.height;
       }
     }, 500);
+
+    // Poll active effects every 500ms
+    this.effectsIntervalId = setInterval(() => {
+      const scene = this.getBattleScene();
+      if (scene) {
+        const effects = scene.getActiveEffects();
+        this.activeEffects = effects as { player: Array<{ type: string; duration: number }>; ai: Array<{ type: string; duration: number }> };
+      }
+    }, 500);
   }
 
   ngOnDestroy() {
     if (this.intervalId) clearInterval(this.intervalId);
+    if (this.effectsIntervalId) clearInterval(this.effectsIntervalId);
   }
 
   private getBattleScene(): BattleScene | null {
@@ -367,5 +460,14 @@ export class DebugOverlayComponent implements OnInit, OnDestroy {
 
   onAiWeaponChange(id: string): void {
     this.getBattleScene()?.setAiWeapon(id);
+  }
+
+  // v0.6.0 effects handlers
+  onApplyEffect(target: 'player' | 'ai', type: string): void {
+    this.getBattleScene()?.applyDebugEffect(target, type);
+  }
+
+  onPlayerLuckChange(value: number): void {
+    this.getBattleScene()?.setPlayerLuck(value);
   }
 }
