@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <filter id="glow-academy" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Bow arc (top) -->
+  <path d="M10 48 Q10 10 32 10 Q54 10 54 48" stroke="#3A9AD9" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Bow string (vertical) -->
+  <line x1="32" y1="10" x2="32" y2="52" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 2"/>
+
+  <!-- Arrow shaft -->
+  <line x1="18" y1="32" x2="50" y2="32" stroke="#4CAF50" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Arrow head -->
+  <polygon points="50,32 44,28 44,36" fill="#3A9AD9" stroke="#4CAF50" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Arrow fletching -->
+  <path d="M18 32 L14 28 L14 36 Z" fill="#3A9AD9" stroke="#4CAF50" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Arrow nock mark -->
+  <line x1="18" y1="28" x2="18" y2="36" stroke="#4CAF50" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Target/bullseye hint (right) -->
+  <circle cx="56" cy="32" r="2" fill="#3A9AD9" filter="url(#glow-academy)" opacity="0.7"/>
+
+  <!-- Stars / skill sparks -->
+  <!-- Top star -->
+  <path d="M32 14 L33.5 18 L37 18 L34 20 L35.5 24 L32 22 L28.5 24 L30 20 L27 18 L30.5 18 Z" fill="#F4A226" stroke="#4CAF50" stroke-width="1" stroke-linejoin="round" transform="scale(0.6) translate(21 6)"/>
+
+  <!-- Left side energy sparks -->
+  <line x1="10" y1="48" x2="8" y2="44" stroke="#3A9AD9" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <line x1="10" y1="48" x2="6" y2="48" stroke="#3A9AD9" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Right side energy sparks -->
+  <line x1="54" y1="48" x2="56" y2="44" stroke="#3A9AD9" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <line x1="54" y1="48" x2="58" y2="48" stroke="#3A9AD9" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Runic energy stars along bow -->
+  <circle cx="21" cy="21" r="2" fill="#4CAF50" stroke="#3A9AD9" stroke-width="1" filter="url(#glow-academy)" opacity="0.8"/>
+  <circle cx="43" cy="21" r="2" fill="#4CAF50" stroke="#3A9AD9" stroke-width="1" filter="url(#glow-academy)" opacity="0.8"/>
+
+  <!-- 4-pointed star (skill emblem center-top) -->
+  <path d="M32 6 L33 10 L37 10 L34 12 L35 16 L32 14 L29 16 L30 12 L27 10 L31 10 Z" fill="#F4A226" stroke="#4CAF50" stroke-width="1.2" stroke-linejoin="round" transform="scale(0.7) translate(13.7 -2)"/>
+</svg>

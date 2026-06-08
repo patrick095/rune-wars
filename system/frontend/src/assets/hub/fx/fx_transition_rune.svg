@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <style>
+    @keyframes fadeOut { 0% { opacity:0; } 50% { opacity:1; } 100% { opacity:0; } }
+    .rune-fade { animation: fadeOut 0.6s ease-in-out; }
+  </style>
+  <rect class="rune-fade" width="400" height="300" fill="#3A9AD9" opacity="0.3" rx="8"/>
+  <g class="rune-fade" stroke="#3A9AD9" stroke-width="2" fill="none" opacity="0.8">
+    <circle cx="200" cy="150" r="80"/>
+    <circle cx="200" cy="150" r="55"/>
+    <path d="M200 70 L200 230 M120 150 L280 150"/>
+    <path d="M152 102 L248 198 M248 102 L152 198"/>
+  </g>
+</svg>

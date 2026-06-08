@@ -1,0 +1,312 @@
+.hub-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #070414;
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#hub-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+button {
+  cursor: pointer;
+  font: inherit;
+}
+
+.player-panel {
+  position: fixed;
+  z-index: 120;
+  top: 10px;
+  left: 14px;
+  display: grid;
+  grid-template-columns: 82px 210px;
+  gap: 0 10px;
+}
+
+.avatar {
+  grid-row: 1 / 3;
+  width: 82px;
+  height: 82px;
+  border: 4px solid #8f713a;
+  border-radius: 50%;
+  display: grid;
+  place-items: end center;
+  background: radial-gradient(circle at 55% 35%, #f0c08c 0 20%, #4a2b18 21% 42%, #101018 43%);
+  box-shadow: inset 0 0 0 3px #21180f, 0 0 16px rgba(244, 162, 38, 0.35);
+}
+
+.avatar span,
+.bar span,
+.name-row,
+.power,
+.side-actions button,
+.dock-item {
+  font-weight: 900;
+  text-shadow: 0 2px #000;
+}
+
+.avatar span {
+  margin-bottom: 8px;
+  color: #f7d56b;
+}
+
+.name-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 18px;
+}
+
+.name-row span,
+.power {
+  color: #ffac28;
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 5px;
+  align-items: center;
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.bar b {
+  color: #62dfff;
+}
+
+.bar i {
+  position: relative;
+  height: 18px;
+  overflow: hidden;
+  border: 2px solid #473522;
+  border-radius: 4px;
+  background: #191919;
+  font-style: normal;
+}
+
+.bar em,
+.bar span {
+  position: absolute;
+  inset: 0;
+}
+
+.hp em {
+  background: linear-gradient(#9eff5c, #1c9c2d);
+}
+
+.exp em {
+  background: linear-gradient(#ffc43f, #d46b12);
+}
+
+.bar span {
+  display: grid;
+  place-items: center;
+}
+
+.power {
+  grid-column: 2;
+  margin-top: 8px;
+  font-size: 18px;
+}
+
+.resource-bar {
+  position: fixed;
+  z-index: 120;
+  top: 12px;
+  left: 50%;
+  display: flex;
+  gap: 12px;
+  transform: translateX(-50%);
+}
+
+.resource-bar button,
+.side-actions button,
+.hub-dock,
+.chat-button {
+  border: 2px solid #806337;
+  background: linear-gradient(#292929, #090909);
+}
+
+.resource-bar button {
+  min-width: 178px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border-radius: 18px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.resource-bar i {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #a97c2e;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffd04b;
+  font-style: normal;
+  font-size: 22px;
+}
+
+.coin,
+.gem {
+  width: 30px;
+  height: 30px;
+}
+
+.coin {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe878, #f4a226 58%, #9a5b08 59%);
+}
+
+.gem {
+  clip-path: polygon(50% 0, 88% 24%, 74% 82%, 50% 100%, 26% 82%, 12% 24%);
+}
+
+.blue {
+  background: linear-gradient(135deg, #bff7ff, #18aeea 55%, #07528f);
+}
+
+.purple {
+  background: linear-gradient(135deg, #ebb8ff, #8a38de 58%, #41136f);
+}
+
+.top-actions {
+  position: fixed;
+  z-index: 120;
+  top: 11px;
+  right: 18px;
+  display: flex;
+  gap: 12px;
+}
+
+.top-actions button {
+  width: 52px;
+  height: 52px;
+  border: 3px solid #8f713a;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3c3c3c, #111);
+  color: #f8edcf;
+  font-size: 25px;
+}
+
+.side-actions {
+  position: fixed;
+  z-index: 120;
+  left: 16px;
+  bottom: 108px;
+  display: grid;
+  gap: 12px;
+}
+
+.side-actions button {
+  position: relative;
+  min-width: 150px;
+  height: 56px;
+  padding: 0 16px;
+  border-radius: 8px;
+  color: #fff3c8;
+  font-size: 20px;
+}
+
+.side-actions i {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e83939;
+}
+
+.hub-dock {
+  position: fixed;
+  z-index: 120;
+  bottom: 10px;
+  left: 50%;
+  height: 82px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  transform: translateX(-50%);
+}
+
+.dock-item {
+  width: 86px;
+  height: 68px;
+  border: 1px solid rgba(158, 122, 63, 0.75);
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 18%, #303030, #101010 72%);
+  color: #fff0bf;
+}
+
+.dock-item:hover {
+  transform: translateY(-3px);
+  border-color: #f0c66a;
+}
+
+.dock-icon {
+  display: block;
+  font-size: 31px;
+}
+
+.dock-item small {
+  font-size: 12px;
+}
+
+.chat-button {
+  position: fixed;
+  z-index: 120;
+  right: 18px;
+  bottom: 18px;
+  width: 64px;
+  height: 52px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 28px;
+}
+
+@media (max-width: 900px) {
+  .resource-bar,
+  .side-actions {
+    display: none;
+  }
+
+  .top-actions {
+    right: 8px;
+    gap: 6px;
+  }
+
+  .top-actions button {
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+  }
+
+  .player-panel {
+    transform: scale(0.78);
+    transform-origin: top left;
+  }
+
+  .hub-dock {
+    width: calc(100vw - 18px);
+    overflow-x: auto;
+  }
+
+  .dock-item {
+    min-width: 76px;
+  }
+}

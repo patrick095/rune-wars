@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" width="160" height="200">
+  <style>
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.85; }
+    }
+    .glow { animation: glowPulse 1.2s ease-in-out infinite; }
+  </style>
+  <ellipse class="glow" cx="80" cy="100" rx="75" ry="95" fill="none" stroke="#3A9AD9" stroke-width="3" opacity="0.6"/>
+  <ellipse class="glow" cx="80" cy="100" rx="60" ry="80" fill="#3A9AD9" opacity="0.08"/>
+  <ellipse class="glow" cx="80" cy="190" rx="55" ry="10" fill="#3A9AD9" opacity="0.3"/>
+</svg>

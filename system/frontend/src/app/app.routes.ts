@@ -18,6 +18,11 @@ export const routes: Routes = [
       .then(m => m.PlaygroundComponent)
   },
   {
+    path: 'hub',
+    canActivate: [authGuard],
+    loadComponent: () => import('./hub/hub.component').then(m => m.HubComponent)
+  },
+  {
     path: 'character',
     canActivate: [authGuard],
     loadComponent: () => import('./character/character.component')

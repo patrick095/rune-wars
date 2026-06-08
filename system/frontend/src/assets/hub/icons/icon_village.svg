@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+
+  <!-- Back house (smaller, left) -->
+  <!-- Roof -->
+  <polygon points="10,32 20,20 30,32" fill="#F4A226" stroke="#F4A226" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Body -->
+  <rect x="12" y="32" width="16" height="14" rx="1" fill="#4CAF50" stroke="#F4A226" stroke-width="2"/>
+  <!-- Window -->
+  <rect x="16" y="35" width="5" height="5" rx="1" fill="#F4A226" opacity="0.8"/>
+  <!-- Door -->
+  <rect x="22" y="39" width="4" height="7" rx="1" fill="#2D6A4F"/>
+  <!-- Chimney -->
+  <rect x="25" y="22" width="3" height="8" rx="1" fill="#CD7F32" stroke="#F4A226" stroke-width="1.5"/>
+
+  <!-- Front house (larger, right-center) -->
+  <!-- Roof -->
+  <polygon points="26,30 40,14 54,30" fill="#F4A226" stroke="#F4A226" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Roof peak decoration -->
+  <circle cx="40" cy="14" r="2" fill="#4CAF50" stroke="#F4A226" stroke-width="1.5"/>
+  <!-- Body -->
+  <rect x="28" y="30" width="24" height="18" rx="1.5" fill="#4CAF50" stroke="#F4A226" stroke-width="2.5"/>
+  <!-- Left window -->
+  <rect x="31" y="33" width="6" height="6" rx="1" fill="#F4A226" opacity="0.9"/>
+  <line x1="34" y1="33" x2="34" y2="39" stroke="#CD7F32" stroke-width="1"/>
+  <line x1="31" y1="36" x2="37" y2="36" stroke="#CD7F32" stroke-width="1"/>
+  <!-- Right window -->
+  <rect x="43" y="33" width="6" height="6" rx="1" fill="#F4A226" opacity="0.9"/>
+  <line x1="46" y1="33" x2="46" y2="39" stroke="#CD7F32" stroke-width="1"/>
+  <line x1="43" y1="36" x2="49" y2="36" stroke="#CD7F32" stroke-width="1"/>
+  <!-- Front door -->
+  <rect x="37" y="39" width="6" height="9" rx="2" fill="#2D6A4F" stroke="#F4A226" stroke-width="1.5"/>
+  <!-- Door knob -->
+  <circle cx="42" cy="44" r="1" fill="#F4A226"/>
+  <!-- Chimney front house -->
+  <rect x="45" y="16" width="4" height="12" rx="1" fill="#CD7F32" stroke="#F4A226" stroke-width="1.5"/>
+  <!-- Smoke wisps -->
+  <path d="M47 16 Q45 12 47 10 Q49 8 47 6" stroke="#F4A226" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Ground -->
+  <line x1="8" y1="48" x2="56" y2="48" stroke="#4CAF50" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Grass tufts -->
+  <path d="M14 48 Q15 45 16 48" stroke="#4CAF50" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M50 48 Q51 45 52 48" stroke="#4CAF50" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

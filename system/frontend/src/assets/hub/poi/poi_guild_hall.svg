@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" width="160" height="200">
+  <!-- Shadow -->
+  <ellipse cx="80" cy="195" rx="58" ry="8" fill="#000" opacity="0.2"/>
+  <!-- Tree-hall base trunk -->
+  <rect x="60" y="140" width="40" height="55" rx="10" fill="#3D5C2A"/>
+  <rect x="65" y="145" width="10" height="45" rx="3" fill="#4a7a32" opacity="0.5"/>
+  <!-- Main canopy hall -->
+  <ellipse cx="80" cy="130" rx="65" ry="45" fill="#1a4a18"/>
+  <ellipse cx="80" cy="120" rx="55" ry="38" fill="#2D6A4F"/>
+  <ellipse cx="80" cy="108" rx="42" ry="32" fill="#3D7A40"/>
+  <ellipse cx="80" cy="95" rx="30" ry="25" fill="#4CAF50"/>
+  <!-- Hall entrance -->
+  <path d="M65 165 Q65 155 80 152 Q95 155 95 165 Z" fill="#1a2e12"/>
+  <!-- Windows (lit) -->
+  <rect x="50" y="130" width="12" height="14" rx="2" fill="#FFE57A" opacity="0.9"/>
+  <rect x="98" y="130" width="12" height="14" rx="2" fill="#FFE57A" opacity="0.9"/>
+  <rect x="72" y="118" width="16" height="12" rx="2" fill="#FFE57A" opacity="0.8"/>
+  <!-- Banners/flags -->
+  <g>
+    <rect x="25" y="108" width="4" height="40" fill="#2D4A20"/>
+    <polygon points="29,108 29,128 44,118" fill="#F4A226"/>
+    <path d="M37 118 Q41 113 45 118" stroke="#2D6A4F" stroke-width="1.5" fill="none"/>
+
+    <rect x="131" y="108" width="4" height="40" fill="#2D4A20"/>
+    <polygon points="131,108 131,128 116,118" fill="#F4A226"/>
+  </g>
+  <!-- Shield emblem on door -->
+  <path d="M80 95 L88 100 L88 112 Q80 118 72 112 L72 100 Z" fill="#2D6A4F" stroke="#F4A226" stroke-width="1.5"/>
+  <path d="M76 104 L80 100 L84 104 L84 110 Q80 113 76 110 Z" fill="#F4A226" opacity="0.8"/>
+  <!-- Glow -->
+  <ellipse cx="80" cy="120" rx="65" ry="50" fill="#2D6A4F" opacity="0.08"/>
+</svg>

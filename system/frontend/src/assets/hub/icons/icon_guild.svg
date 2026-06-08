@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+
+  <!-- Shield outer shape -->
+  <path d="M32 8 L52 16 L52 36 Q52 52 32 58 Q12 52 12 36 L12 16 Z" fill="#2D6A4F" stroke="#F4A226" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Shield inner border -->
+  <path d="M32 12 L48 19 L48 36 Q48 49 32 54 Q16 49 16 36 L16 19 Z" fill="none" stroke="#F4A226" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+
+  <!-- Shield dividing cross lines -->
+  <line x1="32" y1="14" x2="32" y2="52" stroke="#F4A226" stroke-width="1.5" opacity="0.4"/>
+  <line x1="16" y1="30" x2="48" y2="30" stroke="#F4A226" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Center emblem - tree/leaf motif -->
+  <!-- Central trunk -->
+  <line x1="32" y1="42" x2="32" y2="26" stroke="#F4A226" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Left branch -->
+  <path d="M32 32 Q24 28 20 22" stroke="#F4A226" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Right branch -->
+  <path d="M32 32 Q40 28 44 22" stroke="#F4A226" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Upper left branch -->
+  <path d="M32 26 Q26 22 24 18" stroke="#F4A226" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Upper right branch -->
+  <path d="M32 26 Q38 22 40 18" stroke="#F4A226" stroke-width="2" stroke-linecap="round" fill="none"/>
+
+  <!-- Leaves left -->
+  <ellipse cx="20" cy="21" rx="4" ry="3" fill="#4CAF50" stroke="#F4A226" stroke-width="1.5" transform="rotate(-30 20 21)"/>
+  <!-- Leaves right -->
+  <ellipse cx="44" cy="21" rx="4" ry="3" fill="#4CAF50" stroke="#F4A226" stroke-width="1.5" transform="rotate(30 44 21)"/>
+  <!-- Top leaf cluster -->
+  <ellipse cx="32" cy="20" rx="5" ry="4" fill="#4CAF50" stroke="#F4A226" stroke-width="1.5"/>
+
+  <!-- Roots / base -->
+  <path d="M28 42 Q26 46 24 48" stroke="#F4A226" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M36 42 Q38 46 40 48" stroke="#F4A226" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+</svg>

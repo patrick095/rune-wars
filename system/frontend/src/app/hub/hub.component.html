@@ -1,0 +1,57 @@
+<div class="hub-container">
+  <!-- Phaser canvas container -->
+  <div id="hub-canvas" aria-label="Floresta Rúnica — hub de navegação" role="main"></div>
+
+  <section class="player-panel" aria-label="Resumo do personagem">
+    <div class="avatar">
+      <span>R</span>
+    </div>
+    <div class="player-meta">
+      <div class="name-row">
+        <strong>Ragnar</strong>
+        <span>Nv. 50</span>
+      </div>
+      <div class="bar hp"><b>HP</b><i><em style="width: 100%"></em><span>3410/3410</span></i></div>
+      <div class="bar exp"><b>EXP</b><i><em style="width: 65%"></em><span>65%</span></i></div>
+    </div>
+    <div class="power">⚔ Poder: 152.340</div>
+  </section>
+
+  <section class="resource-bar" aria-label="Recursos">
+    <button type="button"><span class="coin"></span>1.250.000<i>+</i></button>
+    <button type="button"><span class="gem blue"></span>8.450<i>+</i></button>
+    <button type="button"><span class="gem purple"></span>3.280<i>+</i></button>
+  </section>
+
+  <nav class="top-actions" aria-label="Ações rápidas">
+    <button type="button" aria-label="Mensagens">✉</button>
+    <button type="button" aria-label="Amigos">👥</button>
+    <button type="button" aria-label="Calendário">▦</button>
+    <button type="button" aria-label="Configurações">⚙</button>
+  </nav>
+
+  <nav class="side-actions" aria-label="Missões e eventos">
+    <button type="button"><span>📜</span>Missões<i></i></button>
+    <button type="button"><span>🎁</span>Eventos<i></i></button>
+  </nav>
+
+  <!-- POI label overlay (Angular) — aparece ao hover/foco -->
+  @if (activePoi) {
+    <div class="poi-label visible" role="tooltip" [attr.aria-live]="'polite'">
+      <span class="poi-name">{{ activePoi.label }}</span>
+      <span class="poi-sub">{{ activePoi.subtitle }}</span>
+    </div>
+  }
+
+  <nav class="hub-dock" aria-label="Atalhos rápidos">
+    <button class="dock-item" type="button" (click)="navigateTo('/character')"><span class="dock-icon">🛡</span><small>Personagem</small></button>
+    <button class="dock-item" type="button" (click)="navigateTo('/character')"><span class="dock-icon">🎒</span><small>Inventário</small></button>
+    <button class="dock-item" type="button" (click)="navigateTo('/character')"><span class="dock-icon">📘</span><small>Skill</small></button>
+    <button class="dock-item" type="button" (click)="navigateTo('/character')"><span class="dock-icon">🔷</span><small>Runas</small></button>
+    <button class="dock-item" type="button" (click)="navigateTo('/guild')"><span class="dock-icon">👥</span><small>Amigos</small></button>
+    <button class="dock-item" type="button" (click)="navigateTo('/rankings')"><span class="dock-icon">🏆</span><small>Ranking</small></button>
+    <button class="dock-item" type="button" (click)="navigateTo('/rankings')"><span class="dock-icon">🏅</span><small>Conquistas</small></button>
+  </nav>
+
+  <button class="chat-button" type="button" aria-label="Chat">💬</button>
+</div>

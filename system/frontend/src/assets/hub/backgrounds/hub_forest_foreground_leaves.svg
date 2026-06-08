@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2200 300" width="2200" height="300">
+  <!-- Foreground branches and leaves -->
+  <g fill="#2D5A1B" opacity="0.9">
+    <path d="M0 0 Q80 40 120 100 Q80 120 0 80 Z"/>
+    <path d="M0 0 Q60 60 80 140 Q40 150 0 100 Z"/>
+    <path d="M2200 0 Q2120 40 2080 100 Q2120 120 2200 80 Z"/>
+    <path d="M2200 0 Q2140 60 2120 140 Q2160 150 2200 100 Z"/>
+    <path d="M400 0 Q450 30 470 80 Q440 90 400 60 Z"/>
+    <path d="M1800 0 Q1850 30 1870 80 Q1840 90 1800 60 Z"/>
+  </g>
+  <!-- Bright leaves -->
+  <g fill="#4CAF50" opacity="0.75">
+    <ellipse cx="60" cy="80" rx="25" ry="15" transform="rotate(-20 60 80)"/>
+    <ellipse cx="100" cy="60" rx="20" ry="12" transform="rotate(15 100 60)"/>
+    <ellipse cx="30" cy="110" rx="22" ry="13" transform="rotate(-35 30 110)"/>
+    <ellipse cx="2140" cy="80" rx="25" ry="15" transform="rotate(20 2140 80)"/>
+    <ellipse cx="2100" cy="60" rx="20" ry="12" transform="rotate(-15 2100 60)"/>
+    <ellipse cx="430" cy="50" rx="18" ry="11" transform="rotate(10 430 50)"/>
+    <ellipse cx="1820" cy="50" rx="18" ry="11" transform="rotate(-10 1820 50)"/>
+  </g>
+  <!-- Glowing leaf accents -->
+  <g fill="#6BCB77" opacity="0.45">
+    <ellipse cx="80" cy="70" rx="12" ry="7" transform="rotate(-10 80 70)"/>
+    <ellipse cx="2120" cy="70" rx="12" ry="7" transform="rotate(10 2120 70)"/>
+  </g>
+</svg>

@@ -1,21 +1,22 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 033 — Hub Spec Validator
+Nenhum.
 
 ## Executando
 Nenhum.
 
 ## Aguardando dependência
-- 034 — SVG Icons (aguarda 033 — opcional, pode rodar em paralelo com cautela)
-- 035 — Background & POI Assets (aguarda 033 — opcional, pode rodar em paralelo)
-- 036 — Audio Spec (aguarda 033 — opcional, pode rodar em paralelo)
-- 037 — Hub Angular/Phaser Core (aguarda 033 — obrigatório)
-- 038 — Hub Art Pass (aguarda 037 + 034 + 035)
-- 039 — Hub QA (aguarda 037 + 038)
+Nenhum.
 
 ## Concluídos
-Nenhum.
+- 033 — Hub Spec Validator
+- 034 — SVG Icons & UI Assets
+- 035 — Background, POI & FX Assets
+- 036 — Audio Spec & Placeholders
+- 037 — Hub Angular/Phaser Core
+- 038 — Hub Art Pass
+- 039 — Hub QA (Veredicto: APROVADO COM RESSALVAS)
 
 ## Bloqueados
 Nenhum.

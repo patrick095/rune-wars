@@ -1,7 +1,7 @@
 # Estado da Orquestração
 
 ## Status geral
-Não iniciado
+Concluído
 
 ## Spec original
 v1.1.0.md — Tela Inicial Imersiva: Floresta Rúnica
@@ -10,21 +10,18 @@ v1.1.0.md — Tela Inicial Imersiva: Floresta Rúnica
 Substituir a tela inicial/menu pós-login por um hub jogável e imersivo chamado Floresta Rúnica. O personagem aparece no mundo, navega por locais interativos (POIs) que acessam as funcionalidades existentes do Rune Wars.
 
 ## Última ação concluída
-Plano de orquestração criado (2026-06-08).
+Agente 039 (Hub QA) — validação completa da Floresta Rúnica (2026-06-08).
 
 ## Próxima ação recomendada
-Executar Agente 033 (Hub Spec Validator) — obrigatório antes de todos os outros.
+Nenhuma. Implementação da v1.1.0 concluída e aprovada com ressalvas menores.
 
 ## Fase atual
-Fase 0 — Planejamento concluído, pronto para execução.
+Fase Final — QA concluído. Veredicto: APROVADO COM RESSALVAS.
 
 ## Agente atual
 Nenhum em execução.
 
 ## Agentes concluídos
-Nenhum.
-
-## Agentes pendentes
 - 033 — Hub Spec Validator
 - 034 — SVG Icons & UI Assets
 - 035 — Background, POI & FX Assets
@@ -33,10 +30,11 @@ Nenhum.
 - 038 — Hub Art Pass
 - 039 — Hub QA
 
+## Agentes pendentes
+Nenhum.
+
 ## Agentes bloqueados
-- 037 — aguarda 033 (obrigatório)
-- 038 — aguarda 037, 034, 035 (todos obrigatórios)
-- 039 — aguarda 037, 038 (ambos obrigatórios)
+Nenhum.
 
 ## Dependências liberadas
 Nenhuma.

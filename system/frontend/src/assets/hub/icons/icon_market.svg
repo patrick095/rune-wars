@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+
+  <!-- Tent/awning top - main canopy -->
+  <path d="M8 28 L32 12 L56 28 Z" fill="#F4A226" stroke="#CD7F32" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Scalloped awning edge -->
+  <path d="M8 28 Q12 32 16 28 Q20 32 24 28 Q28 32 32 28 Q36 32 40 28 Q44 32 48 28 Q52 32 56 28" stroke="#CD7F32" stroke-width="2" stroke-linecap="round" fill="none"/>
+
+  <!-- Tent pole center -->
+  <line x1="32" y1="12" x2="32" y2="50" stroke="#CD7F32" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Stall body/counter -->
+  <rect x="14" y="30" width="36" height="16" rx="2" fill="#CD7F32" stroke="#F4A226" stroke-width="2"/>
+  <!-- Counter top surface -->
+  <rect x="12" y="28" width="40" height="5" rx="2" fill="#F4A226" stroke="#CD7F32" stroke-width="1.5"/>
+
+  <!-- Coins on counter -->
+  <circle cx="22" cy="31" r="3" fill="#F4A226" stroke="#CD7F32" stroke-width="1.5"/>
+  <circle cx="22" cy="31" r="1.5" fill="#CD7F32"/>
+  <circle cx="30" cy="31" r="3" fill="#F4A226" stroke="#CD7F32" stroke-width="1.5"/>
+  <circle cx="30" cy="31" r="1.5" fill="#CD7F32"/>
+  <circle cx="38" cy="31" r="3" fill="#F4A226" stroke="#CD7F32" stroke-width="1.5"/>
+  <circle cx="38" cy="31" r="1.5" fill="#CD7F32"/>
+
+  <!-- Item on stall - potion/sack -->
+  <path d="M43 38 Q43 34 47 34 Q51 34 51 38 Q51 43 47 43 Q43 43 43 38 Z" fill="#F4A226" stroke="#CD7F32" stroke-width="1.5"/>
+  <line x1="47" y1="34" x2="47" y2="31" stroke="#CD7F32" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Balance scale hint (left side) -->
+  <line x1="17" y1="36" x2="27" y2="36" stroke="#F4A226" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="22" y1="34" x2="22" y2="38" stroke="#F4A226" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="18" cy="38" r="2" fill="#F4A226" stroke="#CD7F32" stroke-width="1"/>
+  <circle cx="26" cy="38" r="2" fill="#CD7F32" stroke="#F4A226" stroke-width="1"/>
+
+  <!-- Ground -->
+  <line x1="10" y1="50" x2="54" y2="50" stroke="#CD7F32" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Tent flag/banner -->
+  <polygon points="32,12 36,8 32,9" fill="#CD7F32" stroke="#F4A226" stroke-width="1"/>
+</svg>

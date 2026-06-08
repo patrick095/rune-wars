@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" width="160" height="200">
+  <!-- Shadow -->
+  <ellipse cx="80" cy="195" rx="55" ry="8" fill="#000" opacity="0.2"/>
+  <!-- Arena base -->
+  <ellipse cx="80" cy="170" rx="60" ry="20" fill="#8B2020"/>
+  <ellipse cx="80" cy="165" rx="55" ry="18" fill="#A52525"/>
+  <!-- Arena walls -->
+  <path d="M20 165 Q20 120 80 110 Q140 120 140 165" fill="#C0392B"/>
+  <path d="M30 165 Q30 125 80 118 Q130 125 130 165" fill="#E63946"/>
+  <!-- Arches -->
+  <g fill="#8B2020" stroke="#F4A226" stroke-width="1.5">
+    <path d="M35 155 Q35 135 48 130 Q61 125 61 145 L61 155 Z"/>
+    <path d="M99 145 Q99 125 112 130 Q125 135 125 155 L125 155 L99 155 Z"/>
+  </g>
+  <!-- Center arena floor -->
+  <ellipse cx="80" cy="158" rx="35" ry="12" fill="#7A1A1A"/>
+  <!-- Crossed swords -->
+  <g stroke="#F4A226" stroke-width="3" stroke-linecap="round">
+    <line x1="60" y1="148" x2="100" y2="170"/>
+    <line x1="100" y1="148" x2="60" y2="170"/>
+    <!-- Sword handles -->
+    <line x1="56" y1="145" x2="64" y2="151" stroke-width="4"/>
+    <line x1="96" y1="145" x2="104" y2="151" stroke-width="4"/>
+  </g>
+  <!-- Banners -->
+  <g>
+    <rect x="25" y="100" width="6" height="50" fill="#5a1010"/>
+    <polygon points="31,100 31,120 45,112" fill="#E63946"/>
+    <rect x="129" y="100" width="6" height="50" fill="#5a1010"/>
+    <polygon points="129,100 129,120 115,112" fill="#E63946"/>
+  </g>
+  <!-- Rune glow accents -->
+  <g stroke="#E63946" fill="none" opacity="0.6">
+    <path d="M65 130 L70 122 L75 130 M67 127 L73 127"/>
+    <path d="M85 130 L90 122 L95 130 M87 127 L93 127"/>
+  </g>
+  <!-- Top glow -->
+  <ellipse cx="80" cy="120" rx="50" ry="20" fill="#E63946" opacity="0.1"/>
+</svg>

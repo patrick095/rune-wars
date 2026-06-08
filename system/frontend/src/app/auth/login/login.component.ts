@@ -83,7 +83,7 @@ export class LoginComponent {
     this.loading.set(true);
     this.error.set('');
     this.auth.login(this.email, this.password).subscribe({
-      next: () => this.router.navigate(['/playground']),
+      next: () => this.router.navigate(['/hub']),
       error: (e) => {
         this.error.set(e.error?.message ?? 'Erro ao entrar');
         this.loading.set(false);
