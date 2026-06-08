@@ -1,0 +1,20 @@
+<!-- Canvas Phaser fica no router-outlet (não destruído) -->
+<router-outlet></router-outlet>
+
+<!-- Overlay angular sobre o canvas -->
+<div class="game-overlay" *ngIf="activeScreen" (click)="$event.stopPropagation()">
+  <div class="overlay-backdrop" (click)="closeOverlay()"></div>
+  <div class="overlay-content">
+    <button class="overlay-close" (click)="closeOverlay()" aria-label="Fechar">✕</button>
+
+    <!-- Renderizar componente baseado na screen ativa -->
+    <ng-container [ngSwitch]="activeScreen">
+      <ng-container *ngSwitchCase="'character'">
+        <app-character></app-character>
+      </ng-container>
+      <ng-container *ngSwitchDefault>
+        <p>Tela: {{ activeScreen }}</p>
+      </ng-container>
+    </ng-container>
+  </div>
+</div>

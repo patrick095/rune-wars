@@ -40,9 +40,14 @@ export class DungeonScene extends Phaser.Scene {
   private enemySprites = new Map<string, Phaser.GameObjects.Container>();
   private infoText!: Phaser.GameObjects.Text;
   private angleText!: Phaser.GameObjects.Text;
-  private powerText!: Phaser.GameObjects.Text;
+  private powerBarFill!: Phaser.GameObjects.Rectangle;
+  private powerBarLabel!: Phaser.GameObjects.Text;
+  private btnFire!: Phaser.GameObjects.Rectangle;
+  private btnFireText!: Phaser.GameObjects.Text;
   private angle = 45;
-  private power = 62;
+  private power = 0;
+  private isChargingPower = false;
+  private powerInterval: ReturnType<typeof setInterval> | null = null;
   private busy = false;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
@@ -120,14 +125,40 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private createControls(): void {
-    const y = this.scale.height - 42;
-    this.button(56, y, 'Ang -', () => this.adjustAngle(-5));
-    this.angleText = this.add.text(126, y, `${this.angle}°`, { fontSize: '14px', color: '#f7d774', fontFamily: 'monospace' }).setOrigin(0.5).setDepth(21);
-    this.button(196, y, 'Ang +', () => this.adjustAngle(5));
-    this.button(302, y, 'For -', () => this.adjustPower(-5));
-    this.powerText = this.add.text(384, y, `${this.power}`, { fontSize: '14px', color: '#f7d774', fontFamily: 'monospace' }).setOrigin(0.5).setDepth(21);
-    this.button(468, y, 'For +', () => this.adjustPower(5));
-    this.button(this.scale.width - 76, y, 'Atirar', () => this.playerTurn(), 112, 38, 0x8a4f1d);
+    const { width, height } = this.scale;
+    const btnY = height - 50;
+    const btnH = 44;
+    const btnW = 70;
+
+    // Angle - button
+    this.button(40, btnY, 'Ang -', () => this.adjustAngle(-5), btnW, btnH);
+    this.angleText = this.add.text(120, btnY, `${this.angle}°`, {
+      fontSize: '16px', color: '#f7d774', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(21);
+    this.button(200, btnY, 'Ang +', () => this.adjustAngle(5), btnW, btnH);
+
+    // Power bar (hold-to-charge — same pattern as BattleScene)
+    const barX = width / 2;
+    const barY = btnY;
+    this.add.rectangle(barX, barY, 200, 24, 0x222222).setDepth(20);
+    this.powerBarFill = this.add.rectangle(barX - 100, barY, 0, 20, 0xff8800)
+      .setOrigin(0, 0.5).setDepth(21);
+    this.powerBarLabel = this.add.text(barX, barY - 16, 'Força: 0', {
+      fontSize: '12px', color: '#ffaa44', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(21);
+
+    // Fire button (hold = charge, release = fire)
+    const btnFireX = width - 70;
+    this.btnFire = this.add.rectangle(btnFireX, btnY, 100, btnH, 0x884400).setInteractive().setDepth(20);
+    this.btnFireText = this.add.text(btnFireX, btnY, 'ATIRAR', {
+      fontSize: '15px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(21);
+
+    this.btnFire.on('pointerover', () => this.btnFire.setFillStyle(0xaa6600));
+    this.btnFire.on('pointerout', () => this.btnFire.setFillStyle(0x884400));
+    this.btnFire.on('pointerdown', () => this.startChargingPower(this.btnFire, this.btnFireText));
+    this.btnFire.on('pointerup', () => this.releaseFire(this.btnFire, this.btnFireText));
+    this.btnFire.on('pointerupoutside', () => this.releaseFire(this.btnFire, this.btnFireText));
   }
 
   private createKeyboardControls(): void {
@@ -143,8 +174,9 @@ export class DungeonScene extends Phaser.Scene {
     ]);
 
     this.spaceKey.on('down', () => {
-      if (!this.busy) this.playerTurn();
+      if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
     });
+    this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
   }
 
   private handleKeyboardInput(delta: number): void {
@@ -183,13 +215,49 @@ export class DungeonScene extends Phaser.Scene {
     return Math.max(minX, Math.min(mapX, maxMapX, maxVisibleX));
   }
 
-  private adjustPower(delta: number): void {
-    if (this.busy) return;
-    this.power = Math.max(15, Math.min(100, this.power + delta));
-    this.powerText.setText(`${this.power}`);
+  private startChargingPower(
+    btn: Phaser.GameObjects.Rectangle,
+    btnText: Phaser.GameObjects.Text
+  ): void {
+    if (this.busy || this.isChargingPower) return;
+    this.isChargingPower = true;
+    this.power = 0;
+    btn.setFillStyle(0xcc8800);
+    btnText.setText('...');
+
+    this.powerInterval = setInterval(() => {
+      this.power = Math.min(100, this.power + 2);
+      this.powerBarFill.setDisplaySize(this.power * 2, 20);
+      this.powerBarLabel.setText(`Força: ${this.power}`);
+    }, 30);
   }
 
-  private playerTurn(): void {
+  private releaseFire(
+    btn: Phaser.GameObjects.Rectangle,
+    btnText: Phaser.GameObjects.Text
+  ): void {
+    if (!this.isChargingPower) return;
+    this.isChargingPower = false;
+
+    if (this.powerInterval) {
+      clearInterval(this.powerInterval);
+      this.powerInterval = null;
+    }
+
+    btn.setFillStyle(0x884400);
+    btnText.setText('ATIRAR');
+
+    if (this.power < 5) return; // too low, ignore
+
+    const shotPower = this.power;
+    this.power = 0;
+    this.powerBarFill.setDisplaySize(0, 20);
+    this.powerBarLabel.setText('Força: 0');
+
+    this.playerTurn(shotPower);
+  }
+
+  private playerTurn(power: number): void {
     if (this.busy) return;
     const target = this.state.enemies.find(enemy => enemy.alive);
     if (!target) return;
@@ -204,7 +272,7 @@ export class DungeonScene extends Phaser.Scene {
       ease: 'Quad.easeOut',
       onComplete: () => {
         projectile.destroy();
-        const hitChance = Math.max(0.35, Math.min(0.95, 1 - Math.abs(this.angle - 45) / 160 + this.power / 350));
+        const hitChance = Math.max(0.35, Math.min(0.95, 1 - Math.abs(this.angle - 45) / 160 + power / 350));
         if (Math.random() <= hitChance) {
           this.engine.damageEnemy(target.id, this.phase.id === 'floor1-boss' ? 48 : 34);
         }

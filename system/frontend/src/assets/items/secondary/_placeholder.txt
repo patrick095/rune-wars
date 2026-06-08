@@ -1,0 +1,1 @@
+Assets a serem gerados conforme ASSET_SPEC.md

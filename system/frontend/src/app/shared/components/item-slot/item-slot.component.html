@@ -1,0 +1,19 @@
+<div
+  class="item-slot"
+  [class.has-item]="item"
+  [class.equipment-slot]="isEquipmentSlot"
+  [class.disabled]="disabled"
+  [attr.aria-label]="item?.name || equipmentType || 'Slot vazio'"
+  draggable="true"
+  (dragstart)="onDragStart($event)"
+  (dragover)="onDragOver($event)"
+  (drop)="onDrop($event)"
+  (click)="onClick()"
+  (mouseenter)="showTooltip = true"
+  (mouseleave)="showTooltip = false"
+>
+  <img *ngIf="item?.icon" [src]="item!.icon" [alt]="item!.name" class="item-icon" />
+  <span *ngIf="!item && equipmentType" class="slot-label">{{ equipmentType }}</span>
+
+  <app-item-tooltip *ngIf="showTooltip && item" [item]="item"></app-item-tooltip>
+</div>

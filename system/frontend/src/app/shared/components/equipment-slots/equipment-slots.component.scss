@@ -1,0 +1,103 @@
+$slot-size: 48px;
+$silhouette-w: 80px;
+$silhouette-h: 200px;
+$container-w: 320px;
+$container-h: 420px;
+$center-x: calc(#{$container-w} / 2);
+$center-y: calc(#{$container-h} / 2);
+
+.equipment-container {
+  position: relative;
+  width: $container-w;
+  height: $container-h;
+  background: #0f0f1e;
+  border: 1px solid #3a3a5c;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.character-silhouette {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: $silhouette-w;
+  height: $silhouette-h;
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.equipment-slot-wrapper {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+
+  .slot-label {
+    font-size: 9px;
+    color: #8888aa;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  // ── Top row ──────────────────────────────────────────────────────────────
+  &.slot-head {
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  &.slot-earring {
+    top: 16px;
+    left: calc(50% + 72px);
+  }
+
+  &.slot-necklace {
+    top: 16px;
+    left: calc(50% - 72px - #{$slot-size});
+  }
+
+  // ── Middle row ───────────────────────────────────────────────────────────
+  &.slot-chest {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  &.slot-accessory1 {
+    top: calc(50% - #{$slot-size} / 2 - 28px);
+    left: calc(50% - 120px - #{$slot-size});
+  }
+
+  &.slot-accessory2 {
+    top: calc(50% - #{$slot-size} / 2 - 28px);
+    left: calc(50% + 120px);
+  }
+
+  &.slot-main-hand {
+    top: calc(50% - #{$slot-size} / 2 + 20px);
+    left: calc(50% - 120px - #{$slot-size});
+  }
+
+  &.slot-off-hand {
+    top: calc(50% - #{$slot-size} / 2 + 20px);
+    left: calc(50% + 120px);
+  }
+
+  // ── Bottom row ───────────────────────────────────────────────────────────
+  &.slot-legs {
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  &.slot-bracelet {
+    bottom: 16px;
+    left: calc(50% + 72px);
+  }
+}

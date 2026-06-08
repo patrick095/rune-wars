@@ -1,0 +1,56 @@
+.item-slot {
+  width: 48px;
+  height: 48px;
+  background: #1a1a2e;
+  border: 2px solid #3a3a5c;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s;
+
+  &:hover,
+  &.drag-over {
+    border-color: #c9a227;
+    box-shadow: 0 0 6px rgba(201, 162, 39, 0.5);
+  }
+
+  &.has-item {
+    border-color: #4a4a6c;
+  }
+
+  &.equipment-slot {
+    border-color: #c9a227;
+    border-style: dashed;
+    background: #0f0f1e;
+  }
+
+  &.equipment-slot.has-item {
+    border-style: solid;
+    border-color: #c9a227;
+    box-shadow: 0 0 8px rgba(201, 162, 39, 0.4);
+  }
+
+  &.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .item-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    image-rendering: pixelated;
+  }
+
+  .slot-label {
+    font-size: 9px;
+    color: #7a7a9c;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px;
+  }
+}

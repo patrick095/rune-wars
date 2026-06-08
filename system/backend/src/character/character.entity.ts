@@ -35,6 +35,9 @@ export class Character {
   @Column({ default: 0 })
   luck: number;
 
+  @Column({ default: 0 })
+  gold: number;
+
   @CreateDateColumn()
   created_at: Date;
 

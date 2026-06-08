@@ -26,8 +26,13 @@ import { ProjectileRenderer } from '../projectiles/projectile-renderer';
 import { StatusEffectManager } from '../../app/shared/game-core/status-effect-manager';
 import { RunicEffect, RunicEffectType, rollRunicEffect, getWeaponRunicEffect } from '../../app/shared/game-core/runic-effect-system';
 import { EffectsHud } from '../hud/effects-hud';
+import { PowerMeterHUD } from '../hud/power-meter-hud';
+import { GhostTrace } from '../hud/ghost-trace';
 import mapPlains from '../../app/shared/game-core/maps/map-plains.json';
 import mapCastle from '../../app/shared/game-core/maps/map-castle.json';
+import mapDeepMines from '../../app/shared/game-core/maps/map-deep-mines.json';
+import mapArcaneRuins from '../../app/shared/game-core/maps/map-arcane-ruins.json';
+import mapRunicForest from '../../app/shared/game-core/maps/map-runic-forest.json';
 
 const WEAPON_COLORS: Record<string, number> = {
   cannon:     0xFFAA00,
@@ -38,7 +43,7 @@ const WEAPON_COLORS: Record<string, number> = {
   potion:     0x00FFCC,
 };
 
-type MapName = 'plains' | 'castle';
+type MapName = 'plains' | 'castle' | 'deep_mines' | 'arcane_ruins' | 'runic_forest';
 const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
 const PLAYER_MOVE_SPEED = 180;
 const ANGLE_CHANGE_SPEED = 80;
@@ -95,9 +100,8 @@ export class BattleScene extends Phaser.Scene {
   private resultOverlay = new ResultOverlay();
 
   // Power bar
-  private _powerBarBg!: Phaser.GameObjects.Rectangle;
-  private powerBarFill!: Phaser.GameObjects.Rectangle;
-  private powerBarLabel!: Phaser.GameObjects.Text;
+  private powerMeterHUD!: PowerMeterHUD;
+  private ghostTrace!: GhostTrace;
   private btnFire!: Phaser.GameObjects.Rectangle;
   private btnFireText!: Phaser.GameObjects.Text;
   private isChargingPower = false;
@@ -112,6 +116,70 @@ export class BattleScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'BattleScene' });
+  }
+
+  preload(): void {
+    this.load.image('human_idle', 'assets/characters/human_idle.png');
+    this.load.image('human_battle', 'assets/characters/human_battle.png');
+    this.load.image('dwarf_idle', 'assets/characters/dwarf_idle.png');
+    this.load.image('dwarf_battle', 'assets/characters/dwarf_battle.png');
+    this.load.image('elf_idle', 'assets/characters/elf_idle.png');
+    this.load.image('elf_battle', 'assets/characters/elf_battle.png');
+
+    // Itens secundários
+    this.load.image('secondary_shield', 'assets/items/secondary/shield.png');
+    this.load.image('secondary_healing-book', 'assets/items/secondary/healing-book.png');
+    this.load.image('secondary_camouflage-orb', 'assets/items/secondary/camouflage-orb.png');
+    this.load.image('secondary_protection-totem', 'assets/items/secondary/protection-totem.png');
+    this.load.image('secondary_runic-builder', 'assets/items/secondary/runic-builder.png');
+
+    // Consumíveis
+    this.load.image('consumable_teleport', 'assets/items/consumables/teleport.png');
+    this.load.image('consumable_heal', 'assets/items/consumables/heal.png');
+    this.load.image('consumable_ice-throw', 'assets/items/consumables/ice-throw.png');
+    this.load.image('consumable_invisibility', 'assets/items/consumables/invisibility.png');
+    this.load.image('consumable_calibration-shot', 'assets/items/consumables/calibration-shot.png');
+
+    // Ícones de arma (inventário 48x48)
+    this.load.image('weapon_cannon',    'assets/items/weapons/cannon.png');
+    this.load.image('weapon_longbow',   'assets/items/weapons/longbow.png');
+    this.load.image('weapon_tnt',       'assets/items/weapons/tnt.png');
+    this.load.image('weapon_boomerang', 'assets/items/weapons/boomerang.png');
+    this.load.image('weapon_icebook',   'assets/items/weapons/ice-book.png');
+    this.load.image('weapon_potion',    'assets/items/weapons/potion.png');
+
+    // Sprites de batalha de armas (64x64)
+    this.load.image('weapon_cannon_sprite',    'assets/items/weapons/cannon_sprite.png');
+    this.load.image('weapon_longbow_sprite',   'assets/items/weapons/longbow_sprite.png');
+    this.load.image('weapon_tnt_sprite',       'assets/items/weapons/tnt_sprite.png');
+    this.load.image('weapon_boomerang_sprite', 'assets/items/weapons/boomerang_sprite.png');
+    this.load.image('weapon_icebook_sprite',   'assets/items/weapons/ice-book_sprite.png');
+    this.load.image('weapon_potion_sprite',    'assets/items/weapons/potion_sprite.png');
+
+    // Equipment craftáveis (48x48)
+    this.load.image('equipment_sword_iron',         'assets/items/equipment/sword_iron.png');
+    this.load.image('equipment_sword_steel',        'assets/items/equipment/sword_steel.png');
+    this.load.image('equipment_bow_wood',           'assets/items/equipment/bow_wood.png');
+    this.load.image('equipment_staff_runic',        'assets/items/equipment/staff_runic.png');
+    this.load.image('equipment_armor_leather',      'assets/items/equipment/armor_leather.png');
+    this.load.image('equipment_helmet_iron',        'assets/items/equipment/helmet_iron.png');
+    this.load.image('equipment_boots_swift',        'assets/items/equipment/boots_swift.png');
+    this.load.image('equipment_ring_luck',          'assets/items/equipment/ring_luck.png');
+    this.load.image('equipment_necklace_vitality',  'assets/items/equipment/necklace_vitality.png');
+    this.load.image('equipment_bracelet_strength',  'assets/items/equipment/bracelet_strength.png');
+
+    // Materiais de craft (32x32)
+    this.load.image('material_iron_ore',        'assets/items/materials/iron_ore.png');
+    this.load.image('material_steel_bar',       'assets/items/materials/steel_bar.png');
+    this.load.image('material_hardwood',        'assets/items/materials/hardwood.png');
+    this.load.image('material_fiber',           'assets/items/materials/fiber.png');
+    this.load.image('material_rune_crystal',    'assets/items/materials/rune_crystal.png');
+    this.load.image('material_leather',         'assets/items/materials/leather.png');
+    this.load.image('material_agility_crystal', 'assets/items/materials/agility_crystal.png');
+    this.load.image('material_gold_nugget',     'assets/items/materials/gold_nugget.png');
+    this.load.image('material_luck_gem',        'assets/items/materials/luck_gem.png');
+    this.load.image('material_life_crystal',    'assets/items/materials/life_crystal.png');
+    this.load.image('material_strength_gem',    'assets/items/materials/strength_gem.png');
   }
 
   private resetRuntimeState(): void {
@@ -199,6 +267,9 @@ export class BattleScene extends Phaser.Scene {
     this.effectsHud = new EffectsHud(this);
     this.refreshHud();
 
+    // Ghost trace for last player shot trajectory
+    this.ghostTrace = new GhostTrace(this);
+
     // Controls
     this.createControls();
     this.createKeyboardControls();
@@ -267,15 +338,10 @@ export class BattleScene extends Phaser.Scene {
     this.add.text(200, btnY, 'Ang +', { fontSize: '13px', color: '#ffffff', fontFamily: 'monospace' })
       .setOrigin(0.5).setDepth(16);
 
-    // Power bar background
+    // Power bar (Phaser-native, updates in real time during mousedown)
     const barX = width / 2;
     const barY = height - 50;
-    this._powerBarBg = this.add.rectangle(barX, barY, 200, 24, 0x222222).setDepth(15);
-    this.powerBarFill = this.add.rectangle(barX - 100, barY, 0, 20, 0xff8800)
-      .setOrigin(0, 0.5).setDepth(16);
-    this.powerBarLabel = this.add.text(barX, barY - 16, 'Força: 0', {
-      fontSize: '12px', color: '#ffaa44', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(16);
+    this.powerMeterHUD = new PowerMeterHUD(this, barX, barY);
 
     // Fire button
     const btnFireX = width - 70;
@@ -385,8 +451,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.powerInterval = setInterval(() => {
       this.powerValue = Math.min(maxForce, this.powerValue + 2);
-      this.powerBarFill.setDisplaySize(this.powerValue * 2, 20);
-      this.powerBarLabel.setText(`Força: ${this.powerValue}`);
+      this.powerMeterHUD.update(this.powerValue);
     }, 30);
   }
 
@@ -409,8 +474,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.firePlayerShot(this.currentAngle, this.powerValue);
     this.powerValue = 0;
-    this.powerBarFill.setDisplaySize(0, 20);
-    this.powerBarLabel.setText('Força: 0');
+    this.powerMeterHUD.update(0);
   }
 
   // ──────────────────────────────────────────────────────────
@@ -513,6 +577,11 @@ export class BattleScene extends Phaser.Scene {
     }
 
     const clippedPath = path.slice(0, stopIndex + 1);
+
+    // Record trajectory for GhostTrace (only player shots)
+    if (isPlayerShot) {
+      this.ghostTrace.recordShot(clippedPath);
+    }
 
     this.projRenderer.animateAlongPath(this.projectileArc, clippedPath, () => {
       this.projectileArc.setVisible(false);
@@ -749,7 +818,8 @@ export class BattleScene extends Phaser.Scene {
         this.fireAiShot();
       });
     } else {
-      // Back to player — show trajectory preview
+      // Back to player — clear ghost trace from previous shot and show trajectory preview
+      this.ghostTrace.clear();
       this.updateTrajectoryPreview();
     }
   }
@@ -929,15 +999,25 @@ export class BattleScene extends Phaser.Scene {
     this.terrainRenderer.updateCells(result.cellsDestroyed);
   }
 
+  private getGridData(mapName: MapName): number[][] {
+    switch (mapName) {
+      case 'castle': return mapCastle.grid;
+      case 'deep_mines': return mapDeepMines.grid;
+      case 'arcane_ruins': return mapArcaneRuins.grid;
+      case 'runic_forest': return mapRunicForest.grid;
+      default: return mapPlains.grid;
+    }
+  }
+
   resetTerrain(): void {
-    const gridData = this.currentMap === 'castle' ? mapCastle.grid : mapPlains.grid;
+    const gridData = this.getGridData(this.currentMap);
     this.terrainEngine.loadMap(gridData);
     this.terrainRenderer.renderFull();
   }
 
   switchMap(mapName: MapName): void {
     this.currentMap = mapName;
-    const gridData = mapName === 'castle' ? mapCastle.grid : mapPlains.grid;
+    const gridData = this.getGridData(mapName);
     this.terrainEngine.loadMap(gridData);
     this.terrainRenderer.renderFull();
 

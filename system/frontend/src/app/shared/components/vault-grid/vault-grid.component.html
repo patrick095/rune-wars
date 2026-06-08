@@ -1,0 +1,37 @@
+<div class="vault-container">
+  <div class="vault-header">
+    <span class="vault-title">Cofre da Conta</span>
+    <span class="vault-gold">&#x1F4B0; {{ vault?.gold ?? 0 }} gold</span>
+  </div>
+
+  <div *ngIf="error" class="vault-error" (click)="error = ''">{{ error }} &#x2715;</div>
+  <div *ngIf="loading" class="vault-loading">Carregando...</div>
+
+  <div class="vault-grid" *ngIf="!loading">
+    <div *ngFor="let item of vaultSlots; let i = index" class="vault-slot-wrapper">
+      <app-item-slot
+        [item]="item"
+        [slotIndex]="i"
+        [disabled]="!!item && !canWithdrawItem(i)"
+        (itemClick)="onWithdrawItem(i)">
+      </app-item-slot>
+      <span *ngIf="item" class="withdraw-cost" [class.insufficient]="!canWithdrawItem(i)">
+        {{ canWithdrawItem(i) ? '-100g' : '&#x1F512;' }}
+      </span>
+    </div>
+  </div>
+
+  <div class="vault-gold-actions">
+    <div class="gold-action">
+      <span class="action-label">Depositar:</span>
+      <input type="number" [(ngModel)]="goldDepositAmount" min="1" placeholder="Quantidade" class="gold-input">
+      <button (click)="onDepositGold()" [disabled]="goldDepositAmount <= 0" class="action-btn deposit-btn">Depositar (gr&#xe1;tis)</button>
+    </div>
+    <div class="gold-action">
+      <span class="action-label">Retirar:</span>
+      <input type="number" [(ngModel)]="goldWithdrawAmount" min="1" placeholder="Quantidade" class="gold-input">
+      <small *ngIf="goldWithdrawAmount > 0" class="fee-preview">Taxa: {{ goldFeePreview }}g (3%)</small>
+      <button (click)="onWithdrawGold()" [disabled]="!canWithdrawGold" class="action-btn withdraw-btn">Retirar</button>
+    </div>
+  </div>
+</div>

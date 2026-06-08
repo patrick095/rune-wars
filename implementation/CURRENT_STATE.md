@@ -1,10 +1,10 @@
 # Rune Wars — Estado Atual da Implementação
 
 ## Estado do projeto
-Frontend local jogável implementado até v0.8.0. O projeto já possui playground de batalha, terreno destrutível, armas, personagem customizável, efeitos rúnicos, consumíveis, Academia e Dungeon Local.
+Frontend + Backend jogável implementado até v1.2.0. O projeto possui playground de batalha, terreno destrutível, armas, personagem customizável, efeitos rúnicos, consumíveis, Academia, Dungeon Local, sistema de inventário com drag-drop, cofre compartilhado, 5 mapas de batalha e ghost trace.
 
 ## Versão atual
-v0.8.0 — Dungeon Local Simulada
+v1.2.0 — Assets Visuais, Inventário, Cofre, Mapas, Fixes de Gameplay
 
 ## Sistemas disponíveis
 - O projeto será implementado 100% com auxílio de Claude/Codex/agentes.

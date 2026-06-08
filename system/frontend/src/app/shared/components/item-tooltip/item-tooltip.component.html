@@ -1,0 +1,13 @@
+<div class="item-tooltip" *ngIf="item" role="tooltip">
+  <div class="tooltip-header">
+    <span class="item-name">{{ item.name }}</span>
+    <span class="item-type">{{ item.category }}</span>
+  </div>
+  <div class="tooltip-stats" *ngIf="statEntries.length">
+    <div *ngFor="let stat of statEntries" class="stat-row">
+      <span class="stat-key">{{ stat.key }}</span>
+      <span class="stat-value">{{ stat.value }}</span>
+    </div>
+  </div>
+  <div class="tooltip-description" *ngIf="item.description">{{ item.description }}</div>
+</div>

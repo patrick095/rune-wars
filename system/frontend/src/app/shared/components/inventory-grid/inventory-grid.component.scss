@@ -1,0 +1,11 @@
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 48px);
+  grid-template-rows: repeat(6, 48px);
+  gap: 4px;
+  padding: 8px;
+  background: #0f0f1e;
+  border: 1px solid #3a3a5c;
+  border-radius: 4px;
+  width: fit-content;
+}

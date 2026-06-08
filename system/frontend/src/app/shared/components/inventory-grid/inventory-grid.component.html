@@ -1,0 +1,10 @@
+<div class="inventory-grid">
+  <app-item-slot
+    *ngFor="let item of slots; let i = index"
+    [item]="item"
+    [slotIndex]="i"
+    [isEquipmentSlot]="false"
+    (itemDrop)="onDrop($event)"
+    (itemClick)="onItemClick($event, i)"
+  ></app-item-slot>
+</div>

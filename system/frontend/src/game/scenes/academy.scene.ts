@@ -50,10 +50,14 @@ export class AcademyScene extends Phaser.Scene {
   private angleText!: Phaser.GameObjects.Text;
   private powerBarFill!: Phaser.GameObjects.Rectangle;
   private powerBarLabel!: Phaser.GameObjects.Text;
+  private btnFire!: Phaser.GameObjects.Rectangle;
+  private btnFireText!: Phaser.GameObjects.Text;
   private isChargingPower = false;
   private powerValue = 0;
   private powerInterval: ReturnType<typeof setInterval> | null = null;
   private isAnimating = false;
+  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private spaceKey!: Phaser.Input.Keyboard.Key;
 
   // Targets
   private liveTargets: LiveTarget[] = [];
@@ -111,6 +115,7 @@ export class AcademyScene extends Phaser.Scene {
 
     // Controls
     this.createControls();
+    this.createKeyboardControls();
 
     // Tutorial on first access
     this.tutorial = new TutorialVisual(this);
@@ -123,7 +128,9 @@ export class AcademyScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
-    if (this.isAnimating) return;
+    if (!this.isAnimating) {
+      this.handleKeyboardInput(delta / 1000);
+    }
 
     const dt = delta / 1000;
 
@@ -181,8 +188,8 @@ export class AcademyScene extends Phaser.Scene {
 
     // Fire button
     const btnFireX = width - 70;
-    const btnFire = this.add.rectangle(btnFireX, btnY, 100, btnH, 0x884400).setInteractive().setDepth(15);
-    const btnFireText = this.add.text(btnFireX, btnY, 'ATIRAR', {
+    this.btnFire = this.add.rectangle(btnFireX, btnY, 100, btnH, 0x884400).setInteractive().setDepth(15);
+    this.btnFireText = this.add.text(btnFireX, btnY, 'ATIRAR', {
       fontSize: '15px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(16);
 
@@ -190,11 +197,41 @@ export class AcademyScene extends Phaser.Scene {
     btnMinus.on('pointerdown', () => this.adjustAngle(-5));
     btnPlus.on('pointerdown', () => this.adjustAngle(5));
 
-    btnFire.on('pointerover', () => btnFire.setFillStyle(0xaa6600));
-    btnFire.on('pointerout', () => btnFire.setFillStyle(0x884400));
-    btnFire.on('pointerdown', () => this.startChargingPower(btnFire, btnFireText));
-    btnFire.on('pointerup', () => this.releaseFire(btnFire, btnFireText));
-    btnFire.on('pointerupoutside', () => this.releaseFire(btnFire, btnFireText));
+    this.btnFire.on('pointerover', () => this.btnFire.setFillStyle(0xaa6600));
+    this.btnFire.on('pointerout', () => this.btnFire.setFillStyle(0x884400));
+    this.btnFire.on('pointerdown', () => this.startChargingPower(this.btnFire, this.btnFireText));
+    this.btnFire.on('pointerup', () => this.releaseFire(this.btnFire, this.btnFireText));
+    this.btnFire.on('pointerupoutside', () => this.releaseFire(this.btnFire, this.btnFireText));
+  }
+
+  private createKeyboardControls(): void {
+    if (!this.input.keyboard) return;
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.input.keyboard.addCapture([
+      Phaser.Input.Keyboard.KeyCodes.LEFT,
+      Phaser.Input.Keyboard.KeyCodes.RIGHT,
+      Phaser.Input.Keyboard.KeyCodes.UP,
+      Phaser.Input.Keyboard.KeyCodes.DOWN,
+      Phaser.Input.Keyboard.KeyCodes.SPACE,
+    ]);
+
+    this.spaceKey.on('down', () => {
+      if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
+    });
+    this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
+  }
+
+  private handleKeyboardInput(dt: number): void {
+    if (!this.cursors || this.isAnimating) return;
+
+    const ANGLE_CHANGE_SPEED = 80;
+    if (this.cursors.up?.isDown) {
+      this.adjustAngle(ANGLE_CHANGE_SPEED * dt);
+    }
+    if (this.cursors.down?.isDown) {
+      this.adjustAngle(-ANGLE_CHANGE_SPEED * dt);
+    }
   }
 
   private adjustAngle(delta: number): void {

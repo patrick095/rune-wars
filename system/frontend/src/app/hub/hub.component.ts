@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import Phaser from 'phaser';
 import { HubScene } from '../../game/scenes/hub.scene';
 import { HUB_POIS, HubPointOfInterest } from '../../game/hub/hub-poi';
+import { GameEventBusService } from '../shared/services/game-event-bus.service';
 
 @Component({
   selector: 'app-hub',
@@ -19,7 +20,11 @@ export class HubComponent implements AfterViewInit, OnDestroy {
   activePoi: HubPointOfInterest | null = null;
   dockPois = HUB_POIS;
 
-  constructor(private router: Router, private ngZone: NgZone) {}
+  constructor(
+    private router: Router,
+    private ngZone: NgZone,
+    private eventBus: GameEventBusService,
+  ) {}
 
   ngAfterViewInit(): void {
     this.isMobile = window.innerWidth <= 768;
@@ -52,7 +57,7 @@ export class HubComponent implements AfterViewInit, OnDestroy {
 
       // Listen to events emitted by HubScene
       this.game.events.on('navigateTo', (route: string) => {
-        this.ngZone.run(() => this.navigateTo(route));
+        this.ngZone.run(() => this.handleNavigateTo(route));
       });
 
       this.game.events.on('poiHover', (poi: HubPointOfInterest) => {
@@ -63,6 +68,11 @@ export class HubComponent implements AfterViewInit, OnDestroy {
         this.ngZone.run(() => { this.activePoi = null; });
       });
     });
+
+    // Subscribe to openScreen$ for observability (navigation handled by AppComponent via Agent 017)
+    this.eventBus.openScreen$.subscribe(event => {
+      console.log('[HubComponent] openScreen$:', event);
+    });
   }
 
   ngOnDestroy(): void {
@@ -72,6 +82,13 @@ export class HubComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Converts a route path to a screen name and emits via GameEventBusService */
+  private handleNavigateTo(route: string): void {
+    const screen = route.startsWith('/') ? route.slice(1) : route;
+    this.eventBus.openScreen$.next({ screen });
+  }
+
+  /** @deprecated Use GameEventBusService.openScreen$ instead. Kept for backward compatibility. */
   navigateTo(route: string): void {
     this.router.navigate([route]);
   }

@@ -1,0 +1,20 @@
+<div class="equipment-container">
+  <div class="character-silhouette"></div>
+
+  <div
+    *ngFor="let slot of slots"
+    class="equipment-slot-wrapper"
+    [ngClass]="slot.cssClass"
+    (click)="onSlotClick(slot)"
+  >
+    <app-item-slot
+      [item]="slot.item"
+      [slotIndex]="0"
+      [isEquipmentSlot]="true"
+      [equipmentType]="slot.type"
+      (itemDrop)="onDrop($event, slot)"
+      (itemClick)="onSlotClick(slot)"
+    ></app-item-slot>
+    <span class="slot-label">{{ slot.label }}</span>
+  </div>
+</div>
