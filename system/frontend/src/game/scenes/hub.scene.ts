@@ -14,6 +14,40 @@ const DEPTH = {
   foreground: 20,
 };
 
+type RoadSegment = {
+  from: Phaser.Math.Vector2;
+  to: Phaser.Math.Vector2;
+  radius: number;
+};
+
+type WalkZone = {
+  x: number;
+  y: number;
+  radiusX: number;
+  radiusY: number;
+};
+
+const HUB_ROADS: RoadSegment[] = [
+  { from: new Phaser.Math.Vector2(1100, 890), to: new Phaser.Math.Vector2(735, 650), radius: 72 },
+  { from: new Phaser.Math.Vector2(735, 650), to: new Phaser.Math.Vector2(285, 555), radius: 66 },
+  { from: new Phaser.Math.Vector2(735, 650), to: new Phaser.Math.Vector2(1105, 360), radius: 68 },
+  { from: new Phaser.Math.Vector2(1100, 890), to: new Phaser.Math.Vector2(1460, 705), radius: 76 },
+  { from: new Phaser.Math.Vector2(1460, 705), to: new Phaser.Math.Vector2(1835, 450), radius: 72 },
+  { from: new Phaser.Math.Vector2(1460, 705), to: new Phaser.Math.Vector2(1815, 885), radius: 72 },
+  { from: new Phaser.Math.Vector2(1100, 890), to: new Phaser.Math.Vector2(1815, 885), radius: 54 },
+  { from: new Phaser.Math.Vector2(1100, 890), to: new Phaser.Math.Vector2(285, 555), radius: 52 },
+];
+
+const HUB_WALK_ZONES: WalkZone[] = [
+  { x: 1100, y: 890, radiusX: 230, radiusY: 135 },
+  { x: 285, y: 555, radiusX: 185, radiusY: 115 },
+  { x: 735, y: 650, radiusX: 205, radiusY: 130 },
+  { x: 1105, y: 360, radiusX: 205, radiusY: 120 },
+  { x: 1835, y: 450, radiusX: 235, radiusY: 135 },
+  { x: 1460, y: 705, radiusX: 220, radiusY: 130 },
+  { x: 1815, y: 885, radiusX: 215, radiusY: 120 },
+];
+
 export class HubScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Rectangle;
   private playerVisual!: Phaser.GameObjects.Container;
@@ -48,6 +82,7 @@ export class HubScene extends Phaser.Scene {
       { key: 'icon_character',  path: '/assets/hub/icons/icon_character.svg' },
     ];
     iconAssets.forEach(({ key, path }) => this.load.image(key, path));
+    HUB_POIS.forEach(poi => this.load.image(poi.rasterKey, poi.rasterPath));
   }
 
   create(): void {
@@ -79,10 +114,9 @@ export class HubScene extends Phaser.Scene {
     const up = this.cursors.up.isDown || this.wasd.up.isDown;
     const down = this.cursors.down.isDown || this.wasd.down.isDown;
 
-    if (left) this.player.x = Math.max(210, this.player.x - speed);
-    if (right) this.player.x = Math.min(HUB_CAMERA_CONFIG.worldWidth - 210, this.player.x + speed);
-    if (up) this.player.y = Math.max(300, this.player.y - speed);
-    if (down) this.player.y = Math.min(HUB_CAMERA_CONFIG.worldHeight - 80, this.player.y + speed);
+    const dx = (right ? speed : 0) - (left ? speed : 0);
+    const dy = (down ? speed : 0) - (up ? speed : 0);
+    this.movePlayer(dx, dy);
 
     this.playerVisual.setPosition(this.player.x, this.player.y);
     this.playerShadow.setPosition(this.player.x, this.player.y + 36);
@@ -197,8 +231,13 @@ export class HubScene extends Phaser.Scene {
 
   private createPoi(poi: HubPointOfInterest): void {
     const visual = this.add.container(poi.x, poi.y).setDepth(DEPTH.poi);
+    let raster: Phaser.GameObjects.Image | null = null;
 
-    if (!this.usingPaintedBackdrop) {
+    if (this.usingPaintedBackdrop && this.textures.exists(poi.rasterKey)) {
+      raster = this.add.image(0, 0, poi.rasterKey)
+        .setDisplaySize(poi.spriteWidth, poi.spriteHeight);
+      visual.add(raster);
+    } else {
       const shadow = this.add.ellipse(0, poi.height * 0.35, poi.width * 0.72, 32, 0x000000, 0.28);
       visual.add(shadow);
 
@@ -223,6 +262,7 @@ export class HubScene extends Phaser.Scene {
 
     hitArea.on('pointerover', () => {
       this.tweens.add({ targets: visual, scaleX: 1.035, scaleY: 1.035, duration: 150, ease: 'Sine.Out' });
+      raster?.setTint(0xfff0b8);
       label?.setScale(1.04);
       this.createHoverRing(poi);
       this.game.events.emit('poiHover', poi);
@@ -230,6 +270,7 @@ export class HubScene extends Phaser.Scene {
 
     hitArea.on('pointerout', () => {
       this.tweens.add({ targets: visual, scaleX: 1, scaleY: 1, duration: 130, ease: 'Sine.Out' });
+      raster?.clearTint();
       label?.setScale(1);
       this.game.events.emit('poiHoverEnd');
     });
@@ -329,7 +370,7 @@ export class HubScene extends Phaser.Scene {
   }
 
   private createPoiPlaque(poi: HubPointOfInterest): Phaser.GameObjects.Container {
-    const y = poi.y - poi.height / 2 - 20;
+    const y = poi.y + poi.labelOffsetY;
     const plaque = this.add.container(poi.x, y).setDepth(DEPTH.label);
     const width = Math.max(170, poi.label.length * 15 + 64);
     const g = this.add.graphics();
@@ -364,9 +405,9 @@ export class HubScene extends Phaser.Scene {
   }
 
   private createPlayer(): void {
-    this.player = this.add.rectangle(1030, 965, 42, 62, 0x4488ff, 0).setDepth(DEPTH.player);
-    this.playerShadow = this.add.ellipse(1030, 1002, 58, 16, 0x000000, 0.35).setDepth(DEPTH.player - 1);
-    this.playerVisual = this.add.container(1030, 965).setDepth(DEPTH.player);
+    this.player = this.add.rectangle(1100, 955, 42, 62, 0x4488ff, 0).setDepth(DEPTH.player);
+    this.playerShadow = this.add.ellipse(1100, 992, 58, 16, 0x000000, 0.35).setDepth(DEPTH.player - 1);
+    this.playerVisual = this.add.container(1100, 955).setDepth(DEPTH.player);
     const g = this.add.graphics();
     g.fillStyle(0x4a2b18, 1).fillCircle(0, -30, 20);
     g.fillStyle(0xf0c08c, 1).fillCircle(0, -22, 16);
@@ -388,7 +429,7 @@ export class HubScene extends Phaser.Scene {
       strokeThickness: 3,
     }).setOrigin(0.5);
     this.playerVisual.add([name, guild, g]);
-    this.tweens.add({ targets: this.playerVisual, y: 958, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this.tweens.add({ targets: this.playerVisual, y: 948, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
 
   private setupCamera(worldWidth: number, worldHeight: number): void {
@@ -432,6 +473,45 @@ export class HubScene extends Phaser.Scene {
       duration: 420,
       onComplete: () => ring.destroy(),
     });
+  }
+
+  private movePlayer(dx: number, dy: number): void {
+    if (dx === 0 && dy === 0) return;
+
+    const currentX = this.player.x;
+    const currentY = this.player.y;
+    const nextX = Phaser.Math.Clamp(currentX + dx, 120, HUB_CAMERA_CONFIG.worldWidth - 120);
+    const nextY = Phaser.Math.Clamp(currentY + dy, 260, HUB_CAMERA_CONFIG.worldHeight - 70);
+
+    if (this.isWalkable(nextX, nextY)) {
+      this.player.setPosition(nextX, nextY);
+      return;
+    }
+
+    if (dx !== 0 && this.isWalkable(nextX, currentY)) this.player.x = nextX;
+    if (dy !== 0 && this.isWalkable(this.player.x, nextY)) this.player.y = nextY;
+  }
+
+  private isWalkable(x: number, y: number): boolean {
+    if (HUB_WALK_ZONES.some(zone => this.isInsideEllipse(x, y, zone))) return true;
+
+    return HUB_ROADS.some(road => this.distanceToSegment(x, y, road) <= road.radius);
+  }
+
+  private isInsideEllipse(x: number, y: number, zone: WalkZone): boolean {
+    const normalizedX = (x - zone.x) / zone.radiusX;
+    const normalizedY = (y - zone.y) / zone.radiusY;
+    return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+  }
+
+  private distanceToSegment(x: number, y: number, road: RoadSegment): number {
+    const dx = road.to.x - road.from.x;
+    const dy = road.to.y - road.from.y;
+    const lengthSq = dx * dx + dy * dy;
+    if (lengthSq === 0) return Phaser.Math.Distance.Between(x, y, road.from.x, road.from.y);
+
+    const t = Phaser.Math.Clamp(((x - road.from.x) * dx + (y - road.from.y) * dy) / lengthSq, 0, 1);
+    return Phaser.Math.Distance.Between(x, y, road.from.x + t * dx, road.from.y + t * dy);
   }
 
   private createForegroundFrame(worldWidth: number, worldHeight: number): void {
