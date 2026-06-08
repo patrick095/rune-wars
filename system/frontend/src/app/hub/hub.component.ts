@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, NgZone } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import Phaser from 'phaser';
@@ -12,7 +12,7 @@ import { HUB_POIS, HubPointOfInterest } from '../../game/hub/hub-poi';
   templateUrl: './hub.component.html',
   styleUrl: './hub.component.scss',
 })
-export class HubComponent implements OnInit, OnDestroy {
+export class HubComponent implements AfterViewInit, OnDestroy {
   private game: Phaser.Game | null = null;
 
   isMobile = false;
@@ -21,16 +21,19 @@ export class HubComponent implements OnInit, OnDestroy {
 
   constructor(private router: Router, private ngZone: NgZone) {}
 
-  ngOnInit(): void {
+  ngAfterViewInit(): void {
     this.isMobile = window.innerWidth <= 768;
+    const canvasHost = document.getElementById('hub-canvas');
+    const width = canvasHost?.clientWidth || window.innerWidth;
+    const height = canvasHost?.clientHeight || window.innerHeight;
 
     // Phaser must run outside Angular zone to avoid excessive change detection
     this.ngZone.runOutsideAngular(() => {
       this.game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: 'hub-canvas',
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width,
+        height,
         transparent: true,
         backgroundColor: 'transparent',
         physics: {
