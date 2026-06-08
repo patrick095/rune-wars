@@ -1,12 +1,12 @@
-# Rune Wars — Estado Atual da Implementação v1.2
+# Rune Wars — Estado Atual da Implementação
 
 ## Estado do projeto
-Projeto em fase de especificação e preparação para implementação por IA.
+Frontend local jogável implementado até v0.8.0. O projeto já possui playground de batalha, terreno destrutível, armas, personagem customizável, efeitos rúnicos, consumíveis, Academia e Dungeon Local.
 
-## Objetivo da versão v1.2
-Ajustar os specs para implementação incremental, testável e econômica em tokens, usando agentes altamente especializados e contexto isolado.
+## Versão atual
+v0.8.0 — Dungeon Local Simulada
 
-## Decisões principais adicionadas
+## Sistemas disponíveis
 - O projeto será implementado 100% com auxílio de Claude/Codex/agentes.
 - Prioridade 1: o jogo precisa funcionar como esperado.
 - Prioridade 2: economizar tokens.
@@ -16,25 +16,35 @@ Ajustar os specs para implementação incremental, testável e econômica em tok
 - Usuários, guildas, mercado e economia persistente ficam para fases finais.
 - Primeiras fases priorizam gameplay local testável.
 - Personagem deve ser altamente customizável desde cedo para testes.
-- Painel debug/sandbox deve permitir alterar level, atributos, armas, itens, mapa, vento e IA.
+- Frontend-only até v0.8.0; backend entra na v0.9.0.
+- Angular standalone + Phaser 3.
+- Lógica de jogo compartilhável em TypeScript puro em `system/frontend/src/app/shared/game-core/`.
+- Rota `/playground` com batalha local, IA, vento, armas e terreno.
+- Rota `/character` com presets e atributos locais.
+- Rota `/academy` com treino de tiro e alvos.
+- Rota `/dungeon` com Andar 1 local, 3 fases, lobby entre fases e recompensas em `localStorage`.
 
 ## Última alteração
 - Data: 2026-06-07
-- Agente: ChatGPT
-- Tarefa: Atualizar specs v1.2 para fluxo realista de implementação por IA.
+- Agentes: 015, 016, 017
+- Tarefa: Implementar v0.8.0 Dungeon Local.
 - Arquivos alterados:
-  - `implementation/AI_IMPLEMENTATION_RULES.md`
-  - `implementation/CONTEXT_ROUTING.md`
-  - `implementation/PHASED_VERTICAL_SLICE_PLAN.md`
-  - `implementation/CURRENT_STATE.md`
-  - `implementation/NEXT_STEPS.md`
-  - `implementation/IMPLEMENTATION_PLAN.md`
-  - `agents/*.md`
-  - `README.md`
+  - `system/frontend/src/app/shared/game-core/dungeon-types.ts`
+  - `system/frontend/src/app/shared/game-core/dungeon-engine.ts`
+  - `system/frontend/src/app/shared/game-core/monster-ai.ts`
+  - `system/frontend/src/app/shared/game-core/maps/dungeon-cave-*.json`
+  - `system/frontend/src/game/scenes/dungeon.scene.ts`
+  - `system/frontend/src/game/enemies/*`
+  - `system/frontend/src/app/dungeon/**`
+  - `system/frontend/src/app/shared/services/dungeon-storage.service.ts`
+  - `system/frontend/src/app/app.routes.ts`
 - Como testar:
-  - Usar este pacote como fonte de contexto no Claude/Codex.
-  - Começar pela Fase 0 do plano vertical.
+- `cd system/frontend && npm run build`
+- `cd system/frontend && npm start`
+- Abrir `/dungeon` para jogar o Andar 1 local.
+- Validar `/playground` e `/dungeon` em larguras diferentes: inimigos devem iniciar dentro do terreno/viewport.
 - Estado atual:
-  - Specs prontos para orientar implementação incremental.
+- v0.8.0 concluída e compilando.
+- Correção aplicada para spawn inicial de inimigos baseado no grid do mapa, evitando posições fora do mapa em resoluções diferentes.
 - Próximo passo:
-  - Criar projeto Angular + Phaser e implementar Fase 0.
+  - Iniciar v0.9.0 com backend mínimo, autenticação e PvP multiplayer.

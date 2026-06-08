@@ -1,0 +1,10 @@
+<section class="panel result">
+  <p class="eyebrow">{{ status === 'victory' ? 'Andar concluido' : 'Dungeon falhou' }}</p>
+  <h2>{{ status === 'victory' ? 'Golem Menor derrotado' : 'Sem tentativas restantes' }}</h2>
+  <p *ngIf="status === 'victory'">Recompensas salvas: {{ xp }} XP e {{ gold }} ouro.</p>
+  <p *ngIf="status === 'defeat'">Volte com outra configuracao de arma e itens.</p>
+  <div class="actions">
+    <button type="button" class="primary" (click)="restart.emit()">Reiniciar</button>
+    <button type="button" (click)="leave.emit()">Voltar</button>
+  </div>
+</section>

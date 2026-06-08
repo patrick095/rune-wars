@@ -1,7 +1,9 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 015-v080-dungeon-engine (sequencial)
+- 018-v090-devops (paralelo)
+- 019-v090-backend-auth-char (paralelo)
+- 021-v090-frontend-auth (paralelo)
 
 ## Executando
 (nenhum)
@@ -19,9 +21,7 @@
 - 012-v060-items-consumables (aguarda: 009+010)
 - 013-v070-terrain-construction (aguarda: 011+012)
 - 014-v070-academy (aguarda: 011+012)
-- 015-v080-dungeon-engine (aguarda: 013+014)
 - 016-v080-dungeon-ai (aguarda: 015)
-- 017-v080-dungeon-ui (aguarda: 016)
 - 018-v090-devops (aguarda: 017)
 - 019-v090-backend-auth-char (aguarda: 017)
 - 021-v090-frontend-auth (aguarda: 017)
@@ -53,6 +53,9 @@
 - 012-v060-items-consumables ✓
 - 013-v070-terrain-construction ✓
 - 014-v070-academy ✓
+- 015-v080-dungeon-engine ✓
+- 016-v080-dungeon-ai ✓
+- 017-v080-dungeon-ui ✓
 
 ## Bloqueados
 (nenhum)

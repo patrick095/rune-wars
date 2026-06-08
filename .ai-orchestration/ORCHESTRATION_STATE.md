@@ -1,7 +1,7 @@
 # Estado da Orquestração
 
 ## Status geral
-v0.7.0 CONCLUÍDA — avançando para v0.8.0
+v0.8.0 CONCLUÍDA — avançando para v0.9.0
 
 ## Spec original
 v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
@@ -10,23 +10,22 @@ v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
 Implementar Rune Wars do zero até v1.0.0 com 32 agentes especializados, economia máxima de tokens, projeto sempre funcional, deleção automática de arquivos vX.Y.Z.md após cada versão.
 
 ## Última ação concluída
-v0.7.0 completa: material CONSTRUCTED + Linha/Bloco Rúnico + runic-builder ativo + /academy com alvos e tutorial. Fix: IA shooting direction bug (removido mirror de ângulo). Melhoria: debug overlay arrastável com seções colapsáveis.
+v0.8.0 completa: Dungeon Local com engine puro, mapas do Andar 1, MonsterAI/Golem, rota `/dungeon`, lobby entre fases e recompensas locais. Fix aplicado: posição inicial de inimigos agora usa largura do grid/mapa com clamp de viewport, não largura bruta da tela.
 
 ## Próxima ação recomendada
-Executar sequencialmente: `015-v080-dungeon-engine` → `016-v080-dungeon-ai` → `017-v080-dungeon-ui`
+Executar em paralelo: `018-v090-devops`, `019-v090-backend-auth-char`, `021-v090-frontend-auth`.
 
 ## Fase atual
-Fase 7 — v0.8.0: Dungeon Local
+Fase 8 — v0.9.0: Backend Mínimo e Multiplayer PvP
 
 ## Agente atual
 Nenhum (aguardando início)
 
 ## Agentes concluídos
-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014
+001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017
 
 ## Agentes pendentes
-015, 016, 017,
-011, 012, 013, 014, 015, 016, 017, 018, 019, 020,
+018, 019, 020,
 021, 022, 023, 024, 025, 026, 027, 028, 029, 030,
 031, 032
 
@@ -34,7 +33,9 @@ Nenhum (aguardando início)
 (nenhum)
 
 ## Dependências liberadas
-(nenhuma)
+- 018-v090-devops
+- 019-v090-backend-auth-char
+- 021-v090-frontend-auth
 
 ## Bugs críticos
 (nenhum)

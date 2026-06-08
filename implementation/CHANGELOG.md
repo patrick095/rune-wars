@@ -1,5 +1,15 @@
 # Rune Wars — Changelog de Implementação
 
+## v0.8.0 — 2026-06-07
+- Adicionado `DungeonEngine` em TypeScript puro com fases, objetivos, vidas e recompensas locais.
+- Adicionados mapas do Andar 1: Entrada da Caverna, Salão dos Morcegos e Covil do Golem Menor.
+- Adicionado `MonsterAiSystem` com níveis EASY, INTERMEDIATE e BOSS.
+- Adicionado Golem Menor com mudança de comportamento em 50% de HP.
+- Adicionada `DungeonScene` em Phaser com batalha local, inimigos distintos, objetivo de proteção e evento de conclusão.
+- Adicionada rota `/dungeon` com lobby entre fases, seleção de arma/item/consumível e telas de vitória/derrota.
+- Adicionado `DungeonStorageService` para persistir `dungeon_progress` no `localStorage`.
+- Corrigido spawn inicial de inimigos em `/playground` e `/dungeon` para não depender da largura bruta da tela como coordenada de mapa.
+
 ## v1.2 — 2026-06-07
 - Ajustado o pacote para implementação 100% orientada por IA.
 - Adicionadas regras de economia de tokens.

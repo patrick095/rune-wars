@@ -13,8 +13,8 @@ interface BattleCharacterState {
   y: number;
   isPlayer: boolean;
 }
-import { TerrainEngine } from '../../app/shared/game-core/terrain-engine';
-import { TerrainMaterial } from '../../app/shared/game-core/terrain-types';
+import { GRID_COLS, TerrainEngine } from '../../app/shared/game-core/terrain-engine';
+import { CELL_SIZE, TerrainMaterial } from '../../app/shared/game-core/terrain-types';
 import { TerrainRenderer } from '../terrain/terrain-renderer';
 import { CharacterFall } from '../terrain/character-fall';
 import { CombatHud } from '../hud/combat-hud';
@@ -39,6 +39,7 @@ const WEAPON_COLORS: Record<string, number> = {
 };
 
 type MapName = 'plains' | 'castle';
+const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
 
 export class BattleScene extends Phaser.Scene {
   private turnManager = new TurnManager();
@@ -122,7 +123,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Position characters on terrain floor
     const playerX = 120;
-    const aiX = width - 120;
+    const aiX = this.clampInitialX(MAP_WORLD_WIDTH - 120, width);
     const playerFloor = this.terrainEngine.getFloorBelow(playerX, 0);
     const aiFloor = this.terrainEngine.getFloorBelow(aiX, 0);
     const fallbackY = height * 0.65;
@@ -251,6 +252,13 @@ export class BattleScene extends Phaser.Scene {
     this.currentAngle = Math.max(5, Math.min(175, this.currentAngle + delta));
     this.angleText.setText(`${this.currentAngle}°`);
     this.updateTrajectoryPreview();
+  }
+
+  private clampInitialX(mapX: number, viewportWidth: number): number {
+    const minX = 72;
+    const maxMapX = MAP_WORLD_WIDTH - 72;
+    const maxVisibleX = Math.max(minX, viewportWidth - 72);
+    return Math.max(minX, Math.min(mapX, maxMapX, maxVisibleX));
   }
 
   private startChargingPower(

@@ -1,0 +1,33 @@
+<section class="panel lobby">
+  <div>
+    <p class="eyebrow">Fase concluida</p>
+    <h2>Preparar {{ nextPhase.name }}</h2>
+    <p>HP {{ player.hp }}/{{ player.maxHp }} · Vidas {{ lives }} · Recompensas {{ earnedXp }} XP / {{ earnedGold }} ouro</p>
+  </div>
+
+  <label>
+    Arma
+    <select [(ngModel)]="selectedWeaponId">
+      <option *ngFor="let weapon of weapons" [value]="weapon.id">{{ weapon.name }}</option>
+    </select>
+  </label>
+
+  <label>
+    Item secundario
+    <select [(ngModel)]="selectedSecondaryId">
+      <option *ngFor="let item of secondaryItems" [value]="item.id">{{ item.name }}</option>
+    </select>
+  </label>
+
+  <label>
+    Consumivel
+    <select [(ngModel)]="selectedConsumableId">
+      <option *ngFor="let item of consumables" [value]="item.id">{{ item.name }}</option>
+    </select>
+  </label>
+
+  <div class="actions">
+    <button type="button" class="primary" (click)="continue()">Continuar</button>
+    <button type="button" (click)="abandon.emit()">Abandonar</button>
+  </div>
+</section>

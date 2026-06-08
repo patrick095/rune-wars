@@ -16,5 +16,10 @@ export const routes: Routes = [
     path: 'academy',
     loadComponent: () => import('./academy/academy.component')
       .then(m => m.AcademyComponent)
+  },
+  {
+    path: 'dungeon',
+    loadComponent: () => import('./dungeon/dungeon.component')
+      .then(m => m.DungeonComponent)
   }
 ];

@@ -1,0 +1,36 @@
+<div class="dungeon-shell">
+  <header class="topbar">
+    <div>
+      <h1>Dungeon</h1>
+      <span>Andar 1 · Iniciados · Fase {{ phaseIndex + 1 }}/{{ phases.length }}</span>
+    </div>
+    <a routerLink="/playground">Voltar</a>
+  </header>
+
+  <main>
+    <div #gameContainer class="game-stage" [class.hidden]="view !== 'battle'"></div>
+
+    <app-dungeon-lobby
+      *ngIf="view === 'lobby'"
+      [nextPhase]="nextPhase"
+      [player]="player"
+      [weapons]="weapons"
+      [secondaryItems]="secondaryItems"
+      [consumables]="consumables"
+      [earnedXp]="earnedXp"
+      [earnedGold]="earnedGold"
+      [lives]="lives"
+      (continueDungeon)="continueFromLobby($event)"
+      (abandon)="abandon()"
+    />
+
+    <app-dungeon-result
+      *ngIf="view === 'victory' || view === 'defeat'"
+      [status]="view === 'victory' ? 'victory' : 'defeat'"
+      [xp]="earnedXp"
+      [gold]="earnedGold"
+      (restart)="restart()"
+      (leave)="abandon()"
+    />
+  </main>
+</div>
