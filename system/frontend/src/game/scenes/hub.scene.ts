@@ -28,12 +28,15 @@ export class HubScene extends Phaser.Scene {
   private playerSpeed = 170;
   private poiObjects = new Map<string, Phaser.GameObjects.Rectangle>();
   private poiVisuals = new Map<string, Phaser.GameObjects.Container>();
+  private usingPaintedBackdrop = false;
 
   constructor() {
     super({ key: 'HubScene' });
   }
 
   preload(): void {
+    this.load.image('hub_forest_painted', '/assets/hub/backgrounds/hub_forest_painted.png');
+
     const iconAssets = [
       { key: 'icon_pvp',        path: '/assets/hub/icons/icon_pvp.svg' },
       { key: 'icon_dungeon',    path: '/assets/hub/icons/icon_dungeon.svg' },
@@ -51,13 +54,18 @@ export class HubScene extends Phaser.Scene {
     const { worldWidth, worldHeight } = HUB_CAMERA_CONFIG;
     this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-    this.createPaintedBackdrop(worldWidth, worldHeight);
-    this.createStoneRoads();
-    this.createEnvironmentDetails();
+    this.usingPaintedBackdrop = this.createPaintedBackdropFromAsset(worldWidth, worldHeight);
+
+    if (!this.usingPaintedBackdrop) {
+      this.createPaintedBackdrop(worldWidth, worldHeight);
+      this.createStoneRoads();
+      this.createEnvironmentDetails();
+    }
+
     HUB_POIS.forEach(poi => this.createPoi(poi));
     this.createCentralCrystal();
     this.createPlayer();
-    this.createForegroundFrame(worldWidth, worldHeight);
+    if (!this.usingPaintedBackdrop) this.createForegroundFrame(worldWidth, worldHeight);
     this.createAmbientParticles(worldWidth, worldHeight);
     this.setupCamera(worldWidth, worldHeight);
     this.setupInput();
@@ -73,11 +81,26 @@ export class HubScene extends Phaser.Scene {
 
     if (left) this.player.x = Math.max(210, this.player.x - speed);
     if (right) this.player.x = Math.min(HUB_CAMERA_CONFIG.worldWidth - 210, this.player.x + speed);
-    if (up) this.player.y = Math.max(315, this.player.y - speed);
-    if (down) this.player.y = Math.min(HUB_CAMERA_CONFIG.worldHeight - 105, this.player.y + speed);
+    if (up) this.player.y = Math.max(300, this.player.y - speed);
+    if (down) this.player.y = Math.min(HUB_CAMERA_CONFIG.worldHeight - 80, this.player.y + speed);
 
     this.playerVisual.setPosition(this.player.x, this.player.y);
     this.playerShadow.setPosition(this.player.x, this.player.y + 36);
+  }
+
+  private createPaintedBackdropFromAsset(worldWidth: number, worldHeight: number): boolean {
+    if (!this.textures.exists('hub_forest_painted')) return false;
+
+    const source = this.textures.get('hub_forest_painted').getSourceImage() as HTMLImageElement;
+    const scale = Math.max(worldWidth / source.width, worldHeight / source.height);
+    const displayWidth = source.width * scale;
+    const displayHeight = source.height * scale;
+
+    this.add.image(worldWidth / 2, worldHeight / 2, 'hub_forest_painted')
+      .setDepth(DEPTH.sky)
+      .setDisplaySize(displayWidth, displayHeight);
+
+    return true;
   }
 
   private createPaintedBackdrop(worldWidth: number, worldHeight: number): void {
@@ -174,17 +197,20 @@ export class HubScene extends Phaser.Scene {
 
   private createPoi(poi: HubPointOfInterest): void {
     const visual = this.add.container(poi.x, poi.y).setDepth(DEPTH.poi);
-    const shadow = this.add.ellipse(0, poi.height * 0.35, poi.width * 0.72, 32, 0x000000, 0.28);
-    visual.add(shadow);
 
-    switch (poi.id) {
-      case 'academy': this.drawAcademy(visual); break;
-      case 'blacksmith': this.drawBlacksmith(visual); break;
-      case 'dungeon': this.drawDungeon(visual); break;
-      case 'pvp': this.drawArena(visual); break;
-      case 'guild': this.drawGuild(visual); break;
-      case 'market': this.drawMarket(visual); break;
-      case 'village': this.drawVillagePlaza(visual); break;
+    if (!this.usingPaintedBackdrop) {
+      const shadow = this.add.ellipse(0, poi.height * 0.35, poi.width * 0.72, 32, 0x000000, 0.28);
+      visual.add(shadow);
+
+      switch (poi.id) {
+        case 'academy': this.drawAcademy(visual); break;
+        case 'blacksmith': this.drawBlacksmith(visual); break;
+        case 'dungeon': this.drawDungeon(visual); break;
+        case 'pvp': this.drawArena(visual); break;
+        case 'guild': this.drawGuild(visual); break;
+        case 'market': this.drawMarket(visual); break;
+        case 'village': this.drawVillagePlaza(visual); break;
+      }
     }
 
     const hitArea = this.add.rectangle(poi.x, poi.y, poi.width, poi.height, poi.accentColor, 0)
@@ -338,38 +364,38 @@ export class HubScene extends Phaser.Scene {
   }
 
   private createPlayer(): void {
-    this.player = this.add.rectangle(1030, 755, 42, 62, 0x4488ff, 0).setDepth(DEPTH.player);
-    this.playerShadow = this.add.ellipse(1030, 792, 58, 16, 0x000000, 0.35).setDepth(DEPTH.player - 1);
-    this.playerVisual = this.add.container(1030, 755).setDepth(DEPTH.player);
+    this.player = this.add.rectangle(1030, 965, 42, 62, 0x4488ff, 0).setDepth(DEPTH.player);
+    this.playerShadow = this.add.ellipse(1030, 1002, 58, 16, 0x000000, 0.35).setDepth(DEPTH.player - 1);
+    this.playerVisual = this.add.container(1030, 965).setDepth(DEPTH.player);
     const g = this.add.graphics();
     g.fillStyle(0x4a2b18, 1).fillCircle(0, -30, 20);
     g.fillStyle(0xf0c08c, 1).fillCircle(0, -22, 16);
     g.fillStyle(0x243a76, 1).fillRoundedRect(-15, -8, 30, 42, 8);
     g.fillStyle(0x7b2fbe, 1).fillTriangle(-20, -5, -38, 35, -8, 22);
     g.fillStyle(0xf4a226, 1).fillRect(16, -8, 6, 42);
-    this.playerVisual.add(g);
-    this.add.text(1030, 694, 'Ragnar', {
+    const name = this.add.text(0, -78, 'Ragnar', {
       fontSize: '20px',
       color: '#20c8ff',
       fontStyle: 'bold',
       stroke: '#001126',
       strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(DEPTH.label);
-    this.add.text(1030, 718, '<Rune Wars>', {
+    }).setOrigin(0.5);
+    const guild = this.add.text(0, -54, '<Rune Wars>', {
       fontSize: '14px',
       color: '#8cff5a',
       fontStyle: 'bold',
       stroke: '#001a00',
       strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(DEPTH.label);
-    this.tweens.add({ targets: this.playerVisual, y: 750, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    }).setOrigin(0.5);
+    this.playerVisual.add([name, guild, g]);
+    this.tweens.add({ targets: this.playerVisual, y: 958, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
 
   private setupCamera(worldWidth: number, worldHeight: number): void {
     const cam = this.cameras.main;
     cam.setBounds(0, 0, worldWidth, worldHeight);
     cam.setZoom(window.innerWidth <= 768 ? HUB_CAMERA_CONFIG.mobileZoom : HUB_CAMERA_CONFIG.maxZoomDesktop);
-    cam.centerOn(1100, 580);
+    cam.centerOn(1100, 560);
   }
 
   private setupInput(): void {
@@ -390,7 +416,9 @@ export class HubScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.S,
       Phaser.Input.Keyboard.KeyCodes.D,
     ]);
-    this.cameras.main.startFollow(this.player, true, HUB_CAMERA_CONFIG.followLerp, HUB_CAMERA_CONFIG.followLerp);
+    if (window.innerWidth <= 768) {
+      this.cameras.main.startFollow(this.player, true, HUB_CAMERA_CONFIG.followLerp, HUB_CAMERA_CONFIG.followLerp);
+    }
   }
 
   private createHoverRing(poi: HubPointOfInterest): void {
