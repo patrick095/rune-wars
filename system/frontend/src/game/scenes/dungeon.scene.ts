@@ -23,6 +23,8 @@ const MAPS: Record<string, { grid: number[][] }> = {
   'dungeon-cave-boss': mapBoss,
 };
 const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
+const PLAYER_MOVE_SPEED = 180;
+const ANGLE_CHANGE_SPEED = 80;
 
 export class DungeonScene extends Phaser.Scene {
   private engine = new DungeonEngine();
@@ -42,6 +44,8 @@ export class DungeonScene extends Phaser.Scene {
   private angle = 45;
   private power = 62;
   private busy = false;
+  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private spaceKey!: Phaser.Input.Keyboard.Key;
 
   constructor() {
     super({ key: 'DungeonScene' });
@@ -70,6 +74,11 @@ export class DungeonScene extends Phaser.Scene {
     this.placeActors();
     this.createHud();
     this.createControls();
+    this.createKeyboardControls();
+  }
+
+  override update(_time: number, delta: number): void {
+    this.handleKeyboardInput(delta);
   }
 
   private placeActors(): void {
@@ -121,6 +130,33 @@ export class DungeonScene extends Phaser.Scene {
     this.button(this.scale.width - 76, y, 'Atirar', () => this.playerTurn(), 112, 38, 0x8a4f1d);
   }
 
+  private createKeyboardControls(): void {
+    if (!this.input.keyboard) return;
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.input.keyboard.addCapture([
+      Phaser.Input.Keyboard.KeyCodes.LEFT,
+      Phaser.Input.Keyboard.KeyCodes.RIGHT,
+      Phaser.Input.Keyboard.KeyCodes.UP,
+      Phaser.Input.Keyboard.KeyCodes.DOWN,
+      Phaser.Input.Keyboard.KeyCodes.SPACE,
+    ]);
+
+    this.spaceKey.on('down', () => {
+      if (!this.busy) this.playerTurn();
+    });
+  }
+
+  private handleKeyboardInput(delta: number): void {
+    if (!this.cursors || this.busy) return;
+    const dt = delta / 1000;
+
+    if (this.cursors.left?.isDown) this.movePlayer(-PLAYER_MOVE_SPEED * dt);
+    if (this.cursors.right?.isDown) this.movePlayer(PLAYER_MOVE_SPEED * dt);
+    if (this.cursors.up?.isDown) this.adjustAngle(ANGLE_CHANGE_SPEED * dt);
+    if (this.cursors.down?.isDown) this.adjustAngle(-ANGLE_CHANGE_SPEED * dt);
+  }
+
   private button(x: number, y: number, label: string, action: () => void, width = 72, height = 34, color = 0x2f456f): void {
     const rect = this.add.rectangle(x, y, width, height, color).setInteractive().setDepth(20);
     this.add.text(x, y, label, { fontSize: '12px', color: '#ffffff', fontFamily: 'monospace' }).setOrigin(0.5).setDepth(21);
@@ -131,6 +167,13 @@ export class DungeonScene extends Phaser.Scene {
     if (this.busy) return;
     this.angle = Math.max(5, Math.min(175, this.angle + delta));
     this.angleText.setText(`${this.angle}°`);
+  }
+
+  private movePlayer(deltaX: number): void {
+    const nextX = this.clampInitialX(this.player.x + deltaX);
+    const floorY = this.terrainEngine.getFloorBelow(nextX, 0);
+    this.player.setX(nextX);
+    if (floorY !== null) this.player.setY(floorY - this.player.height / 2);
   }
 
   private clampInitialX(mapX: number): number {

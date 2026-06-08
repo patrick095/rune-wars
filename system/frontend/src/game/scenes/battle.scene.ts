@@ -40,6 +40,8 @@ const WEAPON_COLORS: Record<string, number> = {
 
 type MapName = 'plains' | 'castle';
 const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
+const PLAYER_MOVE_SPEED = 180;
+const ANGLE_CHANGE_SPEED = 80;
 
 export class BattleScene extends Phaser.Scene {
   private turnManager = new TurnManager();
@@ -91,9 +93,13 @@ export class BattleScene extends Phaser.Scene {
   private _powerBarBg!: Phaser.GameObjects.Rectangle;
   private powerBarFill!: Phaser.GameObjects.Rectangle;
   private powerBarLabel!: Phaser.GameObjects.Text;
+  private btnFire!: Phaser.GameObjects.Rectangle;
+  private btnFireText!: Phaser.GameObjects.Text;
   private isChargingPower = false;
   private powerValue = 0;
   private powerInterval: ReturnType<typeof setInterval> | null = null;
+  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private spaceKey!: Phaser.Input.Keyboard.Key;
 
   // Control buttons
   private angleText!: Phaser.GameObjects.Text;
@@ -161,6 +167,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Controls
     this.createControls();
+    this.createKeyboardControls();
 
     // Wind generate on scene start
     this.windSystem.generate();
@@ -172,6 +179,8 @@ export class BattleScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     if (!this.isAnimating) {
+      this.handleKeyboardInput(delta);
+
       // Apply fall physics to both characters each frame
       this.playerFall.update(this.playerSprite, this.terrainEngine, delta);
       this.aiFall.update(this.aiSprite, this.terrainEngine, delta);
@@ -229,8 +238,8 @@ export class BattleScene extends Phaser.Scene {
 
     // Fire button
     const btnFireX = width - 70;
-    const btnFire = this.add.rectangle(btnFireX, btnY, 100, btnH, 0x884400).setInteractive().setDepth(15);
-    const btnFireText = this.add.text(btnFireX, btnY, 'ATIRAR', {
+    this.btnFire = this.add.rectangle(btnFireX, btnY, 100, btnH, 0x884400).setInteractive().setDepth(15);
+    this.btnFireText = this.add.text(btnFireX, btnY, 'ATIRAR', {
       fontSize: '15px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(16);
 
@@ -238,11 +247,54 @@ export class BattleScene extends Phaser.Scene {
     this._btnAngleMinus.on('pointerdown', () => this.adjustAngle(-5));
     this._btnAnglePlus.on('pointerdown', () => this.adjustAngle(5));
 
-    btnFire.on('pointerover', () => btnFire.setFillStyle(0xaa6600));
-    btnFire.on('pointerout', () => btnFire.setFillStyle(0x884400));
-    btnFire.on('pointerdown', () => this.startChargingPower(btnFire, btnFireText));
-    btnFire.on('pointerup', () => this.releaseFire(btnFire, btnFireText));
-    btnFire.on('pointerupoutside', () => this.releaseFire(btnFire, btnFireText));
+    this.btnFire.on('pointerover', () => this.btnFire.setFillStyle(0xaa6600));
+    this.btnFire.on('pointerout', () => this.btnFire.setFillStyle(0x884400));
+    this.btnFire.on('pointerdown', () => this.startChargingPower(this.btnFire, this.btnFireText));
+    this.btnFire.on('pointerup', () => this.releaseFire(this.btnFire, this.btnFireText));
+    this.btnFire.on('pointerupoutside', () => this.releaseFire(this.btnFire, this.btnFireText));
+  }
+
+  private createKeyboardControls(): void {
+    if (!this.input.keyboard) return;
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.input.keyboard.addCapture([
+      Phaser.Input.Keyboard.KeyCodes.LEFT,
+      Phaser.Input.Keyboard.KeyCodes.RIGHT,
+      Phaser.Input.Keyboard.KeyCodes.UP,
+      Phaser.Input.Keyboard.KeyCodes.DOWN,
+      Phaser.Input.Keyboard.KeyCodes.SPACE,
+    ]);
+
+    this.spaceKey.on('down', () => {
+      if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
+    });
+    this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
+  }
+
+  private handleKeyboardInput(delta: number): void {
+    if (!this.cursors || !this.turnManager.isPlayerTurn || this.isAnimating) return;
+    const dt = delta / 1000;
+    let changed = false;
+
+    if (this.cursors.left?.isDown) {
+      this.movePlayer(-PLAYER_MOVE_SPEED * dt);
+      changed = true;
+    }
+    if (this.cursors.right?.isDown) {
+      this.movePlayer(PLAYER_MOVE_SPEED * dt);
+      changed = true;
+    }
+    if (this.cursors.up?.isDown) {
+      this.adjustAngle(ANGLE_CHANGE_SPEED * dt);
+      changed = true;
+    }
+    if (this.cursors.down?.isDown) {
+      this.adjustAngle(-ANGLE_CHANGE_SPEED * dt);
+      changed = true;
+    }
+
+    if (changed) this.updateTrajectoryPreview();
   }
 
   private adjustAngle(delta: number): void {
@@ -252,6 +304,16 @@ export class BattleScene extends Phaser.Scene {
     this.currentAngle = Math.max(5, Math.min(175, this.currentAngle + delta));
     this.angleText.setText(`${this.currentAngle}°`);
     this.updateTrajectoryPreview();
+  }
+
+  private movePlayer(deltaX: number): void {
+    if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
+    const nextX = this.clampInitialX(this.playerSprite.x + deltaX, this.scale.width);
+    const floorY = this.terrainEngine.getFloorBelow(nextX, 0);
+    this.playerSprite.setX(nextX);
+    if (floorY !== null) this.playerSprite.setY(floorY - this.playerSprite.height / 2);
+    this.playerStats.x = this.playerSprite.x;
+    this.playerStats.y = this.playerSprite.y;
   }
 
   private clampInitialX(mapX: number, viewportWidth: number): number {

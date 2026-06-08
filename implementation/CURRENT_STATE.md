@@ -43,8 +43,10 @@ v0.8.0 — Dungeon Local Simulada
 - `cd system/frontend && npm start`
 - Abrir `/dungeon` para jogar o Andar 1 local.
 - Validar `/playground` e `/dungeon` em larguras diferentes: inimigos devem iniciar dentro do terreno/viewport.
+- Validar controles em `/playground` e `/dungeon`: segurar esquerda/direita move, segurar cima/baixo altera ângulo, barra de espaço atira.
 - Estado atual:
 - v0.8.0 concluída e compilando.
 - Correção aplicada para spawn inicial de inimigos baseado no grid do mapa, evitando posições fora do mapa em resoluções diferentes.
+- Correção aplicada para controles por teclado com movimento/ângulo contínuos.
 - Próximo passo:
   - Iniciar v0.9.0 com backend mínimo, autenticação e PvP multiplayer.
