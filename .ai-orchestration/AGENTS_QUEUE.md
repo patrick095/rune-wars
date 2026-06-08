@@ -1,8 +1,8 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 005-v030-terrain-engine
-- 006-v030-terrain-render
+- 007-v040-weapon-system
+- 008-v040-weapon-phaser
 
 ## Executando
 (nenhum)
@@ -44,6 +44,8 @@
 - 002-v010-angular-phaser ✓
 - 003-v020-game-logic ✓
 - 004-v020-ai-battle ✓
+- 005-v030-terrain-engine ✓
+- 006-v030-terrain-render ✓
 
 ## Bloqueados
 (nenhum)

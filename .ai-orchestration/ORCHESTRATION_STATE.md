@@ -1,7 +1,7 @@
 # Estado da Orquestração
 
 ## Status geral
-v0.2.0 CONCLUÍDA — avançando para v0.3.0
+v0.3.0 CONCLUÍDA — avançando para v0.4.0
 
 ## Spec original
 v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
@@ -10,22 +10,22 @@ v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
 Implementar Rune Wars do zero até v1.0.0 com 32 agentes especializados, economia máxima de tokens, projeto sempre funcional, deleção automática de arquivos vX.Y.Z.md após cada versão.
 
 ## Última ação concluída
-v0.2.0 completa: game-core TS puro (turnos, vento, física, dano, IA) + BattleScene Phaser com HUD, controles mobile e debug.
+v0.3.0 completa: TerrainEngine TS puro + mapas JSON (plains/castle) + renderização Phaser + física de queda.
 
 ## Próxima ação recomendada
-Executar em paralelo: `005-v030-terrain-engine` e `006-v030-terrain-render`
+Executar em paralelo: `007-v040-weapon-system` e `008-v040-weapon-phaser`
 
 ## Fase atual
-Fase 2 — v0.3.0: Terreno Destrutível
+Fase 3 — v0.4.0: Armas com Física Própria
 
 ## Agente atual
 Nenhum (aguardando início)
 
 ## Agentes concluídos
-001, 002, 003, 004
+001, 002, 003, 004, 005, 006
 
 ## Agentes pendentes
-005, 006, 007, 008, 009, 010,
+007, 008, 009, 010,
 011, 012, 013, 014, 015, 016, 017, 018, 019, 020,
 021, 022, 023, 024, 025, 026, 027, 028, 029, 030,
 031, 032

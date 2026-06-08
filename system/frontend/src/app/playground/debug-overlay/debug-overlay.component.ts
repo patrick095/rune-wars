@@ -72,6 +72,47 @@ import { BattleScene } from '../../../game/scenes/battle.scene';
       </div>
 
       <button class="debug-btn-reset" (click)="onReset()">Resetar Partida</button>
+
+      <hr class="debug-divider" />
+
+      <!-- v0.3.0 Terrain Controls -->
+      <div class="debug-section-title">Terreno v0.3.0</div>
+
+      <div class="debug-section">
+        <label class="debug-label">Mapa</label>
+        <select
+          [(ngModel)]="selectedMap"
+          (ngModelChange)="onMapChange($event)"
+          class="debug-select"
+        >
+          <option value="plains">Planícies</option>
+          <option value="castle">Castelo</option>
+        </select>
+      </div>
+
+      <div class="debug-section">
+        <label class="debug-label">Material (pintar)</label>
+        <select
+          [(ngModel)]="paintMaterial"
+          class="debug-select"
+        >
+          <option value="0">Vazio (EMPTY)</option>
+          <option value="1">Destrutível</option>
+          <option value="2">Indestrutível</option>
+        </select>
+      </div>
+
+      <div class="debug-section">
+        <label class="debug-label">Raio Explosão: {{ explosionRadius }}</label>
+        <input
+          type="range" min="10" max="80" step="5"
+          [(ngModel)]="explosionRadius"
+          class="debug-range"
+        />
+      </div>
+
+      <button class="debug-btn-terrain" (click)="onDebugExplode()">Explodir no Centro</button>
+      <button class="debug-btn-terrain" (click)="onResetTerrain()">Resetar Mapa</button>
     </div>
   `,
   styles: [`
@@ -95,6 +136,15 @@ import { BattleScene } from '../../../game/scenes/battle.scene';
       display: flex;
       flex-direction: column;
       gap: 2px;
+    }
+
+    .debug-section-title {
+      color: #ffaa44;
+      font-size: 11px;
+      font-weight: bold;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .debug-divider {
@@ -155,6 +205,23 @@ import { BattleScene } from '../../../game/scenes/battle.scene';
     .debug-btn-reset:hover {
       background: #cc3300;
     }
+
+    .debug-btn-terrain {
+      background: #225588;
+      color: #ffffff;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 12px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .debug-btn-terrain:hover {
+      background: #3377aa;
+    }
   `]
 })
 export class DebugOverlayComponent implements OnInit, OnDestroy {
@@ -170,6 +237,11 @@ export class DebugOverlayComponent implements OnInit, OnDestroy {
   aiHp = 100;
   baseDamage = 40;
   difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+
+  // v0.3.0 terrain controls
+  selectedMap: 'plains' | 'castle' = 'plains';
+  paintMaterial = '1';
+  explosionRadius = 40;
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -219,5 +291,18 @@ export class DebugOverlayComponent implements OnInit, OnDestroy {
     this.aiHp = 100;
     this.baseDamage = 40;
     this.difficulty = 'medium';
+  }
+
+  // v0.3.0 terrain handlers
+  onMapChange(mapName: 'plains' | 'castle'): void {
+    this.getBattleScene()?.switchMap(mapName);
+  }
+
+  onDebugExplode(): void {
+    this.getBattleScene()?.debugExplode(this.explosionRadius);
+  }
+
+  onResetTerrain(): void {
+    this.getBattleScene()?.resetTerrain();
   }
 }

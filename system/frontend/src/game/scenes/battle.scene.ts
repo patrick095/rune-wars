@@ -6,9 +6,17 @@ import { DamageCalculator } from '../../app/shared/game-core/damage-calculator';
 import { AiLocal, Difficulty } from '../../app/shared/game-core/ai-local';
 import { PlayerStats } from '../../app/shared/game-core/player-stats';
 import { ProjectileConfig } from '../../app/shared/game-core/projectile-config';
+import { TerrainEngine } from '../../app/shared/game-core/terrain-engine';
+import { TerrainMaterial } from '../../app/shared/game-core/terrain-types';
+import { TerrainRenderer } from '../terrain/terrain-renderer';
+import { CharacterFall } from '../terrain/character-fall';
 import { CombatHud } from '../hud/combat-hud';
 import { TrajectoryIndicator } from '../ui/trajectory-indicator';
 import { ResultOverlay } from '../ui/result-overlay';
+import mapPlains from '../../app/shared/game-core/maps/map-plains.json';
+import mapCastle from '../../app/shared/game-core/maps/map-castle.json';
+
+type MapName = 'plains' | 'castle';
 
 export class BattleScene extends Phaser.Scene {
   private turnManager = new TurnManager();
@@ -23,6 +31,13 @@ export class BattleScene extends Phaser.Scene {
   private difficulty: Difficulty = 'medium';
   private baseDamage = 40;
   private isAnimating = false;
+  private currentMap: MapName = 'plains';
+
+  // Terrain
+  private terrainEngine!: TerrainEngine;
+  private terrainRenderer!: TerrainRenderer;
+  private playerFall = new CharacterFall();
+  private aiFall = new CharacterFall();
 
   // Phaser objects
   private playerSprite!: Phaser.GameObjects.Rectangle;
@@ -55,17 +70,25 @@ export class BattleScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
 
-    // Positions
-    this.playerStats.x = 120;
-    this.playerStats.y = height * 0.65;
-    this.aiStats.x = width - 120;
-    this.aiStats.y = height * 0.65;
-
-    // Background gradient feel
+    // Background
     this.add.rectangle(width / 2, height / 2, width, height, 0x1a1a2e);
 
-    // Ground
-    this.add.rectangle(width / 2, height * 0.75, width, 20, 0x336633).setDepth(1);
+    // Initialize terrain engine with plains map
+    this.terrainEngine = new TerrainEngine(mapPlains.grid);
+    this.terrainRenderer = new TerrainRenderer(this, this.terrainEngine);
+    this.terrainRenderer.renderFull();
+
+    // Position characters on terrain floor
+    const playerX = 120;
+    const aiX = width - 120;
+    const playerFloor = this.terrainEngine.getFloorBelow(playerX, 0);
+    const aiFloor = this.terrainEngine.getFloorBelow(aiX, 0);
+    const fallbackY = height * 0.65;
+
+    this.playerStats.x = playerX;
+    this.playerStats.y = playerFloor !== null ? playerFloor - 30 : fallbackY;
+    this.aiStats.x = aiX;
+    this.aiStats.y = aiFloor !== null ? aiFloor - 30 : fallbackY;
 
     // Player sprite (blue)
     this.playerSprite = this.add.rectangle(
@@ -100,6 +123,20 @@ export class BattleScene extends Phaser.Scene {
 
     // Handle resize
     this.scale.on('resize', this.onResize, this);
+  }
+
+  update(_time: number, delta: number): void {
+    if (!this.isAnimating) {
+      // Apply fall physics to both characters each frame
+      this.playerFall.update(this.playerSprite, this.terrainEngine, delta);
+      this.aiFall.update(this.aiSprite, this.terrainEngine, delta);
+
+      // Sync logical stats positions with sprites
+      this.playerStats.x = this.playerSprite.x;
+      this.playerStats.y = this.playerSprite.y;
+      this.aiStats.x = this.aiSprite.x;
+      this.aiStats.y = this.aiSprite.y;
+    }
   }
 
   // ──────────────────────────────────────────────────────────
@@ -280,8 +317,8 @@ export class BattleScene extends Phaser.Scene {
     this.projectile.setFillStyle(isPlayerShot ? 0xffff00 : 0xff8800);
 
     let index = 0;
-
-    const groundY = this.scale.height * 0.75;
+    const { height } = this.scale;
+    const groundY = height * 0.75;
 
     const event = this.time.addEvent({
       delay: 16,
@@ -292,7 +329,10 @@ export class BattleScene extends Phaser.Scene {
         index++;
 
         const isLast = index >= path.length;
-        const hitGround = point.y >= groundY;
+
+        // Check terrain collision
+        const terrainMat = this.terrainEngine.getMaterialAt(point.x, point.y);
+        const hitTerrain = terrainMat !== TerrainMaterial.EMPTY;
 
         // Check if projectile hit a target
         const targetStats = isPlayerShot ? this.aiStats : this.playerStats;
@@ -300,10 +340,16 @@ export class BattleScene extends Phaser.Scene {
         const dy = Math.abs(point.y - targetStats.y);
         const hitTarget = dx < 30 && dy < 40;
 
-        if (isLast || hitGround || hitTarget) {
+        const hitGround = point.y >= groundY;
+
+        if (isLast || hitGround || hitTarget || hitTerrain) {
           event.remove();
           this.projectile.setVisible(false);
           this.isAnimating = false;
+
+          // Explode terrain at impact point (always on any stop condition)
+          const explodeResult = this.terrainEngine.explode(point.x, point.y, 40);
+          this.terrainRenderer.updateCells(explodeResult.cellsDestroyed);
 
           if (hitTarget) {
             this.onProjectileImpact(point.x, point.y, isPlayerShot, targetStats);
@@ -351,7 +397,7 @@ export class BattleScene extends Phaser.Scene {
     this.endTurn(isPlayerShot);
   }
 
-  private endTurn(wasPlayerShot: boolean): void {
+  private endTurn(_wasPlayerShot: boolean): void {
     this.turnManager.nextTurn();
     this.windSystem.generate();
     this.refreshHud();
@@ -411,7 +457,6 @@ export class BattleScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────
 
   setWindOverride(directionIntensity: number): void {
-    const wind = this.windSystem.getCurrent();
     const direction = directionIntensity >= 0 ? 1 : -1;
     const intensity = Math.abs(directionIntensity);
     // Override via internal property access — wind system stores current
@@ -440,5 +485,37 @@ export class BattleScene extends Phaser.Scene {
 
   resetBattle(): void {
     this.scene.restart();
+  }
+
+  // v0.3.0 terrain debug API
+  debugExplode(radius = 40): void {
+    const centerX = this.scale.width / 2;
+    const centerY = this.scale.height / 2;
+    const result = this.terrainEngine.explode(centerX, centerY, radius);
+    this.terrainRenderer.updateCells(result.cellsDestroyed);
+  }
+
+  resetTerrain(): void {
+    const gridData = this.currentMap === 'castle' ? mapCastle.grid : mapPlains.grid;
+    this.terrainEngine.loadMap(gridData);
+    this.terrainRenderer.renderFull();
+  }
+
+  switchMap(mapName: MapName): void {
+    this.currentMap = mapName;
+    const gridData = mapName === 'castle' ? mapCastle.grid : mapPlains.grid;
+    this.terrainEngine.loadMap(gridData);
+    this.terrainRenderer.renderFull();
+
+    // Re-position characters on new terrain
+    const playerFloor = this.terrainEngine.getFloorBelow(this.playerSprite.x, 0);
+    const aiFloor = this.terrainEngine.getFloorBelow(this.aiSprite.x, 0);
+    if (playerFloor !== null) this.playerSprite.setY(playerFloor - this.playerSprite.height / 2);
+    if (aiFloor !== null) this.aiSprite.setY(aiFloor - this.aiSprite.height / 2);
+  }
+
+  paintCell(worldX: number, worldY: number, material: number): void {
+    this.terrainEngine.setMaterialAt(worldX, worldY, material as TerrainMaterial);
+    this.terrainRenderer.renderFull();
   }
 }
