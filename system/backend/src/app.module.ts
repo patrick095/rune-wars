@@ -3,8 +3,17 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { InventorySlotsModule } from './inventory-slots/inventory-slots.module';
 import { DungeonModule } from './dungeon/dungeon.module';
+import { DungeonFloorsModule } from './dungeon-floors/dungeon-floors.module';
 import { BattleModule } from './battle/battle.module';
+import { ProgressionModule } from './progression/progression.module';
+import { RankedModule } from './ranked/ranked.module';
+import { RankingsModule } from './rankings/rankings.module';
+import { CraftModule } from './craft/craft.module';
+import { UpgradeModule } from './upgrade/upgrade.module';
+import { MarketModule } from './market/market.module';
+import { GuildsModule } from './guilds/guilds.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -22,8 +31,17 @@ import { HealthController } from './health.controller';
     AuthModule,
     CharacterModule,
     InventoryModule,
+    InventorySlotsModule,
     DungeonModule,
+    DungeonFloorsModule,
     BattleModule,
+    ProgressionModule,
+    RankedModule,
+    RankingsModule,
+    CraftModule,
+    UpgradeModule,
+    MarketModule,
+    GuildsModule,
   ],
   controllers: [HealthController],
 })

@@ -39,5 +39,11 @@ export const routes: Routes = [
     path: 'pvp',
     canActivate: [authGuard],
     loadComponent: () => import('./pvp/pvp.component').then(m => m.PvpComponent)
-  }
+  },
+  { path: 'craft', canActivate: [authGuard], loadComponent: () => import('./craft/craft.component').then(m => m.CraftComponent) },
+  { path: 'upgrade', canActivate: [authGuard], loadComponent: () => import('./upgrade/upgrade.component').then(m => m.UpgradeComponent) },
+  { path: 'market', canActivate: [authGuard], loadComponent: () => import('./market/market.component').then(m => m.MarketComponent) },
+  { path: 'guild', canActivate: [authGuard], loadComponent: () => import('./guild/guild.component').then(m => m.GuildComponent) },
+  { path: 'rankings', canActivate: [authGuard], loadComponent: () => import('./rankings/rankings.component').then(m => m.RankingsComponent) },
+  { path: 'dungeon-floors', canActivate: [authGuard], loadComponent: () => import('./dungeon-floors/dungeon-floors.component').then(m => m.DungeonFloorsComponent) }
 ];
