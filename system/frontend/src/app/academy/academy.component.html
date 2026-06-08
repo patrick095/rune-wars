@@ -1,0 +1,23 @@
+<div class="academy-wrapper">
+  <div #gameContainer class="game-canvas"></div>
+  <div class="side-panel">
+    <h2>Academia</h2>
+    <div class="hit-counter">Acertos: {{ hitCount }}</div>
+
+    <label>Modo:</label>
+    <select (change)="setMode($event)">
+      <option value="free">Campo Livre</option>
+      <option value="fixed-targets">Alvos Fixos</option>
+      <option value="moving-targets">Alvos Móveis</option>
+      <option value="runic-training">Treino Rúnico</option>
+    </select>
+
+    <label>Arma:</label>
+    <select (change)="setWeapon($event)">
+      <option *ngFor="let w of weapons" [value]="w.id">{{ w.name }}</option>
+    </select>
+
+    <button (click)="resetTargets()">Resetar Alvos</button>
+    <a routerLink="/playground">← Voltar à Batalha</a>
+  </div>
+</div>

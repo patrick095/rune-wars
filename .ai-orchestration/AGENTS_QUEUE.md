@@ -1,8 +1,7 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 013-v070-terrain-construction
-- 014-v070-academy
+- 015-v080-dungeon-engine (sequencial)
 
 ## Executando
 (nenhum)
@@ -52,6 +51,8 @@
 - 010-v050-character-ui ✓
 - 011-v060-runic-system ✓
 - 012-v060-items-consumables ✓
+- 013-v070-terrain-construction ✓
+- 014-v070-academy ✓
 
 ## Bloqueados
 (nenhum)

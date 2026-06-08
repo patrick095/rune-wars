@@ -1,4 +1,4 @@
-export enum TerrainMaterial { EMPTY = 0, DESTRUCTIBLE = 1, INDESTRUCTIBLE = 2 }
+export enum TerrainMaterial { EMPTY = 0, DESTRUCTIBLE = 1, INDESTRUCTIBLE = 2, CONSTRUCTED = 3 }
 
 export interface TerrainCell { x: number; y: number; material: TerrainMaterial; }
 
@@ -18,6 +18,7 @@ export const TERRAIN_MATERIAL_CONFIGS: Record<TerrainMaterial, TerrainMaterialCo
   [TerrainMaterial.EMPTY]:          { type: TerrainMaterial.EMPTY,          color: 0x000000, destructible: false },
   [TerrainMaterial.DESTRUCTIBLE]:   { type: TerrainMaterial.DESTRUCTIBLE,   color: 0x8B4513, destructible: true  },
   [TerrainMaterial.INDESTRUCTIBLE]: { type: TerrainMaterial.INDESTRUCTIBLE, color: 0x444444, destructible: false },
+  [TerrainMaterial.CONSTRUCTED]:   { type: TerrainMaterial.CONSTRUCTED,   color: 0x44AA44, destructible: true  },
 };
 
 export const CELL_SIZE = 8; // pixels por célula

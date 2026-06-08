@@ -3,8 +3,11 @@ import { CELL_SIZE, ExplosionResult, TerrainCell, TerrainMaterial } from './terr
 export const GRID_COLS = 100;
 export const GRID_ROWS = 40;
 
+const MAX_CONSTRUCTED_PER_PLAYER = 20;
+
 export class TerrainEngine {
   private grid: TerrainMaterial[][];
+  private _constructedByPlayer = new Map<string, number>();
 
   constructor(gridData: number[][]) {
     this.grid = this.buildGrid(gridData);
@@ -64,7 +67,8 @@ export class TerrainEngine {
 
     for (let row = rowMin; row <= rowMax; row++) {
       for (let col = colMin; col <= colMax; col++) {
-        if (this.grid[row][col] !== TerrainMaterial.DESTRUCTIBLE) continue;
+        const cellMat = this.grid[row][col];
+        if (cellMat !== TerrainMaterial.DESTRUCTIBLE && cellMat !== TerrainMaterial.CONSTRUCTED) continue;
 
         // Cell center in world coordinates
         const cellCenterX = (col + 0.5) * CELL_SIZE;
@@ -74,7 +78,7 @@ export class TerrainEngine {
         const dy = cellCenterY - centerWorldY;
 
         if (Math.sqrt(dx * dx + dy * dy) <= radius) {
-          cellsDestroyed.push({ x: col, y: row, material: TerrainMaterial.DESTRUCTIBLE });
+          cellsDestroyed.push({ x: col, y: row, material: cellMat });
           this.grid[row][col] = TerrainMaterial.EMPTY;
         }
       }
@@ -99,6 +103,63 @@ export class TerrainEngine {
     }
 
     return null;
+  }
+
+  drawRunicLine(path: Array<{x: number, y: number}>, playerId: string): number {
+    let created = 0;
+    const visited = new Set<string>();
+
+    for (const point of path) {
+      const col = Math.floor(point.x / CELL_SIZE);
+      const row = Math.floor(point.y / CELL_SIZE);
+      const key = `${col},${row}`;
+
+      if (visited.has(key)) continue;
+      visited.add(key);
+
+      if (!this.isInBounds(col, row)) continue;
+      if (this.grid[row][col] !== TerrainMaterial.EMPTY) continue;
+
+      const current = this._constructedByPlayer.get(playerId) ?? 0;
+      if (current >= MAX_CONSTRUCTED_PER_PLAYER) break;
+
+      this.grid[row][col] = TerrainMaterial.CONSTRUCTED;
+      this._constructedByPlayer.set(playerId, current + 1);
+      created++;
+    }
+
+    return created;
+  }
+
+  placeRunicBlock(cx: number, cy: number, size: number, playerId: string): number {
+    const centerCol = Math.floor(cx / CELL_SIZE);
+    const centerRow = Math.floor(cy / CELL_SIZE);
+    const half = Math.floor(size / 2);
+    let created = 0;
+
+    for (let row = centerRow - half; row <= centerRow + half; row++) {
+      for (let col = centerCol - half; col <= centerCol + half; col++) {
+        if (!this.isInBounds(col, row)) continue;
+        if (this.grid[row][col] !== TerrainMaterial.EMPTY) continue;
+
+        const current = this._constructedByPlayer.get(playerId) ?? 0;
+        if (current >= MAX_CONSTRUCTED_PER_PLAYER) return created;
+
+        this.grid[row][col] = TerrainMaterial.CONSTRUCTED;
+        this._constructedByPlayer.set(playerId, current + 1);
+        created++;
+      }
+    }
+
+    return created;
+  }
+
+  getConstructedCount(playerId: string): number {
+    return this._constructedByPlayer.get(playerId) ?? 0;
+  }
+
+  resetConstructedCount(playerId: string): void {
+    this._constructedByPlayer.delete(playerId);
   }
 
   getGrid(): TerrainMaterial[][] {

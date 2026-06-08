@@ -1,7 +1,7 @@
 # Estado da Orquestração
 
 ## Status geral
-v0.6.0 CONCLUÍDA — avançando para v0.7.0
+v0.7.0 CONCLUÍDA — avançando para v0.8.0
 
 ## Spec original
 v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
@@ -10,22 +10,22 @@ v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
 Implementar Rune Wars do zero até v1.0.0 com 32 agentes especializados, economia máxima de tokens, projeto sempre funcional, deleção automática de arquivos vX.Y.Z.md após cada versão.
 
 ## Última ação concluída
-v0.6.0 completa: 7 efeitos rúnicos, StatusEffectManager, 5 itens secundários, 5 consumíveis, HUD de efeitos ativos. Fix de TypeScript: BattleCharacterState separado de PlayerStats.
+v0.7.0 completa: material CONSTRUCTED + Linha/Bloco Rúnico + runic-builder ativo + /academy com alvos e tutorial. Fix: IA shooting direction bug (removido mirror de ângulo). Melhoria: debug overlay arrastável com seções colapsáveis.
 
 ## Próxima ação recomendada
-Executar em paralelo: `013-v070-terrain-construction` e `014-v070-academy`
+Executar sequencialmente: `015-v080-dungeon-engine` → `016-v080-dungeon-ai` → `017-v080-dungeon-ui`
 
 ## Fase atual
-Fase 6 — v0.7.0: Construção de Terreno e Academia
+Fase 7 — v0.8.0: Dungeon Local
 
 ## Agente atual
 Nenhum (aguardando início)
 
 ## Agentes concluídos
-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012
+001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014
 
 ## Agentes pendentes
-013, 014,
+015, 016, 017,
 011, 012, 013, 014, 015, 016, 017, 018, 019, 020,
 021, 022, 023, 024, 025, 026, 027, 028, 029, 030,
 031, 032

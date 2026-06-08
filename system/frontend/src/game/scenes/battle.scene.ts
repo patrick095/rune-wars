@@ -353,11 +353,9 @@ export class BattleScene extends Phaser.Scene {
       this.difficulty
     );
 
-    // AI shoots left (mirror angle)
-    const mirroredAngle = 180 - shot.angle;
     const profile = this.aiWeapon.physicsProfile;
     const config: ProjectileConfig = {
-      angle: mirroredAngle,
+      angle: shot.angle,
       force: shot.force,
       gravityScale: profile.gravityScale,
       windInfluence: profile.windInfluence,

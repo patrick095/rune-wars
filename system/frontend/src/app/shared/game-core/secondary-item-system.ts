@@ -35,9 +35,12 @@ export class SecondaryItemSystem {
       id: 'runic-builder',
       name: 'Construtor Rúnico',
       usesTurn: false,
-      description: 'Em breve: v0.7.0',
+      description: 'Constrói terreno rúnico no próximo tiro',
     },
   ];
+
+  private static readonly MAX_CONSTRUCTED = 20;
+  private _activeBuilders = new Set<string>();
 
   getAll(): SecondaryItem[] {
     return SecondaryItemSystem.ITEMS.map(item => ({ ...item }));
@@ -49,12 +52,32 @@ export class SecondaryItemSystem {
   }
 
   /**
-   * Retorna mensagem de uso para o item.
-   * O item 'runic-builder' é apenas placeholder.
+   * Ativa o runic-builder para o jogador se ele não atingiu o limite de construção.
+   * Retorna true se o efeito foi ativado com sucesso.
    */
-  use(id: string): string {
+  activateRunicBuilder(playerId: string, constructedCount: number): boolean {
+    if (constructedCount >= SecondaryItemSystem.MAX_CONSTRUCTED) return false;
+    this._activeBuilders.add(playerId);
+    return true;
+  }
+
+  isRunicBuilderActive(playerId: string): boolean {
+    return this._activeBuilders.has(playerId);
+  }
+
+  consumeRunicBuilder(playerId: string): void {
+    this._activeBuilders.delete(playerId);
+  }
+
+  /**
+   * Retorna mensagem de uso para o item.
+   */
+  use(id: string, playerId?: string, constructedCount = 0): string {
     if (id === 'runic-builder') {
-      return 'Em breve: v0.7.0';
+      if (!playerId) return 'Construtor Rúnico: jogador não identificado.';
+      const activated = this.activateRunicBuilder(playerId, constructedCount);
+      if (!activated) return `Limite de ${SecondaryItemSystem.MAX_CONSTRUCTED} células rúnicas atingido.`;
+      return 'Construtor Rúnico ativado — o próximo tiro construirá terreno rúnico.';
     }
     const item = this.getById(id);
     if (!item) return 'Item não encontrado.';

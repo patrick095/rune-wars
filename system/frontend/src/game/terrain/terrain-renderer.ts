@@ -6,6 +6,8 @@ const COLOR_DESTRUCTIBLE      = 0x8B4513;
 const COLOR_DESTRUCTIBLE_DARK = 0x5C2E0A;
 const COLOR_INDESTRUCTIBLE      = 0x444444;
 const COLOR_INDESTRUCTIBLE_LIGHT = 0x666666;
+const COLOR_CONSTRUCTED       = 0x44AA44;
+const COLOR_CONSTRUCTED_LIGHT = 0x66CC66;
 
 export class TerrainRenderer {
   private graphics: Phaser.GameObjects.Graphics;
@@ -59,6 +61,13 @@ export class TerrainRenderer {
       this.graphics.fillRect(x, y, CELL_SIZE, CELL_SIZE);
       // Lighter inner highlight (texture feel)
       this.graphics.fillStyle(COLOR_INDESTRUCTIBLE_LIGHT, 1);
+      this.graphics.fillRect(x + 2, y + 1, CELL_SIZE - 4, 2);
+    } else if (material === TerrainMaterial.CONSTRUCTED) {
+      // Main fill (runic green)
+      this.graphics.fillStyle(COLOR_CONSTRUCTED, 1);
+      this.graphics.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+      // Brighter inner highlight (runic glow effect)
+      this.graphics.fillStyle(COLOR_CONSTRUCTED_LIGHT, 1);
       this.graphics.fillRect(x + 2, y + 1, CELL_SIZE - 4, 2);
     }
   }

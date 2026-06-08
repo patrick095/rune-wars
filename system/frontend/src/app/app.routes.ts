@@ -11,5 +11,10 @@ export const routes: Routes = [
     path: 'character',
     loadComponent: () => import('./character/character.component')
       .then(m => m.CharacterComponent)
+  },
+  {
+    path: 'academy',
+    loadComponent: () => import('./academy/academy.component')
+      .then(m => m.AcademyComponent)
   }
 ];
