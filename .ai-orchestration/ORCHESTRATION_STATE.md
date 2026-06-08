@@ -10,7 +10,7 @@ v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
 Implementar Rune Wars do zero até v1.0.0 com 32 agentes especializados, economia máxima de tokens, projeto sempre funcional, deleção automática de arquivos vX.Y.Z.md após cada versão.
 
 ## Última ação concluída
-Fix de movimentação/preview/IA aplicado: ângulo do jogador permanece inteiro, preview de trajetória é redesenhado durante o turno, movimento horizontal não sobe em plataformas suspensas do castelo e IA reposiciona quando não encontra tiro viável.
+Fix aplicado: servidor de desenvolvimento parado; preview de trajetória é destruído/recriado ao reiniciar a batalha e redesenhado após inicialização da cena.
 
 ## Próxima ação recomendada
 Executar em paralelo: `018-v090-devops`, `019-v090-backend-auth-char`, `021-v090-frontend-auth`.

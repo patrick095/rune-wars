@@ -134,8 +134,10 @@ export class BattleScene extends Phaser.Scene {
     this.lastImpactPoint = null;
     this.playerFall = new CharacterFall();
     this.aiFall = new CharacterFall();
-    this.trajectory.clear();
+    this.trajectory.destroy();
+    this.trajectory = new TrajectoryIndicator();
     this.resultOverlay.hide();
+    this.previewRefreshMs = 0;
   }
 
   create(): void {
@@ -204,6 +206,7 @@ export class BattleScene extends Phaser.Scene {
     // Wind generate on scene start
     this.windSystem.generate();
     this.refreshHud();
+    this.updateTrajectoryPreview();
 
     // Handle resize
     this.scale.on('resize', this.onResize, this);

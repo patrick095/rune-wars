@@ -13,6 +13,7 @@
 - Corrigida IA local em `/playground` para mirar por simulação de trajetória e corrigido reset de HP/turnos/efeitos ao clicar em "Jogar Novamente".
 - Corrigidos ângulos quebrados por teclado, preview de trajetória instável e movimento no castelo que puxava o jogador para plataformas suspensas.
 - IA local agora tenta reposicionar quando está sem tiro viável contra o jogador.
+- Corrigido sumiço da linha de trajetória após "Jogar Novamente" recriando o indicador visual no reset da cena.
 
 ## v1.2 — 2026-06-07
 - Ajustado o pacote para implementação 100% orientada por IA.

@@ -55,6 +55,7 @@
 | implementation/CHANGELOG.md | fix-v080-keyboard-controls | modificado | ok |
 | system/frontend/src/game/scenes/battle.scene.ts | fix-v080-ai-reset | modificado | ok |
 | system/frontend/src/game/scenes/battle.scene.ts | fix-v080-movement-preview-ai | modificado | ok |
+| system/frontend/src/game/scenes/battle.scene.ts | fix-v080-preview-restart | modificado | ok |
 | .ai-orchestration/agents/resumo-017.md | 017-v080-dungeon-ui | criado | ok |
 | v0.8.0.md | v0.8.0 | removido | ok |
 | (demais agentes — a serem listados conforme execução) | | | |
