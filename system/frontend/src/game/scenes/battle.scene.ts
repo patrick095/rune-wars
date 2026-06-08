@@ -13,25 +13,42 @@ import { CharacterFall } from '../terrain/character-fall';
 import { CombatHud } from '../hud/combat-hud';
 import { TrajectoryIndicator } from '../ui/trajectory-indicator';
 import { ResultOverlay } from '../ui/result-overlay';
+import { WeaponSystem } from '../../app/shared/game-core/weapon-system';
+import { WeaponDefinition } from '../../app/shared/game-core/weapon-definition';
+import { ProjectileRenderer } from '../projectiles/projectile-renderer';
 import mapPlains from '../../app/shared/game-core/maps/map-plains.json';
 import mapCastle from '../../app/shared/game-core/maps/map-castle.json';
+
+const WEAPON_COLORS: Record<string, number> = {
+  cannon:     0xFFAA00,
+  longbow:    0x00FF88,
+  tnt:        0xFF4400,
+  boomerang:  0xFF88FF,
+  'ice-book': 0x88CCFF,
+  potion:     0x00FFCC,
+};
 
 type MapName = 'plains' | 'castle';
 
 export class BattleScene extends Phaser.Scene {
   private turnManager = new TurnManager();
   private windSystem = new WindSystem();
-  private physics = new ProjectilePhysics();
+  private projectilePhysics = new ProjectilePhysics();
   private damageCalc = new DamageCalculator();
   private ai = new AiLocal();
+  private weaponSystem = new WeaponSystem();
 
   private playerStats: PlayerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true };
   private aiStats: PlayerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false };
   private currentAngle = 45;
   private difficulty: Difficulty = 'medium';
-  private baseDamage = 40;
   private isAnimating = false;
   private currentMap: MapName = 'plains';
+
+  // Weapon state
+  private playerWeapon!: WeaponDefinition;
+  private aiWeapon!: WeaponDefinition;
+  private projRenderer!: ProjectileRenderer;
 
   // Terrain
   private terrainEngine!: TerrainEngine;
@@ -42,7 +59,7 @@ export class BattleScene extends Phaser.Scene {
   // Phaser objects
   private playerSprite!: Phaser.GameObjects.Rectangle;
   private aiSprite!: Phaser.GameObjects.Rectangle;
-  private projectile!: Phaser.GameObjects.Arc;
+  private projectileArc!: Phaser.GameObjects.Arc;
 
   // HUD & UI helpers
   private hud!: CombatHud;
@@ -50,7 +67,7 @@ export class BattleScene extends Phaser.Scene {
   private resultOverlay = new ResultOverlay();
 
   // Power bar
-  private powerBarBg!: Phaser.GameObjects.Rectangle;
+  private _powerBarBg!: Phaser.GameObjects.Rectangle;
   private powerBarFill!: Phaser.GameObjects.Rectangle;
   private powerBarLabel!: Phaser.GameObjects.Text;
   private isChargingPower = false;
@@ -66,7 +83,12 @@ export class BattleScene extends Phaser.Scene {
 
   create(): void {
     // Register self globally for debug panel
-    (window as Record<string, unknown>)['battleScene'] = this;
+    (window as unknown as Record<string, unknown>)['battleScene'] = this; // eslint-disable-line
+
+    // Initialize weapons
+    this.playerWeapon = this.weaponSystem.getDefault();
+    this.aiWeapon = this.weaponSystem.getDefault();
+    this.projRenderer = new ProjectileRenderer(this);
 
     const { width, height } = this.scale;
 
@@ -106,9 +128,10 @@ export class BattleScene extends Phaser.Scene {
       fontSize: '11px', color: '#ffffff', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(3);
 
-    // Projectile (hidden initially)
-    this.projectile = this.add.arc(0, 0, 6, 0, 360, false, 0xffff00)
-      .setVisible(false).setDepth(8);
+    // Projectile arc managed by ProjectileRenderer
+    this.projectileArc = this.projRenderer.createProjectile(
+      WEAPON_COLORS[this.playerWeapon.id] ?? 0xffff00
+    );
 
     // HUD
     this.hud = new CombatHud(this);
@@ -125,7 +148,7 @@ export class BattleScene extends Phaser.Scene {
     this.scale.on('resize', this.onResize, this);
   }
 
-  update(_time: number, delta: number): void {
+  override update(_time: number, delta: number): void {
     if (!this.isAnimating) {
       // Apply fall physics to both characters each frame
       this.playerFall.update(this.playerSprite, this.terrainEngine, delta);
@@ -167,7 +190,7 @@ export class BattleScene extends Phaser.Scene {
     // Power bar background
     const barX = width / 2;
     const barY = height - 50;
-    this.powerBarBg = this.add.rectangle(barX, barY, 200, 24, 0x222222).setDepth(15);
+    this._powerBarBg = this.add.rectangle(barX, barY, 200, 24, 0x222222).setDepth(15);
     this.powerBarFill = this.add.rectangle(barX - 100, barY, 0, 20, 0xff8800)
       .setOrigin(0, 0.5).setDepth(16);
     this.powerBarLabel = this.add.text(barX, barY - 16, 'Força: 0', {
@@ -251,16 +274,17 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
+    const profile = this.playerWeapon.physicsProfile;
     const config: ProjectileConfig = {
       angle: this.currentAngle,
       force: 50, // preview with medium force
-      gravityScale: 1,
-      windInfluence: 0.01,
-      baseDamage: this.baseDamage,
+      gravityScale: profile.gravityScale,
+      windInfluence: profile.windInfluence,
+      baseDamage: this.playerWeapon.baseDamage,
     };
 
     const wind = this.windSystem.getCurrent();
-    const points = this.physics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
+    const points = this.projectilePhysics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
     this.trajectory.draw(this, points);
   }
 
@@ -270,16 +294,17 @@ export class BattleScene extends Phaser.Scene {
 
   private firePlayerShot(angle: number, force: number): void {
     this.trajectory.clear();
+    const profile = this.playerWeapon.physicsProfile;
     const config: ProjectileConfig = {
       angle,
       force,
-      gravityScale: 1,
-      windInfluence: 0.01,
-      baseDamage: this.baseDamage,
+      gravityScale: profile.gravityScale,
+      windInfluence: profile.windInfluence,
+      baseDamage: this.playerWeapon.baseDamage,
     };
 
     const wind = this.windSystem.getCurrent();
-    const path = this.physics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
+    const path = this.projectilePhysics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
     this.animateProjectile(path, true);
   }
 
@@ -294,15 +319,16 @@ export class BattleScene extends Phaser.Scene {
 
     // AI shoots left (mirror angle)
     const mirroredAngle = 180 - shot.angle;
+    const profile = this.aiWeapon.physicsProfile;
     const config: ProjectileConfig = {
       angle: mirroredAngle,
       force: shot.force,
-      gravityScale: 1,
-      windInfluence: 0.01,
-      baseDamage: this.baseDamage,
+      gravityScale: profile.gravityScale,
+      windInfluence: profile.windInfluence,
+      baseDamage: this.aiWeapon.baseDamage,
     };
 
-    const path = this.physics.simulate(this.aiStats.x, this.aiStats.y, config, wind);
+    const path = this.projectilePhysics.simulate(this.aiStats.x, this.aiStats.y, config, wind);
     this.animateProjectile(path, false);
   }
 
@@ -313,52 +339,58 @@ export class BattleScene extends Phaser.Scene {
     if (path.length === 0) return;
 
     this.isAnimating = true;
-    this.projectile.setVisible(true);
-    this.projectile.setFillStyle(isPlayerShot ? 0xffff00 : 0xff8800);
 
-    let index = 0;
+    const weapon = isPlayerShot ? this.playerWeapon : this.aiWeapon;
+    const color = WEAPON_COLORS[weapon.id] ?? 0xffff00;
+    this.projectileArc.setFillStyle(color);
+
     const { height } = this.scale;
     const groundY = height * 0.75;
+    const excavationRadius = weapon.excavationRadius;
+    const baseDamage = weapon.baseDamage;
 
-    const event = this.time.addEvent({
-      delay: 16,
-      repeat: path.length - 1,
-      callback: () => {
-        const point = path[index];
-        this.projectile.setPosition(point.x, point.y);
-        index++;
+    // Build a filtered path with early-exit detection for terrain/target/ground
+    let stopIndex = path.length - 1;
+    for (let i = 0; i < path.length; i++) {
+      const point = path[i];
+      const terrainMat = this.terrainEngine.getMaterialAt(point.x, point.y);
+      const hitTerrain = terrainMat !== TerrainMaterial.EMPTY;
+      const targetStats = isPlayerShot ? this.aiStats : this.playerStats;
+      const dx = Math.abs(point.x - targetStats.x);
+      const dy = Math.abs(point.y - targetStats.y);
+      const hitTarget = dx < 30 && dy < 40;
+      const hitGround = point.y >= groundY;
+      if (hitTerrain || hitTarget || hitGround) {
+        stopIndex = i;
+        break;
+      }
+    }
 
-        const isLast = index >= path.length;
+    const clippedPath = path.slice(0, stopIndex + 1);
 
-        // Check terrain collision
-        const terrainMat = this.terrainEngine.getMaterialAt(point.x, point.y);
-        const hitTerrain = terrainMat !== TerrainMaterial.EMPTY;
+    this.projRenderer.animateAlongPath(this.projectileArc, clippedPath, () => {
+      this.projectileArc.setVisible(false);
+      this.isAnimating = false;
 
-        // Check if projectile hit a target
-        const targetStats = isPlayerShot ? this.aiStats : this.playerStats;
-        const dx = Math.abs(point.x - targetStats.x);
-        const dy = Math.abs(point.y - targetStats.y);
-        const hitTarget = dx < 30 && dy < 40;
+      const impactPoint = clippedPath[clippedPath.length - 1];
 
-        const hitGround = point.y >= groundY;
+      // Explode terrain using weapon's excavation radius
+      const explodeResult = this.terrainEngine.explode(
+        impactPoint.x, impactPoint.y, excavationRadius
+      );
+      this.terrainRenderer.updateCells(explodeResult.cellsDestroyed);
 
-        if (isLast || hitGround || hitTarget || hitTerrain) {
-          event.remove();
-          this.projectile.setVisible(false);
-          this.isAnimating = false;
+      // Check if the last point was a target hit
+      const targetStats = isPlayerShot ? this.aiStats : this.playerStats;
+      const dx = Math.abs(impactPoint.x - targetStats.x);
+      const dy = Math.abs(impactPoint.y - targetStats.y);
+      const hitTarget = dx < 30 && dy < 40;
 
-          // Explode terrain at impact point (always on any stop condition)
-          const explodeResult = this.terrainEngine.explode(point.x, point.y, 40);
-          this.terrainRenderer.updateCells(explodeResult.cellsDestroyed);
-
-          if (hitTarget) {
-            this.onProjectileImpact(point.x, point.y, isPlayerShot, targetStats);
-          } else {
-            // Miss — just change turn
-            this.endTurn(isPlayerShot);
-          }
-        }
-      },
+      if (hitTarget) {
+        this.onProjectileImpact(impactPoint.x, impactPoint.y, isPlayerShot, targetStats, baseDamage);
+      } else {
+        this.endTurn(isPlayerShot);
+      }
     });
   }
 
@@ -366,12 +398,13 @@ export class BattleScene extends Phaser.Scene {
     impactX: number,
     impactY: number,
     isPlayerShot: boolean,
-    targetStats: PlayerStats
+    targetStats: PlayerStats,
+    baseDamage: number
   ): void {
     const damage = this.damageCalc.calculate(
       impactX, impactY,
       targetStats.x, targetStats.y,
-      this.baseDamage
+      baseDamage
     );
 
     if (isPlayerShot) {
@@ -438,13 +471,18 @@ export class BattleScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────
 
   private refreshHud(): void {
+    const currentWeaponName = this.turnManager.isPlayerTurn
+      ? this.playerWeapon?.name
+      : this.aiWeapon?.name;
+
     this.hud.update(
       this.playerStats.hp,
       this.playerStats.maxHp,
       this.aiStats.hp,
       this.aiStats.maxHp,
       this.windSystem.getCurrent(),
-      this.turnManager.isPlayerTurn
+      this.turnManager.isPlayerTurn,
+      currentWeaponName
     );
   }
 
@@ -459,7 +497,6 @@ export class BattleScene extends Phaser.Scene {
   setWindOverride(directionIntensity: number): void {
     const direction = directionIntensity >= 0 ? 1 : -1;
     const intensity = Math.abs(directionIntensity);
-    // Override via internal property access — wind system stores current
     (this.windSystem as unknown as { current: { direction: number; intensity: number } })
       .current = { direction: direction * (intensity / 100), intensity };
     this.refreshHud();
@@ -476,11 +513,33 @@ export class BattleScene extends Phaser.Scene {
   }
 
   setBaseDamage(damage: number): void {
-    this.baseDamage = Math.max(1, damage);
+    // Legacy API kept for compatibility — sets both weapons' base damage indirectly
+    // by overriding at the weapon level would mutate shared definitions.
+    // For backward compat we keep a local override applied at shoot time via
+    // a stored override value.
+    const override = Math.max(1, damage);
+    this.playerWeapon = { ...this.playerWeapon, baseDamage: override };
+    this.aiWeapon = { ...this.aiWeapon, baseDamage: override };
   }
 
   setDifficulty(d: Difficulty): void {
     this.difficulty = d;
+  }
+
+  // v0.4.0 weapon API
+  setPlayerWeapon(id: string): void {
+    const weapon = this.weaponSystem.getById(id);
+    if (!weapon) return;
+    this.playerWeapon = weapon;
+    this.projectileArc.setFillStyle(WEAPON_COLORS[id] ?? 0xffff00);
+    this.refreshHud();
+  }
+
+  setAiWeapon(id: string): void {
+    const weapon = this.weaponSystem.getById(id);
+    if (!weapon) return;
+    this.aiWeapon = weapon;
+    this.refreshHud();
   }
 
   resetBattle(): void {

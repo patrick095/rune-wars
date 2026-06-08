@@ -6,6 +6,7 @@ export class CombatHud {
   private aiHpText!: Phaser.GameObjects.Text;
   private windText!: Phaser.GameObjects.Text;
   private turnText!: Phaser.GameObjects.Text;
+  private weaponText!: Phaser.GameObjects.Text;
 
   constructor(private scene: Phaser.Scene) {
     const { width } = scene.scale;
@@ -41,6 +42,14 @@ export class CombatHud {
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(0.5, 0).setDepth(10);
+
+    this.weaponText = scene.add.text(width / 2, 58, '', {
+      fontSize: '12px',
+      color: '#ccaaff',
+      fontFamily: 'monospace',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5, 0).setDepth(10);
   }
 
   update(
@@ -49,7 +58,8 @@ export class CombatHud {
     aiHp: number,
     aiMaxHp: number,
     wind: WindState,
-    isPlayerTurn: boolean
+    isPlayerTurn: boolean,
+    weaponName?: string
   ): void {
     this.playerHpText.setText(`HP: ${playerHp}/${playerMaxHp}`);
     this.aiHpText.setText(`HP: ${aiHp}/${aiMaxHp}`);
@@ -60,6 +70,10 @@ export class CombatHud {
 
     this.turnText.setText(isPlayerTurn ? 'Seu turno' : 'Turno da IA');
     this.turnText.setColor(isPlayerTurn ? '#44ff88' : '#ff8844');
+
+    if (weaponName !== undefined) {
+      this.weaponText.setText(`Arma: ${weaponName}`);
+    }
   }
 
   setWindTextPosition(x: number): void {

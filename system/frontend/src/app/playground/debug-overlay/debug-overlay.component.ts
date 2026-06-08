@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import Phaser from 'phaser';
 import { BattleScene } from '../../../game/scenes/battle.scene';
+import { WeaponSystem } from '../../shared/game-core/weapon-system';
+import { WeaponDefinition } from '../../shared/game-core/weapon-definition';
 
 @Component({
   selector: 'app-debug-overlay',
@@ -113,6 +115,40 @@ import { BattleScene } from '../../../game/scenes/battle.scene';
 
       <button class="debug-btn-terrain" (click)="onDebugExplode()">Explodir no Centro</button>
       <button class="debug-btn-terrain" (click)="onResetTerrain()">Resetar Mapa</button>
+
+      <hr class="debug-divider" />
+
+      <!-- v0.4.0 Weapon Controls -->
+      <div class="debug-section-title">Armas v0.4.0</div>
+
+      <div class="debug-section">
+        <label class="debug-label">Arma do Jogador</label>
+        <select
+          [(ngModel)]="playerWeaponId"
+          (ngModelChange)="onPlayerWeaponChange($event)"
+          class="debug-select"
+        >
+          <option *ngFor="let w of weapons" [value]="w.id">{{ w.name }}</option>
+        </select>
+      </div>
+
+      <div class="debug-section">
+        <label class="debug-label">Arma da IA</label>
+        <select
+          [(ngModel)]="aiWeaponId"
+          (ngModelChange)="onAiWeaponChange($event)"
+          class="debug-select"
+        >
+          <option *ngFor="let w of weapons" [value]="w.id">{{ w.name }}</option>
+        </select>
+      </div>
+
+      <div class="debug-section weapon-info">
+        <div class="debug-label">Info: {{ selectedWeaponInfo.name }}</div>
+        <div class="debug-value">Dano: {{ selectedWeaponInfo.baseDamage }}</div>
+        <div class="debug-value">Raio impacto: {{ selectedWeaponInfo.impactRadius }}</div>
+        <div class="debug-value">Raio escavação: {{ selectedWeaponInfo.excavationRadius }}</div>
+      </div>
     </div>
   `,
   styles: [`
@@ -222,6 +258,14 @@ import { BattleScene } from '../../../game/scenes/battle.scene';
     .debug-btn-terrain:hover {
       background: #3377aa;
     }
+
+    .weapon-info {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid #444;
+      border-radius: 3px;
+      padding: 4px 6px;
+      gap: 3px;
+    }
   `]
 })
 export class DebugOverlayComponent implements OnInit, OnDestroy {
@@ -243,6 +287,16 @@ export class DebugOverlayComponent implements OnInit, OnDestroy {
   paintMaterial = '1';
   explosionRadius = 40;
 
+  // v0.4.0 weapon controls
+  private _weaponSystem = new WeaponSystem();
+  weapons: WeaponDefinition[] = this._weaponSystem.getAll();
+  playerWeaponId = 'cannon';
+  aiWeaponId = 'cannon';
+
+  get selectedWeaponInfo(): WeaponDefinition {
+    return this._weaponSystem.getById(this.playerWeaponId) ?? this._weaponSystem.getDefault();
+  }
+
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit() {
@@ -260,7 +314,7 @@ export class DebugOverlayComponent implements OnInit, OnDestroy {
   }
 
   private getBattleScene(): BattleScene | null {
-    return ((window as Record<string, unknown>)['battleScene'] as BattleScene) ?? null;
+    return ((window as unknown as Record<string, unknown>)['battleScene'] as BattleScene) ?? null;
   }
 
   onWindChange(value: number): void {
@@ -304,5 +358,14 @@ export class DebugOverlayComponent implements OnInit, OnDestroy {
 
   onResetTerrain(): void {
     this.getBattleScene()?.resetTerrain();
+  }
+
+  // v0.4.0 weapon handlers
+  onPlayerWeaponChange(id: string): void {
+    this.getBattleScene()?.setPlayerWeapon(id);
+  }
+
+  onAiWeaponChange(id: string): void {
+    this.getBattleScene()?.setAiWeapon(id);
   }
 }

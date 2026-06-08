@@ -1,8 +1,8 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 007-v040-weapon-system
-- 008-v040-weapon-phaser
+- 009-v050-attribute-system
+- 010-v050-character-ui
 
 ## Executando
 (nenhum)
@@ -46,6 +46,8 @@
 - 004-v020-ai-battle ✓
 - 005-v030-terrain-engine ✓
 - 006-v030-terrain-render ✓
+- 007-v040-weapon-system ✓
+- 008-v040-weapon-phaser ✓
 
 ## Bloqueados
 (nenhum)
