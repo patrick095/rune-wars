@@ -79,3 +79,13 @@ Criar `.ai-orchestration/agents/resumo-030.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa: deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | GuildService, GuildGateway WS para chat, regras de cargo |
+
+**Instrução:** `dev-backend.md`. Chat de guilda: mensagens efêmeras via Redis (TTL 24h), não PostgreSQL — reduzir carga do banco. Cargos: Lider pode tudo; Oficial pode depositar/sacar banco; Membro apenas depositar.

@@ -79,3 +79,13 @@ Criar `.ai-orchestration/agents/resumo-013.md`.
 
 ## Limpeza pós-versão
 Após v0.7.0 completa (013+014): deletar `v0.7.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | game-core TS puro: extensão do TerrainEngine, SOLID |
+
+**Instrução:** `dev-frontend.md`. Regra crítica: `TerrainEngine` é a fonte da verdade — adicionar métodos sem quebrar a API pública existente. Limite por jogador via Map privado `_constructedByPlayer`.

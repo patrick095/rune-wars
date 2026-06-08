@@ -92,3 +92,14 @@ Criar `.ai-orchestration/agents/resumo-015.md`.
 
 ## Limpeza pós-versão
 Após v0.8.0 completa (015+016+017): deletar `v0.8.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | DungeonEngine é game-core TS puro: SOLID, Clean Code |
+| **Analista de Design** | `agents/analista-de-design.md` | Validar que objetivos e fases fazem sentido de game design |
+
+**Instrução:** `dev-frontend` para código. `analista-de-design` para validar que os objetivos `DEFEAT_ALL` e `PROTECT` criam momentos interessantes de gameplay antes de implementar.

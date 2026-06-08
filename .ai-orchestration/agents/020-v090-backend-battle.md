@@ -84,3 +84,13 @@ Criar `.ai-orchestration/agents/resumo-020.md`.
 
 ## Limpeza pós-versão
 Após v0.9.0 completa: deletar `v0.9.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | NestJS WebSocket, services com regra de negócio, validação de ação |
+
+**Instrução:** `dev-backend.md`. Regra crítica: backend é a fonte da verdade — nunca aceitar valor de dano do cliente. Toda validação de turno, item e física ocorre no servidor antes de emitir `battle:state`.

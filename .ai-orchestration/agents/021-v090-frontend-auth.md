@@ -78,3 +78,14 @@ Criar `.ai-orchestration/agents/resumo-021.md`.
 
 ## Limpeza pós-versão
 Após v0.9.0 completa: deletar `v0.9.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Angular standalone, services, interceptors, guards |
+| **UI/UX** | `agents/ui-ux.md` | Layout das telas login/registro — fluxo de onboarding |
+
+**Instrução:** `dev-frontend` para código. `ui-ux` apenas para o fluxo Login → Menu (seção "Fluxos de tela") — garantir que o caminho até jogar é rápido e simples.

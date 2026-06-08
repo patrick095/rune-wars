@@ -84,3 +84,14 @@ Criar `.ai-orchestration/agents/resumo-027.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa: deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | DungeonGateway WS multiplayer, novos andares no DungeonService |
+| **Analista de Design** | `agents/analista-de-design.md` | Balancear dificuldade das 4 trilhas e design dos 4 chefes |
+
+**Instrução:** `dev-backend` para código. `analista-de-design` para validar que as 4 trilhas têm progressão de dificuldade clara e que cada chefe tem mecânica distinta — antes de implementar.

@@ -88,3 +88,14 @@ Criar `.ai-orchestration/agents/resumo-019.md`.
 
 ## Limpeza pós-versão
 Após v0.9.0 completa: deletar `v0.9.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | NestJS, estrutura domain/infrastructure, DTOs, validação, JWT |
+| **Databaser** | `agents/databaser.md` | Schema das 4 entidades, migrations, índices em FKs |
+
+**Instrução:** `dev-backend` para estrutura de módulos e regras NestJS. `databaser` para modelagem das entidades (User, Character, ItemInstance, DungeonProgress) — criar migrations com `up` e `down`, indexar todas as FKs.

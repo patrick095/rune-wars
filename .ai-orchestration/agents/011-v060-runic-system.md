@@ -88,3 +88,13 @@ Criar `.ai-orchestration/agents/resumo-011.md`.
 
 ## Limpeza pós-versão
 Após v0.6.0 completa (011+012): deletar `v0.6.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | game-core TS puro: SOLID, funções puras e testáveis |
+
+**Instrução:** `dev-frontend.md`. `RunicEffectSystem` e `StatusEffectManager` são game-core TS puro. `StatusEffectManager` usa Map internamente — prefixo `_` nas propriedades privadas.

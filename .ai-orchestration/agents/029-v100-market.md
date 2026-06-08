@@ -77,3 +77,14 @@ Criar `.ai-orchestration/agents/resumo-029.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa: deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | MarketService com validação de bind_type, transação de compra |
+| **Databaser** | `agents/databaser.md` | market_listing entity, índices para filtros de busca, cron de expiração |
+
+**Instrução:** `dev-backend` para validação (bind_type, bound_to_character) e transação de compra (transferir item + cobrar ouro + log). `databaser` para índices em `(item_base_id, rarity, expires_at)` para queries de busca com filtros.

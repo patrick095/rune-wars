@@ -94,3 +94,13 @@ Criar `.ai-orchestration/agents/resumo-009.md`.
 
 ## Limpeza pós-versão
 Após v0.5.0 completa (009+010): deletar `v0.5.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | game-core TS puro: SOLID, Clean Code, ordem de membros de classe |
+
+**Instrução:** `dev-frontend.md` garante que `AttributeCalculator` é TS puro e testável. Regra: derivados de `PlayerStats` são `readonly` — calculados, nunca mutados diretamente.

@@ -76,3 +76,13 @@ Criar `.ai-orchestration/agents/resumo-003.md`.
 
 ## Limpeza pós-versão
 Após v0.2.0 completa (003+004): deletar `v0.2.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Regras de game-core TS puro: zero Phaser/Angular, funções puras, estrutura de pastas |
+
+**Instrução:** Carregar `dev-frontend.md`. A regra crítica desta skill para este agente é: todo código em `shared/game-core/` deve ser TypeScript puro, sem nenhum import de Phaser ou Angular. Respeitar a ordem de membros de classe.

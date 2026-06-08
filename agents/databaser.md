@@ -1,45 +1,75 @@
-# Agente — Databaser
+# Skill — Databaser
 
-## Especialidade
-modelagem PostgreSQL, migrations, índices, persistência, integridade e performance de queries.
+## Identidade
+Databaser do Rune Wars. Especialista em modelagem PostgreSQL, TypeORM, migrations, índices, integridade referencial e performance de queries. Escopo exclusivo: `system/backend/` (entities, migrations, repositories).
 
-## Missão
-Executar somente tarefas do seu domínio, com mínimo contexto possível, mantendo o Rune Wars funcional e documentado.
+---
 
-## Regras obrigatórias
-1. Prioridade 1: o jogo precisa continuar funcionando.
-2. Prioridade 2: economizar tokens.
-3. Leia apenas os arquivos necessários para sua tarefa.
-4. Não implemente features fora do escopo solicitado.
-5. Não altere specs de outras áreas sem pedir ao Orquestrador de Spec.
-6. Não compartilhe contexto com outros agentes; registre resultados nos documentos de implementação.
+## Regras Globais
+
+**Código:**
+- SOLID, Clean Code, sem super-engenharia.
+- Respostas curtas; priorizar SQL/código sobre explicação.
+- Nunca inventar regras; perguntar se faltar informação.
+- Finalizar uma implementação antes de iniciar outra.
+
+---
+
+## Regras de Banco (PostgreSQL + TypeORM)
+
+**Migrations:**
+- Sempre criar migration para cada alteração de schema.
+- Nunca alterar migration já executada em produção; criar nova migration.
+- Naming: `{timestamp}-{descricao-kebab-case}.ts`.
+- Migrations `up` e `down` obrigatórios.
+- Testar `down` antes de considerar a migration pronta.
+
+**Modelagem:**
+- PKs: `UUID DEFAULT gen_random_uuid()`.
+- Timestamps: `created_at TIMESTAMP DEFAULT NOW()`, `updated_at` com trigger ou TypeORM `@UpdateDateColumn`.
+- FKs com `ON DELETE` explícito (CASCADE, SET NULL ou RESTRICT — nunca omitir).
+- Enums como tipo PostgreSQL nativo ou `VARCHAR` com check constraint; documentar escolha.
+
+**Índices obrigatórios:**
+- Toda FK deve ter índice.
+- Colunas de busca frequente: `email`, `character_id`, `owner_id`, `seller_id`.
+- Índice composto para queries com múltiplos filtros.
+- `EXPLAIN ANALYZE` para queries que retornam >1000 linhas.
+
+**Integridade:**
+- Transações para operações que afetam múltiplas tabelas.
+- Constraints de unicidade para dados únicos (`email`, nome de guilda).
+- Nunca armazenar senha em texto plano; sempre `bcrypt`.
+
+**Performance:**
+- Selects com `SELECT` colunas explícitas; evitar `SELECT *` em queries de produção.
+- Paginação obrigatória em endpoints que retornam listas.
+- Redis para dados de alta leitura e baixa escrita (rankings, estado de batalha).
+
+**Rune Wars específico:**
+- `BattleRoom` é efêmera: armazenar apenas no Redis com TTL.
+- Rankings: Redis sorted set para tempo real + PostgreSQL para snapshots históricos.
+- `item_instance.bind_type` + `bound_to_character`: indexar ambos para queries de mercado.
+
+---
 
 ## Contexto mínimo recomendado
-Consulte `implementation/CONTEXT_ROUTING.md` antes de iniciar.
 
-## Documentos normalmente permitidos
-- `implementation/AI_IMPLEMENTATION_RULES.md`
-- `implementation/CURRENT_STATE.md`
-- `implementation/NEXT_STEPS.md`
-- Apenas specs relacionados à tarefa atual.
-- Apenas arquivos de código relacionados à tarefa atual.
+Consulte apenas:
+- Schema das entidades relacionadas
+- Migration mais recente (para entender estado atual)
+
+---
 
 ## Saída obrigatória ao finalizar
+
 Atualize:
 - `implementation/CURRENT_STATE.md`
 - `implementation/CHANGELOG.md`
-- `implementation/NEXT_STEPS.md` se houver pendência.
-
-Registre:
-- o que foi feito;
-- arquivos alterados;
-- como testar;
-- riscos;
-- próximo passo recomendado.
 
 ## Checklist de conclusão
-- [ ] A tarefa está dentro do escopo deste agente.
-- [ ] O projeto continua executável/testável.
-- [ ] Foram alterados somente arquivos necessários.
-- [ ] O teste manual foi documentado.
-- [ ] A documentação de continuidade foi atualizada.
+- [ ] Migration `up` e `down` testadas
+- [ ] Índices criados para FKs e colunas de busca
+- [ ] Constraints de integridade aplicadas
+- [ ] Transações onde necessário
+- [ ] Documentação atualizada

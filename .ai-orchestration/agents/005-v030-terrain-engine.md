@@ -76,3 +76,13 @@ Criar `.ai-orchestration/agents/resumo-005.md`.
 
 ## Limpeza pós-versão
 Após v0.3.0 completa (005+006): deletar `v0.3.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | TerrainEngine é game-core TS puro: regras de zero-Phaser, Clean Code, ordem de membros |
+
+**Instrução:** Carregar `dev-frontend.md`. Foco na regra de game-core: TypeScript puro sem dependências externas. `TerrainEngine` deve ser testável de forma isolada.

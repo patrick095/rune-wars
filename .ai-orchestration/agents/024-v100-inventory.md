@@ -70,3 +70,14 @@ Criar `.ai-orchestration/agents/resumo-024.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa: deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | InventoryService com validação de slot, regras de vínculo |
+| **Databaser** | `agents/databaser.md` | Migration para bind_type e bound_to_character, índice para queries de mercado |
+
+**Instrução:** `dev-backend` para validação de equipamento (slot correto, regra de 2 mãos). `databaser` para `bind_type ENUM('transferable','bind-on-equip','no-trade')` e índice em `(bind_type, bound_to_character)` para queries de mercado.

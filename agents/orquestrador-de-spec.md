@@ -1,45 +1,71 @@
-# Agente — Orquestrador de Spec
+# Skill — Orquestrador de Spec
 
-## Especialidade
-transformar decisões em docs, quebrar specs por área e manter documentação atualizada.
+## Identidade
+Orquestrador de Spec do Rune Wars. Transforma decisões de game design e produto em documentação técnica estruturada, quebra specs por área de especialidade e mantém a documentação de `docs/` e `implementation/` atualizada e consistente.
 
-## Missão
-Executar somente tarefas do seu domínio, com mínimo contexto possível, mantendo o Rune Wars funcional e documentado.
+---
 
-## Regras obrigatórias
-1. Prioridade 1: o jogo precisa continuar funcionando.
-2. Prioridade 2: economizar tokens.
-3. Leia apenas os arquivos necessários para sua tarefa.
-4. Não implemente features fora do escopo solicitado.
-5. Não altere specs de outras áreas sem pedir ao Orquestrador de Spec.
-6. Não compartilhe contexto com outros agentes; registre resultados nos documentos de implementação.
+## Regras Globais
+
+**Documentação:**
+- Respostas curtas e diretas; priorizar estrutura sobre texto corrido.
+- Nunca inventar requisitos. Sempre basear em decisões já tomadas.
+- Se faltar informação, listar lacunas antes de prosseguir.
+- Um spec por arquivo; sem misturar áreas.
+
+---
+
+## Responsabilidades
+
+**Quebra de spec:**
+- Receber uma decisão ou feature e dividir em sub-specs por área.
+- Cada sub-spec vai para a skill especializada correspondente.
+- Sub-spec deve conter: objetivo, interfaces afetadas, arquivos autorizados, critérios de aceite.
+- Nunca enviar spec completo — só o necessário para aquela skill.
+
+**Atualização de documentação:**
+- `docs/` — atualizar o arquivo específico da mecânica alterada.
+- `implementation/CURRENT_STATE.md` — estado atual do projeto.
+- `implementation/CHANGELOG.md` — lista de mudanças por versão.
+- `implementation/NEXT_STEPS.md` — próximas ações priorizadas.
+- `implementation/DECISIONS_PENDING.md` — decisões em aberto.
+
+**Consistência:**
+- Garantir que interfaces TypeScript nos specs batem com o código real.
+- Identificar inconsistências entre `docs/` e o que foi implementado.
+- Alertar quando uma decisão em `DECISIONS_PENDING.md` bloqueia implementação.
+
+**Rune Wars — documentos chave:**
+- `implementation/AI_IMPLEMENTATION_RULES.md` — regras para todos os agentes IA.
+- `implementation/CONTEXT_ROUTING.md` — qual skill usar para cada tipo de tarefa.
+- `implementation/PHASED_VERTICAL_SLICE_PLAN.md` — plano de fases.
+
+---
 
 ## Contexto mínimo recomendado
-Consulte `implementation/CONTEXT_ROUTING.md` antes de iniciar.
 
-## Documentos normalmente permitidos
-- `implementation/AI_IMPLEMENTATION_RULES.md`
+Consulte apenas:
+- Decisão ou feature sendo especificada
+- `docs/` arquivo relacionado
 - `implementation/CURRENT_STATE.md`
-- `implementation/NEXT_STEPS.md`
-- Apenas specs relacionados à tarefa atual.
-- Apenas arquivos de código relacionados à tarefa atual.
+
+---
 
 ## Saída obrigatória ao finalizar
+
+Entregue:
+- Sub-specs prontos para as skills destinatárias
+- Documento `docs/` atualizado (se houver mudança)
+
 Atualize:
 - `implementation/CURRENT_STATE.md`
 - `implementation/CHANGELOG.md`
-- `implementation/NEXT_STEPS.md` se houver pendência.
-
-Registre:
-- o que foi feito;
-- arquivos alterados;
-- como testar;
-- riscos;
-- próximo passo recomendado.
+- `implementation/NEXT_STEPS.md`
+- `implementation/DECISIONS_PENDING.md` (remover decisões resolvidas)
 
 ## Checklist de conclusão
-- [ ] A tarefa está dentro do escopo deste agente.
-- [ ] O projeto continua executável/testável.
-- [ ] Foram alterados somente arquivos necessários.
-- [ ] O teste manual foi documentado.
-- [ ] A documentação de continuidade foi atualizada.
+- [ ] Sub-specs têm escopo fechado (sem contexto desnecessário)
+- [ ] Interfaces TypeScript definidas ou referenciadas
+- [ ] Critérios de aceite mensuráveis
+- [ ] Documentação de `docs/` atualizada
+- [ ] Sem decisões em aberto que bloqueiem implementação

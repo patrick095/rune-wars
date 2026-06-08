@@ -89,3 +89,14 @@ Criar `.ai-orchestration/agents/resumo-012.md`.
 
 ## Limpeza pós-versão
 Após v0.6.0 completa (011+012): deletar `v0.6.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | game-core TS + Phaser integração + componentes Angular |
+| **UI/UX** | `agents/ui-ux.md` | HUD de efeitos ativos: posicionamento de ícones, contador de turnos |
+
+**Instrução:** `dev-frontend` para código. `ui-ux` apenas para a seção "HUD de combate" — consultar posicionamento de ícones de efeito abaixo da barra de HP.

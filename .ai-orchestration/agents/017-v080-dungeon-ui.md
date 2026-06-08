@@ -80,3 +80,14 @@ Criar `.ai-orchestration/agents/resumo-017.md`.
 
 ## Limpeza pós-versão
 Após v0.8.0 completa (015+016+017): deletar `v0.8.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Componentes Angular do lobby e resultado, services para localStorage |
+| **UI/UX** | `agents/ui-ux.md` | Layout do lobby (HP atual, slots de arma/item, botões grandes) |
+
+**Instrução:** `dev-frontend` para código. `ui-ux` para o layout do Lobby de Dungeon — consultar seção "Fluxos de tela" para o fluxo dungeon → lobby → batalha → resultado.

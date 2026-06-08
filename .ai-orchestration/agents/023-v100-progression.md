@@ -75,3 +75,14 @@ Criar `.ai-orchestration/agents/resumo-023.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa (023–032): deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | NestJS service com lógica de XP/level-up, transações atômicas |
+| **Databaser** | `agents/databaser.md` | Migration para race + available_points, constraint race immutable |
+
+**Instrução:** `dev-backend` para ProgressionService. `databaser` para a migration — adicionar `race VARCHAR(20) NOT NULL DEFAULT 'human'` e `available_points INT DEFAULT 0` com constraint de imutabilidade para race após criação.

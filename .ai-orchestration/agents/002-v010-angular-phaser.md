@@ -102,3 +102,14 @@ Criar `.ai-orchestration/agents/resumo-002.md`.
 
 ## Limpeza pós-versão
 Após v0.1.0 completa: deletar `v0.1.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Skill principal — Angular + Phaser, standalone components, game-core |
+| **Dev Mobile** | `agents/dev-mobile.md` | Canvas responsivo, touch targets, teste 375px |
+
+**Instrução:** Carregar ambas as skills. `dev-frontend` define estrutura de pastas e padrões Angular/Phaser. `dev-mobile` garante responsividade e acessibilidade por toque desde o início.

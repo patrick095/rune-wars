@@ -77,3 +77,13 @@ Criar `.ai-orchestration/agents/resumo-025.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa: deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | EloService puro, RankedQueueService com Redis, fila separada |
+
+**Instrução:** `dev-backend.md`. `EloService` é pura lógica de domínio (domain layer). Fila ranqueada Redis deve ter key separada da casual: `queue:ranked:1v1` ≠ `queue:casual:1v1`.

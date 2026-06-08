@@ -61,3 +61,13 @@ Criar `.ai-orchestration/agents/resumo-001.md` com status, arquivos criados, dec
 
 ## Limpeza pós-versão
 Após v0.1.0 completa (001 + 002 concluídos): deletar `v0.1.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **DevOps** | `agents/devops.md` | Skill principal — Docker, docker-compose, infra |
+
+**Instrução:** Antes de executar este agente, carregar a skill `agents/devops.md` como contexto de comportamento. Seguir as regras de containers (Alpine, multi-stage build, healthcheck, sem credenciais hardcoded) e o checklist de conclusão da skill.

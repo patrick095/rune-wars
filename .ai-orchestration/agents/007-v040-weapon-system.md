@@ -88,3 +88,13 @@ Criar `.ai-orchestration/agents/resumo-007.md`.
 
 ## Limpeza pós-versão
 Após v0.4.0 completa (007+008): deletar `v0.4.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | WeaponSystem é game-core TS puro: SOLID, Clean Code, ordem de membros |
+
+**Instrução:** Carregar `dev-frontend.md`. Regra crítica: `WeaponSystem` é TS puro sem dependências de Phaser. Cada `WeaponDefinition` é um objeto de dados — sem lógica de renderização.

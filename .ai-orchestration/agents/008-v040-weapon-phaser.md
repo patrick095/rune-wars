@@ -74,3 +74,14 @@ Criar `.ai-orchestration/agents/resumo-008.md`.
 
 ## Limpeza pós-versão
 Após v0.4.0 completa (007+008): deletar `v0.4.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Phaser rendering, integração WeaponSystem, debug overlay |
+| **Analista Sonoro** | `agents/analista-sonoro.md` | Sons placeholder por arma: tabela de pitch e formatos recomendados |
+
+**Instrução:** `dev-frontend` para código Phaser. `analista-sonoro` apenas para a tabela de SFX por arma (seção "Sons por arma") — não implementar áudio completo ainda, apenas sons placeholder.

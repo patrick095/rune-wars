@@ -68,3 +68,13 @@ Criar `.ai-orchestration/agents/resumo-026.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa: deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | RankingService, cron jobs com `@nestjs/schedule`, Redis sorted sets |
+
+**Instrução:** `dev-backend.md`. Redis sorted set key pattern: `ranking:{period}:{mode}` (ex: `ranking:daily:solo`). Cron de reset deve snapshottear para PostgreSQL antes de limpar o Redis.

@@ -101,3 +101,15 @@ Criar `.ai-orchestration/agents/resumo-031.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa: deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Estrutura features/pages, lazy loading, services por tela |
+| **UI/UX** | `agents/ui-ux.md` | Layout de todas as novas telas, fluxos de navegação |
+| **Dev Mobile** | `agents/dev-mobile.md` | Todas as telas mobile-first 375px, touch targets |
+
+**Instrução:** Carregar as 3 skills. `dev-frontend` para código e estrutura. `ui-ux` para layout de cada tela (consultar seção "Fluxos de tela" e "Paleta de cores"). `dev-mobile` para garantir que cada tela nova funciona em 375px antes de marcar como concluída.

@@ -83,3 +83,14 @@ Criar `.ai-orchestration/agents/resumo-028.md`.
 
 ## Limpeza pós-versão
 Após v1.0.0 completa: deletar `v1.0.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Backend** | `agents/dev-backend.md` | CraftService e UpgradeService com transações, regras de negócio |
+| **Databaser** | `agents/databaser.md` | Migration para craft_recipe, transações para consumo + criação atômica |
+
+**Instrução:** `dev-backend` para CraftModule e UpgradeModule. `databaser` para garantir que craft (consumir materiais + criar item) e upgrade (consumir pedras + atualizar item) são transações atômicas — se falhar em qualquer ponto, rollback completo.

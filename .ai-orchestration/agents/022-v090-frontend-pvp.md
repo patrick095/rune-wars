@@ -86,3 +86,13 @@ Criar `.ai-orchestration/agents/resumo-022.md`.
 
 ## Limpeza pós-versão
 Após v0.9.0 completa: deletar `v0.9.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Angular services, BattleScene modo online, socket.io-client |
+
+**Instrução:** `dev-frontend.md`. BattleScene deve suportar modo `'local'` (existente) e modo `'online'` (novo) sem duplicar código. Reconciliação: lerp suave ao receber `battle:state` divergente.

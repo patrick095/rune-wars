@@ -85,3 +85,14 @@ Criar `.ai-orchestration/agents/resumo-006.md`.
 
 ## Limpeza pós-versão
 Após v0.3.0 completa (005+006): deletar `v0.3.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Phaser Graphics, integração com game-core, componentes Angular |
+| **Dev Mobile** | `agents/dev-mobile.md` | Canvas responsivo após mudança de terreno; performance com muitas células |
+
+**Instrução:** `dev-frontend` para código Phaser e Angular. `dev-mobile` para a regra de performance: usar dirty flag e evitar re-render de células não alteradas.

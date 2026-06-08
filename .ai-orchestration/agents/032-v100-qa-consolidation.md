@@ -81,3 +81,14 @@ Ver seção acima.
 
 ## Formato do resumo final
 Este agente cria o resumo final permanente em `docs/implementations/`.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Analista de Qualidade** | `agents/analista-de-qualidade.md` | Validar critérios de aceite, classificar bugs, relatório ✅/❌ |
+| **Analista de Teste** | `agents/analista-de-teste.md` | Executar plano de teste dos cenários críticos da v1.0.0 |
+
+**Instrução:** Carregar ambas as skills. `analista-de-qualidade` para o relatório de QA final (✅/❌/⚠️ por critério). `analista-de-teste` para executar os cenários críticos da tabela de QA da v1.0.0. Nenhum CRÍTICO pode estar pendente antes de criar o resumo final e deletar `v1.0.0.md`.

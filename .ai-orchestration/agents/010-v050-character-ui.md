@@ -85,3 +85,15 @@ Criar `.ai-orchestration/agents/resumo-010.md`.
 
 ## Limpeza pós-versão
 Após v0.5.0 completa (009+010): deletar `v0.5.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Angular standalone, estrutura features/pages, services para localStorage |
+| **UI/UX** | `agents/ui-ux.md` | Layout mobile: sliders grandes, legibilidade, fluxo /character |
+| **Dev Mobile** | `agents/dev-mobile.md` | Sliders com toque ≥ 44px, teste em 375px |
+
+**Instrução:** `dev-frontend` para o código Angular. `ui-ux` para o layout do painel (seção de layout de telas). `dev-mobile` para garantir que sliders são usáveis por toque.

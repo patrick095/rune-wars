@@ -86,3 +86,14 @@ Criar `.ai-orchestration/agents/resumo-016.md`.
 
 ## Limpeza pós-versão
 Após v0.8.0 completa (015+016+017): deletar `v0.8.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | MonsterAI (game-core TS), DungeonScene (Phaser) |
+| **Analista de Design** | `agents/analista-de-design.md` | Calibrar dificuldade dos 3 níveis de IA e fases do Golem |
+
+**Instrução:** `dev-frontend` para código. `analista-de-design` para a tabela de erros de IA (seção "Balanceamento") — garantir que EASY é ensinável e BOSS é desafiador sem ser frustrante.

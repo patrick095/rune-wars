@@ -91,3 +91,15 @@ Criar `.ai-orchestration/agents/resumo-014.md`.
 
 ## Limpeza pós-versão
 Após v0.7.0 completa (013+014): deletar `v0.7.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | Nova rota Angular, AcademyScene Phaser, componentes standalone |
+| **UI/UX** | `agents/ui-ux.md` | Layout do painel lateral da Academia, fluxos de tela |
+| **Dev Mobile** | `agents/dev-mobile.md` | Alvos móveis visíveis em 375px, painel configurável por toque |
+
+**Instrução:** `dev-frontend` para código. `ui-ux` para o painel lateral (seção "Fluxos de tela"). `dev-mobile` para garantir que alvos e controles funcionam em mobile.

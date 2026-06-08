@@ -83,3 +83,15 @@ Criar `.ai-orchestration/agents/resumo-004.md`.
 
 ## Limpeza pós-versão
 Após v0.2.0 completa (003+004): deletar `v0.2.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **Dev Frontend** | `agents/dev-frontend.md` | BattleScene Phaser, componentes Angular, signals/RxJS |
+| **Dev Mobile** | `agents/dev-mobile.md` | Controles de toque (toque-e-segura para força), HUD mobile |
+| **UI/UX** | `agents/ui-ux.md` | Layout do HUD (HP, vento, turno), posição dos controles de ângulo/força |
+
+**Instrução:** Carregar as 3 skills. `dev-frontend` para o código. `dev-mobile` para garantir controles funcionais em 375px. `ui-ux` consultar apenas a seção de HUD de combate para posicionamento dos elementos.

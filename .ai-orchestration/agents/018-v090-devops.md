@@ -78,3 +78,13 @@ Criar `.ai-orchestration/agents/resumo-018.md`.
 
 ## Limpeza pós-versão
 Após v0.9.0 completa (018+019+020+021+022): deletar `v0.9.0.md` da raiz.
+
+---
+
+## Skills a Carregar
+
+| Skill | Arquivo | Por quê |
+|-------|---------|---------|
+| **DevOps** | `agents/devops.md` | Skill principal — docker-compose full stack, Dockerfiles, .env.example |
+
+**Instrução:** `devops.md` completo. Foco em: healthcheck para postgres e redis antes de subir o backend; sem credenciais hardcoded; portas 3000 e 4200 expostas ao host, postgres/redis internos apenas.
