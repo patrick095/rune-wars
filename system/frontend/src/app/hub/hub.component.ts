@@ -34,6 +34,9 @@ export class HubComponent implements AfterViewInit, OnDestroy {
         parent: 'hub-canvas',
         width,
         height,
+        antialias: true,
+        antialiasGL: true,
+        roundPixels: false,
         transparent: true,
         backgroundColor: 'transparent',
         physics: {

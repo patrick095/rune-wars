@@ -69,7 +69,7 @@ export class HubScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image('hub_forest_painted', '/assets/hub/backgrounds/hub_forest_painted.png');
+    this.load.image('hub_forest_painted', '/assets/hub/backgrounds/hub_forest_painted.png?v=20260608-alpha-fix');
 
     const iconAssets = [
       { key: 'icon_pvp',        path: '/assets/hub/icons/icon_pvp.svg' },
