@@ -12,9 +12,13 @@ interface BattleCharacterState {
   x: number;
   y: number;
   isPlayer: boolean;
+  facing: 'left' | 'right';
 }
-import { GRID_COLS, TerrainEngine } from '../../app/shared/game-core/terrain-engine';
+import { GRID_COLS, TerrainEngine, MapMeta } from '../../app/shared/game-core/terrain-engine';
 import { CELL_SIZE, TerrainMaterial } from '../../app/shared/game-core/terrain-types';
+import { tryHorizontalMove } from '../terrain/terrain-collision';
+import { selectSpawns, spawnToWorld, moveSpeed, moveBudget } from '../terrain/spawn-selector';
+import { MovementBudgetHUD } from '../hud/movement-budget-hud';
 import { TerrainRenderer } from '../terrain/terrain-renderer';
 import { CharacterFall } from '../terrain/character-fall';
 import { CombatHud } from '../hud/combat-hud';
@@ -106,8 +110,14 @@ export class BattleScene extends Phaser.Scene {
   private _btnAngleMinus!: Phaser.GameObjects.Rectangle;
   private _btnAnglePlus!: Phaser.GameObjects.Rectangle;
 
-  private playerStats: BattleCharacterState = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true };
-  private aiStats: BattleCharacterState = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false };
+  private playerStats: BattleCharacterState = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true, facing: 'right' };
+  private aiStats: BattleCharacterState = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false, facing: 'left' };
+
+  // v1.2.0 movement budget
+  private playerAgility = 50;
+  private moveBudgetTotal = 0;
+  private moveBudgetUsed = 0;
+  private movementBudgetHUD!: MovementBudgetHUD;
   private currentAngle = 45;
   private difficulty: Difficulty = 'medium';
   private isAnimating = false;
@@ -169,10 +179,11 @@ export class BattleScene extends Phaser.Scene {
     super({ key: 'BattleScene' });
   }
 
-  init(data?: { isPlayground?: boolean; mode?: BattleMode; mapName?: MapName }): void {
+  init(data?: { isPlayground?: boolean; mode?: BattleMode; mapName?: MapName; agility?: number }): void {
     this.isPlayground = data?.isPlayground ?? false;
     this.battleMode = data?.mode ?? 'pvp';
     this.currentMap = data?.mapName ?? (this.battleMode === 'dungeon' ? 'dungeon_cave_entrance' : 'plains');
+    this.playerAgility = data?.agility ?? 50;
   }
 
   preload(): void {
@@ -252,8 +263,10 @@ export class BattleScene extends Phaser.Scene {
     this.statusEffects = new StatusEffectManager();
     this.consumableSystem = new ConsumableSystem();
     this.secondaryItemSystem = new SecondaryItemSystem();
-    this.playerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true };
-    this.aiStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false };
+    this.playerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true, facing: 'right' };
+    this.aiStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false, facing: 'left' };
+    this.moveBudgetTotal = moveBudget(this.playerAgility);
+    this.moveBudgetUsed = 0;
     this.currentAngle = 45;
     this.isAnimating = false;
     this.isChargingPower = false;
@@ -296,17 +309,47 @@ export class BattleScene extends Phaser.Scene {
     this.terrainRenderer = new TerrainRenderer(this, this.terrainEngine);
     this.terrainRenderer.renderFull();
 
-    // Position characters on terrain floor
+    // Camera bounds
+    const worldW = this.terrainEngine.worldWidth;
+    const worldH = this.terrainEngine.worldHeight;
+    this.cameras.main.setBounds(0, 0, worldW, worldH);
+    this.cameras.main.setZoom(0.9);
+
+    // Position characters using spawn points from map meta if available
+    const mapJson = this.getMapJsonById(this.currentMap);
+    const mapMeta = mapJson?.meta as MapMeta | undefined;
+    const rawSpawns = mapMeta?.spawnPoints ?? [];
+    const charHeight = 60;
+    const spawns = rawSpawns.length >= 2
+      ? selectSpawns(rawSpawns, 2)
+      : [];
+
+    const fallbackY = height * 0.65;
     const playerX = 120;
     const aiX = this.clampInitialX(MAP_WORLD_WIDTH - 120, width);
-    const playerFloor = this.terrainEngine.getFloorBelow(playerX, 0);
-    const aiFloor = this.terrainEngine.getFloorBelow(aiX, 0);
-    const fallbackY = height * 0.65;
 
-    this.playerStats.x = playerX;
-    this.playerStats.y = playerFloor !== null ? playerFloor - 30 : fallbackY;
-    this.aiStats.x = aiX;
-    this.aiStats.y = aiFloor !== null ? aiFloor - 30 : fallbackY;
+    if (spawns[0]) {
+      const p = spawnToWorld(spawns[0], CELL_SIZE, charHeight);
+      this.playerStats.x = p.x;
+      this.playerStats.y = p.y;
+    } else {
+      const playerFloor = this.terrainEngine.getFloorBelow(playerX, 0);
+      this.playerStats.x = playerX;
+      this.playerStats.y = playerFloor !== null ? playerFloor - 30 : fallbackY;
+    }
+
+    if (spawns[1]) {
+      const a = spawnToWorld(spawns[1], CELL_SIZE, charHeight);
+      this.aiStats.x = a.x;
+      this.aiStats.y = a.y;
+    } else {
+      const aiFloor = this.terrainEngine.getFloorBelow(aiX, 0);
+      this.aiStats.x = aiX;
+      this.aiStats.y = aiFloor !== null ? aiFloor - 30 : fallbackY;
+    }
+
+    this.playerStats.facing = 'right';
+    this.aiStats.facing = 'left';
 
     // Player sprite (blue)
     this.playerSprite = this.add.rectangle(
@@ -353,6 +396,15 @@ export class BattleScene extends Phaser.Scene {
       this.ghostTrace = new GhostTrace(this);
     }
 
+    // Camera follows player
+    this.cameras.main.startFollow(this.playerSprite, true, 0.08, 0.08);
+
+    // Movement budget HUD
+    this.movementBudgetHUD = new MovementBudgetHUD(this, width / 2, height - 80);
+    this.moveBudgetTotal = moveBudget(this.playerAgility);
+    this.moveBudgetUsed = 0;
+    this.movementBudgetHUD.update(0, this.moveBudgetTotal);
+
     // Controls
     this.createControls();
     this.createKeyboardControls();
@@ -370,11 +422,20 @@ export class BattleScene extends Phaser.Scene {
     if (!this.isAnimating) {
       this.handleKeyboardInput(delta);
 
-      // Apply fall physics to both characters each frame
-      this.playerFall.update(this.playerSprite, this.terrainEngine, delta);
-      this.aiFall.update(this.aiSprite, this.terrainEngine, delta);
+      const playerFallState = this.playerFall.update(this.playerSprite, this.terrainEngine, delta);
+      const aiFallState = this.aiFall.update(this.aiSprite, this.terrainEngine, delta);
 
-      // Sync logical stats positions with sprites
+      if (playerFallState === 'dead' && this.playerStats.hp > 0) {
+        this.playerStats.hp = 0;
+        this.resultOverlay.show(this, false);
+        return;
+      }
+      if (aiFallState === 'dead' && this.aiStats.hp > 0) {
+        this.aiStats.hp = 0;
+        this.resultOverlay.show(this, true);
+        return;
+      }
+
       this.playerStats.x = this.playerSprite.x;
       this.playerStats.y = this.playerSprite.y;
       this.aiStats.x = this.aiSprite.x;
@@ -479,14 +540,15 @@ export class BattleScene extends Phaser.Scene {
   private handleKeyboardInput(delta: number): void {
     if (!this.cursors || !this.turnManager.isPlayerTurn || this.isAnimating) return;
     const dt = delta / 1000;
+    const speed = moveSpeed(this.playerAgility);
     let changed = false;
 
     if (this.cursors.left?.isDown) {
-      this.movePlayer(-PLAYER_MOVE_SPEED * dt);
+      this.movePlayer(-speed * dt);
       changed = true;
     }
     if (this.cursors.right?.isDown) {
-      this.movePlayer(PLAYER_MOVE_SPEED * dt);
+      this.movePlayer(speed * dt);
       changed = true;
     }
     if (this.cursors.up?.isDown) {
@@ -501,25 +563,54 @@ export class BattleScene extends Phaser.Scene {
     if (changed) this.updateTrajectoryPreview();
   }
 
+  private getWorldAngle(angle: number): number {
+    return this.playerStats.facing === 'right' ? angle : 180 - angle;
+  }
+
+  private updateAngleDisplay(): void {
+    if (!this.angleText) return;
+    const prefix = this.playerStats.facing === 'left' ? '← ' : '';
+    const suffix = this.playerStats.facing === 'right' ? ' →' : '';
+    this.angleText.setText(`${prefix}${this.currentAngle}°${suffix}`);
+  }
+
   private adjustAngle(delta: number): void {
     if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
-    // FREEZE blocks angle/force controls
     if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
     this.currentAngle = Math.round(Math.max(5, Math.min(175, this.currentAngle + delta)));
-    this.angleText.setText(`${this.currentAngle}°`);
+    this.updateAngleDisplay();
     this.updateTrajectoryPreview();
   }
 
   private movePlayer(deltaX: number): void {
     if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
-    const nextX = this.clampInitialX(this.playerSprite.x + deltaX, this.scale.width);
-    const floorY = this.terrainEngine.getFloorBelow(nextX, this.playerSprite.y + this.playerSprite.height / 2);
-    this.playerSprite.setX(nextX);
-    if (floorY !== null && floorY < this.playerSprite.y + this.playerSprite.height) {
-      this.playerSprite.setY(floorY - this.playerSprite.height / 2);
+
+    const remaining = this.moveBudgetTotal - this.moveBudgetUsed;
+    if (remaining <= 0) return;
+
+    const cappedDelta = Math.sign(deltaX) * Math.min(Math.abs(deltaX), remaining);
+    const result = tryHorizontalMove(
+      this.playerSprite.x,
+      this.playerSprite.y,
+      cappedDelta,
+      this.terrainEngine
+    );
+
+    if (!result.canMove) return;
+
+    const newFacing: 'left' | 'right' = deltaX > 0 ? 'right' : 'left';
+    if (newFacing !== this.playerStats.facing) {
+      this.playerStats.facing = newFacing;
+      this.playerAvatar?.setFlipX(newFacing === 'left');
+      this.updateAngleDisplay();
     }
-    this.playerStats.x = this.playerSprite.x;
-    this.playerStats.y = this.playerSprite.y;
+
+    this.playerSprite.setPosition(result.newX, result.newY);
+    this.moveBudgetUsed += Math.abs(cappedDelta);
+    this.movementBudgetHUD.update(this.moveBudgetUsed, this.moveBudgetTotal);
+
+    this.playerStats.x = result.newX;
+    this.playerStats.y = result.newY;
     this.syncActorAssets();
   }
 
@@ -587,7 +678,7 @@ export class BattleScene extends Phaser.Scene {
 
     const profile = this.playerWeapon.physicsProfile;
     const config: ProjectileConfig = {
-      angle: this.currentAngle,
+      angle: this.getWorldAngle(this.currentAngle),
       force: this.calibrationShotActive ? 75 : 50,
       gravityScale: profile.gravityScale,
       windInfluence: profile.windInfluence,
@@ -607,7 +698,7 @@ export class BattleScene extends Phaser.Scene {
     this.trajectory.clear();
     const profile = this.playerWeapon.physicsProfile;
     const config: ProjectileConfig = {
-      angle,
+      angle: this.getWorldAngle(angle),
       force,
       gravityScale: profile.gravityScale,
       windInfluence: profile.windInfluence,
@@ -928,13 +1019,18 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (!this.turnManager.isPlayerTurn) {
-      // AI turn with 1s delay
+      this.cameras.main.startFollow(this.aiSprite, true, 0.08, 0.08);
+      this.movementBudgetHUD?.setVisible(false);
       this.time.delayedCall(1000, () => {
         this.fireAiShot();
       });
     } else {
+      this.cameras.main.startFollow(this.playerSprite, true, 0.08, 0.08);
+      this.moveBudgetTotal = moveBudget(this.playerAgility);
+      this.moveBudgetUsed = 0;
+      this.movementBudgetHUD?.update(0, this.moveBudgetTotal);
+      this.movementBudgetHUD?.setVisible(true);
       if (this.playerInvisibleTurns > 0) this.playerInvisibleTurns -= 1;
-      // Back to player — clear ghost trace from previous shot and show trajectory preview
       this.ghostTrace?.clear();
       this.updateTrajectoryPreview();
     }
@@ -997,9 +1093,10 @@ export class BattleScene extends Phaser.Scene {
    */
   private updateBlindState(): void {
     if (this.turnManager.isPlayerTurn && this.statusEffects.hasEffect('player', 'BLIND')) {
-      this.angleText.setVisible(false);
+      this.angleText?.setVisible(false);
     } else {
-      this.angleText.setVisible(true);
+      this.angleText?.setVisible(true);
+      this.updateAngleDisplay();
     }
   }
 
@@ -1166,16 +1263,55 @@ export class BattleScene extends Phaser.Scene {
     const map = this.getMapOption(mapName);
     this.battleMode = map.mode;
     this.terrainEngine.loadMap(map.grid);
+
+    // Notify renderer of new map for texture palette
+    const renderer = this.terrainRenderer as TerrainRenderer & { setMapName?(n: string): void };
+    renderer.setMapName?.(mapName);
     this.terrainRenderer.renderFull();
+
     this.aiAvatar?.setTexture(this.battleMode === 'dungeon' ? 'dwarf_battle' : 'elf_battle');
     this.aiAvatar?.setTint(this.battleMode === 'dungeon' ? 0xffcc88 : 0xffffff);
 
-    // Re-position characters on new terrain
-    const playerFloor = this.terrainEngine.getFloorBelow(this.playerSprite.x, 0);
-    const aiFloor = this.terrainEngine.getFloorBelow(this.aiSprite.x, 0);
-    if (playerFloor !== null) this.playerSprite.setY(playerFloor - this.playerSprite.height / 2);
-    if (aiFloor !== null) this.aiSprite.setY(aiFloor - this.aiSprite.height / 2);
+    // Camera bounds
+    this.cameras.main.setBounds(0, 0, this.terrainEngine.worldWidth, this.terrainEngine.worldHeight);
+
+    // Re-spawn using meta spawn points if available
+    const mapJson = this.getMapJsonById(mapName);
+    const mapMeta = mapJson?.meta as MapMeta | undefined;
+    const rawSpawns = mapMeta?.spawnPoints ?? [];
+    const charHeight = 60;
+
+    if (rawSpawns.length >= 2) {
+      const spawns = selectSpawns(rawSpawns, 2);
+      if (spawns[0]) {
+        const p = spawnToWorld(spawns[0], CELL_SIZE, charHeight);
+        this.playerSprite.setPosition(p.x, p.y);
+      }
+      if (spawns[1]) {
+        const a = spawnToWorld(spawns[1], CELL_SIZE, charHeight);
+        this.aiSprite.setPosition(a.x, a.y);
+      }
+    } else {
+      const playerFloor = this.terrainEngine.getFloorBelow(this.playerSprite.x, 0);
+      const aiFloor = this.terrainEngine.getFloorBelow(this.aiSprite.x, 0);
+      if (playerFloor !== null) this.playerSprite.setY(playerFloor - this.playerSprite.height / 2);
+      if (aiFloor !== null) this.aiSprite.setY(aiFloor - this.aiSprite.height / 2);
+    }
     this.syncActorAssets();
+  }
+
+  private getMapJsonById(mapName: MapName): { meta?: unknown; grid: number[][] } | null {
+    switch (mapName) {
+      case 'plains': return mapPlains as unknown as { meta?: unknown; grid: number[][] };
+      case 'castle': return mapCastle as unknown as { meta?: unknown; grid: number[][] };
+      case 'deep_mines': return mapDeepMines as unknown as { meta?: unknown; grid: number[][] };
+      case 'arcane_ruins': return mapArcaneRuins as unknown as { meta?: unknown; grid: number[][] };
+      case 'runic_forest': return mapRunicForest as unknown as { meta?: unknown; grid: number[][] };
+      case 'dungeon_cave_entrance': return mapDungeonCaveEntrance as unknown as { meta?: unknown; grid: number[][] };
+      case 'dungeon_cave_hall': return mapDungeonCaveHall as unknown as { meta?: unknown; grid: number[][] };
+      case 'dungeon_cave_boss': return mapDungeonCaveBoss as unknown as { meta?: unknown; grid: number[][] };
+      default: return null;
+    }
   }
 
   paintCell(worldX: number, worldY: number, material: number): void {
@@ -1213,6 +1349,13 @@ export class BattleScene extends Phaser.Scene {
         this.aiStats.x = newX; this.aiStats.y = newY;
       }
     }
+  }
+
+  setPlayerAgility(agility: number): void {
+    this.playerAgility = Math.max(0, Math.min(500, agility));
+    this.moveBudgetTotal = moveBudget(this.playerAgility);
+    this.moveBudgetUsed = 0;
+    this.movementBudgetHUD?.update(0, this.moveBudgetTotal);
   }
 
   setPlayerLuck(luck: number): void {

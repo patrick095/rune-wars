@@ -1,7 +1,14 @@
 import { CELL_SIZE, ExplosionResult, TerrainCell, TerrainMaterial } from './terrain-types';
 
-export const GRID_COLS = 100;
-export const GRID_ROWS = 40;
+export const GRID_COLS = 300;
+export const GRID_ROWS = 80;
+
+export interface MapMeta {
+  name?: string;
+  cols?: number;
+  rows?: number;
+  spawnPoints?: Array<{ col: number; row: number }>;
+}
 
 const MAX_CONSTRUCTED_PER_PLAYER = 20;
 
@@ -160,6 +167,13 @@ export class TerrainEngine {
 
   resetConstructedCount(playerId: string): void {
     this._constructedByPlayer.delete(playerId);
+  }
+
+  get worldWidth(): number { return GRID_COLS * CELL_SIZE; }
+  get worldHeight(): number { return GRID_ROWS * CELL_SIZE; }
+
+  getSpawnPoints(meta?: { spawnPoints?: Array<{ col: number; row: number }> }): Array<{ col: number; row: number }> {
+    return meta?.spawnPoints ?? [];
   }
 
   getGrid(): TerrainMaterial[][] {

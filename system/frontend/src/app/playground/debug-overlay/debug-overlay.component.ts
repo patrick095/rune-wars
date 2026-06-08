@@ -67,6 +67,11 @@ interface Section {
           <option value="hard">Difícil</option>
         </select>
 
+        <label class="debug-label">Agilidade Jogador (0-500)</label>
+        <input type="range" min="0" max="500" step="10"
+          [(ngModel)]="playerAgility" (ngModelChange)="onPlayerAgilityChange($event)" class="debug-range" />
+        <span class="debug-value">{{ playerAgility }}</span>
+
         <button class="debug-btn danger" (click)="onReset()">Resetar Partida</button>
       </div>
 
@@ -341,6 +346,7 @@ export class DebugOverlayComponent implements OnInit, OnDestroy, AfterViewInit {
   aiHp = 100;
   baseDamage = 40;
   difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+  playerAgility = 50;
 
   // v0.3.0
   battleMode: BattleMode = 'pvp';
@@ -465,8 +471,9 @@ export class DebugOverlayComponent implements OnInit, OnDestroy, AfterViewInit {
   onDifficultyChange(v: 'easy'|'medium'|'hard'): void { this._scene()?.setDifficulty(v); }
   onReset(): void {
     this._scene()?.resetBattle();
-    this.windValue = 0; this.playerHp = 100; this.aiHp = 100; this.baseDamage = 40; this.difficulty = 'medium';
+    this.windValue = 0; this.playerHp = 100; this.aiHp = 100; this.baseDamage = 40; this.difficulty = 'medium'; this.playerAgility = 50;
   }
+  onPlayerAgilityChange(v: number): void { this._scene()?.setPlayerAgility(v); }
   onBattleModeChange(mode: BattleMode): void {
     this.battleMode = mode;
     this.selectedMap = mode === 'dungeon' ? 'dungeon_cave_entrance' : 'plains';
