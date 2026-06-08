@@ -1,9 +1,14 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 018-v090-devops (paralelo)
-- 019-v090-backend-auth-char (paralelo)
-- 021-v090-frontend-auth (paralelo)
+- 023-v100-progression (paralelo)
+- 024-v100-inventory (paralelo)
+- 025-v100-ranked-pvp (paralelo)
+- 026-v100-rankings (paralelo)
+- 027-v100-dungeon-floors (paralelo)
+- 028-v100-craft-upgrade (paralelo)
+- 029-v100-market (paralelo)
+- 030-v100-guilds (paralelo)
 
 ## Executando
 (nenhum)
@@ -56,6 +61,11 @@
 - 015-v080-dungeon-engine ✓
 - 016-v080-dungeon-ai ✓
 - 017-v080-dungeon-ui ✓
+- 018-v090-devops ✓
+- 019-v090-backend-auth-char ✓
+- 020-v090-backend-battle ✓
+- 021-v090-frontend-auth ✓
+- 022-v090-frontend-pvp ✓
 
 ## Bloqueados
 (nenhum)

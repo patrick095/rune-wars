@@ -10,32 +10,35 @@ v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
 Implementar Rune Wars do zero até v1.0.0 com 32 agentes especializados, economia máxima de tokens, projeto sempre funcional, deleção automática de arquivos vX.Y.Z.md após cada versão.
 
 ## Última ação concluída
-Fix aplicado: servidor de desenvolvimento parado; preview de trajetória é destruído/recriado ao reiniciar a batalha e redesenhado após inicialização da cena.
+v0.9.0 completa: 018+019+021 paralelo → 020+022 paralelo. typecheck + build OK. v0.9.0.md deletado.
 
 ## Próxima ação recomendada
-Executar em paralelo: `018-v090-devops`, `019-v090-backend-auth-char`, `021-v090-frontend-auth`.
+Executar em paralelo: 023, 024, 025, 026, 027, 028, 029, 030 (Fase 9 — v1.0.0 sistemas backend).
 
 ## Fase atual
-Fase 8 — v0.9.0: Backend Mínimo e Multiplayer PvP
+Fase 9 — v1.0.0: Sistemas Completos
 
 ## Agente atual
 Nenhum (aguardando início)
 
 ## Agentes concluídos
-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017
+001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022
 
 ## Agentes pendentes
-018, 019, 020,
-021, 022, 023, 024, 025, 026, 027, 028, 029, 030,
-031, 032
+023, 024, 025, 026, 027, 028, 029, 030, 031, 032
 
 ## Agentes bloqueados
 (nenhum)
 
 ## Dependências liberadas
-- 018-v090-devops
-- 019-v090-backend-auth-char
-- 021-v090-frontend-auth
+- 023-v100-progression
+- 024-v100-inventory
+- 025-v100-ranked-pvp
+- 026-v100-rankings
+- 027-v100-dungeon-floors
+- 028-v100-craft-upgrade
+- 029-v100-market
+- 030-v100-guilds
 
 ## Bugs críticos
 (nenhum)

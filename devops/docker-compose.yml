@@ -8,6 +8,9 @@ services:
       - "4200:80"
     environment:
       - ANGULAR_ENV=${ANGULAR_ENV:-production}
+    depends_on:
+      backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80"]
       interval: 30s
@@ -28,6 +31,7 @@ services:
       - /app/node_modules
     environment:
       - ANGULAR_ENV=${ANGULAR_ENV:-development}
+      - API_URL=${API_URL:-http://localhost:3000}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4200"]
       interval: 30s
@@ -35,3 +39,54 @@ services:
       retries: 3
       start_period: 30s
     restart: unless-stopped
+
+  backend:
+    build:
+      context: ../system/backend
+      dockerfile: ../../devops/backend/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-runewars}
+      POSTGRES_USER: ${POSTGRES_USER:-rw_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rw_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rw_user} -d ${POSTGRES_DB:-runewars}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pg_data:
