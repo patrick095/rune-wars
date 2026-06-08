@@ -1,8 +1,8 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 003-v020-game-logic
-- 004-v020-ai-battle
+- 005-v030-terrain-engine
+- 006-v030-terrain-render
 
 ## Executando
 (nenhum)
@@ -42,6 +42,8 @@
 ## Concluídos
 - 001-v010-devops-setup ✓
 - 002-v010-angular-phaser ✓
+- 003-v020-game-logic ✓
+- 004-v020-ai-battle ✓
 
 ## Bloqueados
 (nenhum)

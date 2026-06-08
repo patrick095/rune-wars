@@ -2,6 +2,7 @@ import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, Output, Eve
 import Phaser from 'phaser';
 import { BootScene } from '../../../game/scenes/boot.scene';
 import { PlaygroundScene } from '../../../game/scenes/playground.scene';
+import { BattleScene } from '../../../game/scenes/battle.scene';
 
 @Component({
   selector: 'app-phaser-container',
@@ -27,7 +28,7 @@ export class PhaserContainerComponent implements AfterViewInit, OnDestroy {
       height: window.innerHeight,
       backgroundColor: '#1a1a2e',
       parent: this.containerRef.nativeElement,
-      scene: [BootScene, PlaygroundScene],
+      scene: [BootScene, BattleScene, PlaygroundScene],
       scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH
