@@ -1,7 +1,7 @@
 # Estado da Orquestração
 
 ## Status geral
-v0.4.0 CONCLUÍDA — avançando para v0.5.0
+v0.5.0 CONCLUÍDA — avançando para v0.6.0
 
 ## Spec original
 v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
@@ -10,22 +10,22 @@ v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
 Implementar Rune Wars do zero até v1.0.0 com 32 agentes especializados, economia máxima de tokens, projeto sempre funcional, deleção automática de arquivos vX.Y.Z.md após cada versão.
 
 ## Última ação concluída
-v0.4.0 completa: 6 armas com física própria, boomerang, cores distintas, seletor no debug.
+v0.5.0 completa: PlayerStats completo com 4 atributos, AttributeCalculator, WeaponRequirements + tela /character com localStorage e 5 presets.
 
 ## Próxima ação recomendada
-Executar em paralelo: `009-v050-attribute-system` e `010-v050-character-ui`
+Executar em paralelo: `011-v060-runic-system` e `012-v060-items-consumables`
 
 ## Fase atual
-Fase 4 — v0.5.0: Personagem Customizável
+Fase 5 — v0.6.0: Efeitos Rúnicos e Consumíveis
 
 ## Agente atual
 Nenhum (aguardando início)
 
 ## Agentes concluídos
-001, 002, 003, 004, 005, 006, 007, 008
+001, 002, 003, 004, 005, 006, 007, 008, 009, 010
 
 ## Agentes pendentes
-009, 010,
+011, 012,
 011, 012, 013, 014, 015, 016, 017, 018, 019, 020,
 021, 022, 023, 024, 025, 026, 027, 028, 029, 030,
 031, 032

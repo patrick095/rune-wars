@@ -1,8 +1,8 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 009-v050-attribute-system
-- 010-v050-character-ui
+- 011-v060-runic-system
+- 012-v060-items-consumables
 
 ## Executando
 (nenhum)
@@ -48,6 +48,8 @@
 - 006-v030-terrain-render ✓
 - 007-v040-weapon-system ✓
 - 008-v040-weapon-phaser ✓
+- 009-v050-attribute-system ✓
+- 010-v050-character-ui ✓
 
 ## Bloqueados
 (nenhum)

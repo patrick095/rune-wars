@@ -16,6 +16,7 @@ export class WeaponSystem {
       },
       impactRadius: 50,
       excavationRadius: 60,
+      requirements: { minStrength: 20, minLevel: 5 },
     },
     {
       id: 'longbow',
@@ -31,6 +32,7 @@ export class WeaponSystem {
       },
       impactRadius: 20,
       excavationRadius: 10,
+      requirements: { minAgility: 15 },
     },
     {
       id: 'tnt',
@@ -46,6 +48,7 @@ export class WeaponSystem {
       },
       impactRadius: 80,
       excavationRadius: 100,
+      requirements: { minStrength: 15, minLevel: 3 },
     },
     {
       id: 'boomerang',
@@ -61,6 +64,7 @@ export class WeaponSystem {
       },
       impactRadius: 15,
       excavationRadius: 0,
+      requirements: { minAgility: 10 },
     },
     {
       id: 'ice-book',

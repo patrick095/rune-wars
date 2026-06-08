@@ -1,4 +1,5 @@
 import { ProjectileConfig } from './projectile-config';
+import { WeaponRequirements } from './weapon-requirements';
 
 export interface ProjectilePhysicsProfile {
   gravityScale: number;
@@ -18,4 +19,5 @@ export interface WeaponDefinition {
   impactRadius: number;
   excavationRadius: number;
   runeEffect?: string;
+  requirements?: WeaponRequirements;
 }

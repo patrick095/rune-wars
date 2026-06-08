@@ -1,0 +1,219 @@
+.character-page {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+  color: #fff;
+  background: #1a1a2e;
+  min-height: 100vh;
+  font-family: monospace;
+
+  h1 {
+    font-size: 24px;
+    margin-bottom: 16px;
+    color: #aad4ff;
+    text-align: center;
+  }
+
+  h2 {
+    font-size: 16px;
+    color: #aad4ff;
+    margin-bottom: 8px;
+  }
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+
+  button {
+    padding: 8px 12px;
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    min-height: 44px;
+    font-family: monospace;
+    font-size: 14px;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #555;
+    }
+
+    &:active {
+      background: #4488ff;
+    }
+  }
+}
+
+.points-info {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #ccc;
+
+  .points-remaining {
+    color: #88ff88;
+
+    &.no-points {
+      color: #ff8888;
+    }
+  }
+}
+
+.attrs-section {
+  margin-bottom: 16px;
+}
+
+.attr-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #333;
+
+  &.level-row {
+    margin-bottom: 8px;
+    border-bottom: 2px solid #4488ff;
+  }
+
+  button {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #555;
+    }
+
+    &:active {
+      background: #4488ff;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  .label {
+    min-width: 80px;
+    font-size: 14px;
+    color: #ccc;
+  }
+
+  .value {
+    min-width: 40px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+  }
+}
+
+.stats-derived {
+  margin: 16px 0;
+  padding: 12px;
+  background: #252545;
+  border-radius: 8px;
+}
+
+.stat-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 14px;
+  color: #ccc;
+  border-bottom: 1px solid #333;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  span:last-child {
+    color: #fff;
+    font-weight: bold;
+  }
+}
+
+.weapons-list {
+  margin: 16px 0;
+}
+
+.weapon-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #252545;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 14px;
+
+  &.locked {
+    opacity: 0.5;
+  }
+
+  .lock-icon,
+  .unlock-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .weapon-name {
+    flex: 1;
+    color: #fff;
+  }
+
+  .weapon-damage {
+    color: #aaa;
+    font-size: 12px;
+  }
+}
+
+.save-btn {
+  width: 100%;
+  padding: 14px;
+  background: #4488ff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: monospace;
+  cursor: pointer;
+  margin-top: 16px;
+  min-height: 44px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #2266dd;
+  }
+
+  &:active {
+    background: #1144aa;
+  }
+}
+
+.save-feedback {
+  text-align: center;
+  margin-top: 8px;
+  color: #88ff88;
+  font-size: 14px;
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
