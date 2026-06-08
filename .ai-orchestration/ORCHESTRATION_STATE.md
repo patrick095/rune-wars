@@ -1,63 +1,70 @@
 # Estado da Orquestração
 
 ## Status geral
-v1.0.0 CONCLUÍDA — projeto finalizado
+Não iniciado
 
 ## Spec original
-v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
+v1.1.0.md — Tela Inicial Imersiva: Floresta Rúnica
 
 ## Objetivo geral
-Implementar Rune Wars do zero até v1.0.0 com 32 agentes especializados, economia máxima de tokens, projeto sempre funcional, deleção automática de arquivos vX.Y.Z.md após cada versão.
+Substituir a tela inicial/menu pós-login por um hub jogável e imersivo chamado Floresta Rúnica. O personagem aparece no mundo, navega por locais interativos (POIs) que acessam as funcionalidades existentes do Rune Wars.
 
 ## Última ação concluída
-agente 032-v100-qa-consolidation concluído. Consolidação final v1.0.0 realizada. Todos os 32 agentes concluídos.
+Plano de orquestração criado (2026-06-08).
 
 ## Próxima ação recomendada
-Nenhuma — todos os 32 agentes concluídos. Projeto v1.0.0 finalizado.
+Executar Agente 033 (Hub Spec Validator) — obrigatório antes de todos os outros.
 
 ## Fase atual
-Fase 10 — CONCLUÍDA
+Fase 0 — Planejamento concluído, pronto para execução.
 
 ## Agente atual
-Nenhum (todos os agentes concluídos)
+Nenhum em execução.
 
 ## Agentes concluídos
-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026, 027, 028, 029, 030, 031, 032
+Nenhum.
 
 ## Agentes pendentes
-(nenhum)
+- 033 — Hub Spec Validator
+- 034 — SVG Icons & UI Assets
+- 035 — Background, POI & FX Assets
+- 036 — Audio Spec & Placeholders
+- 037 — Hub Angular/Phaser Core
+- 038 — Hub Art Pass
+- 039 — Hub QA
 
 ## Agentes bloqueados
-(nenhum)
+- 037 — aguarda 033 (obrigatório)
+- 038 — aguarda 037, 034, 035 (todos obrigatórios)
+- 039 — aguarda 037, 038 (ambos obrigatórios)
 
 ## Dependências liberadas
-(todas liberadas — projeto concluído)
+Nenhuma.
 
 ## Bugs críticos
-(nenhum)
+Nenhum identificado.
 
 ## Decisões tomadas
-- Usar Angular 17+ standalone components
-- Phaser 3.x integrado como módulo Angular
-- Backend NestJS + TypeORM + PostgreSQL + Redis (apenas v0.9.0+)
-- Lógica de jogo em TypeScript puro (compartilhada backend/frontend)
-- Docker obrigatório para todo o stack
-- Arquivos vX.Y.Z.md deletados após conclusão de cada versão
-- 32 agentes no total; paralelismo máximo onde não há dependência
+- Login pós-sucesso atual navega para `/playground`; deve ser alterado para `/hub` pelo Agente 037.
+- Rotas existentes mapeadas: pvp, dungeon, character, market, craft, guild, academy, rankings, dungeon-floors.
+- `/craft` será usado para o Ferreiro (inclui upgrade via rota separada `/upgrade`).
+- Assets ficarão em `system/frontend/src/assets/hub/`.
+- Cenas Phaser existentes: academy, battle, boot, dungeon, playground.
+- Não há pasta `assets` ainda — Agentes 034/035/036 criam os diretórios necessários.
 
 ## Decisões pendentes
-(nenhuma)
+- Confirmar se Ferreiro deve linkar para `/craft` ou `/upgrade` (ou exibir modal de escolha). Agente 033 valida.
+- Confirmar se `rankings` precisa de POI próprio no hub. Spec atual não menciona.
 
 ## Arquivos alterados até agora
-- IMPLEMENTAR_TUDO.md (criado)
-- .ai-orchestration/ (criado)
+Nenhum arquivo do projeto.
 
 ## Como retomar
-Para continuar esta implementação, leia:
+Para continuar esta implementação, leia primeiro:
 1. `.ai-orchestration/ORCHESTRATION_STATE.md`
 2. `.ai-orchestration/AGENTS_QUEUE.md`
 3. `.ai-orchestration/BUGS_AND_BLOCKERS.md`
 4. `.ai-orchestration/FILES_CHANGED.md`
-5. Resumos em `.ai-orchestration/agents/` dos agentes concluídos
+5. Os resumos em `.ai-orchestration/agents/`
 
-Continue da "Próxima ação recomendada" acima.
+Depois continue exatamente da seção "Próxima ação recomendada".

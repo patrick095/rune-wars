@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { AuthService } from './auth.service';
+import { environment } from '../../../environments/environment';
 
 export type BattlePhase = 'idle' | 'queued' | 'matched' | 'active' | 'finished';
 
@@ -32,7 +33,7 @@ export class BattleService {
     this.currentCharacterId = characterId;
 
     import('socket.io-client').then(({ io }) => {
-      this.socket = io('http://localhost:3000/battle', {
+      this.socket = io(`${environment.wsUrl}/battle`, {
         auth: { token: this.auth.getToken() },
         transports: ['websocket'],
       });

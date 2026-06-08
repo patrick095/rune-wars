@@ -1,246 +1,184 @@
-# Implementar Tudo — Rune Wars v0.1.0 → v1.0.0
+# Implementar Tudo — v1.1.0: Floresta Rúnica
 
 ## Objetivo Geral
+Substituir a tela inicial pós-login por um hub jogável e imersivo chamado **Floresta Rúnica**. O personagem aparece dentro do mundo em uma clareira mágica com 7 pontos de interesse (POIs) que representam as funcionalidades existentes do Rune Wars (PvP, Dungeon, Vila, Mercado, Ferreiro, Guilda, Academia). Nenhum sistema novo de gameplay é criado.
 
-Implementar o MMORPG 2D Rune Wars em 10 versões incrementais (v0.1.0–v1.0.0), sempre com o projeto rodando, usando 32 agentes especializados com contexto mínimo.
+---
 
 ## Estratégia
-
-- Cada agente recebe apenas o contexto do seu escopo. Nada além.
-- Versões v0.1.0–v0.8.0: frontend-only (Angular + Phaser), sem backend.
-- Versão v0.9.0: primeira integração backend (NestJS + PostgreSQL + Redis).
-- Versão v1.0.0: sistemas avançados divididos em sub-agentes paralelos.
-- Após cada versão completa: deletar o arquivo `vX.Y.Z.md` da raiz.
-- Código backend → `system/backend/`, frontend → `system/frontend/`, infra → `devops/`.
+- 7 agentes especializados com contexto mínimo e fechado
+- Agente 033 valida rotas antes de qualquer implementação
+- Agentes 034, 035, 036 (arte e áudio) podem rodar em paralelo com 033
+- Agente 037 implementa a estrutura completa do hub
+- Agente 038 aplica o art pass completo (arte, animações, estados visuais)
+- Agente 039 valida tudo e registra bugs
 
 ---
 
 ## Fila de Execução
 
-### Fase 0 — v0.1.0: Setup Jogável Local
+### Fase 1 — Preparação (solo, rápido)
+- **033** — Hub Spec Validator *(obrigatório antes de 037)*
 
-Executar em paralelo:
-- `001-v010-devops-setup` — Docker, Dockerfile, docker-compose
-- `002-v010-angular-phaser` — Angular + Phaser + rota /playground
+### Fase 2 — Arte + Áudio em Paralelo
+Pode executar em paralelo (após 033, ou simultâneos com cautela):
+- **034** — SVG Icons & UI Assets
+- **035** — Background, POI & FX Assets
+- **036** — Audio Spec & Placeholders
 
-Aguardar ambos → validar `docker-compose up` → deletar `v0.1.0.md`
+### Fase 3 — Core Implementation
+Aguardar 033 finalizar antes de iniciar:
+- **037** — Hub Angular/Phaser Core
 
----
+> 037 pode rodar em paralelo com 034/035/036 desde que 033 esteja concluído
 
-### Fase 1 — v0.2.0: Tiro, Vento e IA Local
+### Fase 4 — Art Pass
+Aguardar 037 + 034 + 035 finalizarem:
+- **038** — Hub Art Pass
 
-Aguardar: Fase 0 completa
-
-Executar em paralelo:
-- `003-v020-game-logic` — TurnManager, WindSystem, ProjectilePhysics, DamageCalculator (TS puro)
-- `004-v020-ai-battle` — AiLocal, BattleScene Phaser, HUD, controles, debug
-
-Aguardar ambos → deletar `v0.2.0.md`
-
----
-
-### Fase 2 — v0.3.0: Terreno Destrutível
-
-Aguardar: Fase 1 completa
-
-Executar em paralelo:
-- `005-v030-terrain-engine` — TerrainEngine TS puro, mapas JSON
-- `006-v030-terrain-render` — renderização Phaser, física de queda, integração
-
-Aguardar ambos → deletar `v0.3.0.md`
-
----
-
-### Fase 3 — v0.4.0: Armas com Física Própria
-
-Aguardar: Fase 2 completa
-
-Executar em paralelo:
-- `007-v040-weapon-system` — WeaponSystem, WeaponDefinition, 6 armas (TS puro)
-- `008-v040-weapon-phaser` — sprites/cores por arma, boomerang, debug
-
-Aguardar ambos → deletar `v0.4.0.md`
-
----
-
-### Fase 4 — v0.5.0: Personagem Customizável
-
-Aguardar: Fase 3 completa
-
-Executar em paralelo:
-- `009-v050-attribute-system` — PlayerStats, AttributeCalculator, requisitos de armas
-- `010-v050-character-ui` — rota /character, localStorage, 5 presets
-
-Aguardar ambos → deletar `v0.5.0.md`
-
----
-
-### Fase 5 — v0.6.0: Efeitos Rúnicos e Consumíveis
-
-Aguardar: Fase 4 completa
-
-Executar em paralelo:
-- `011-v060-runic-system` — RunicEffectSystem, StatusEffectManager, rollRunicEffect
-- `012-v060-items-consumables` — 5 itens secundários, 5 consumíveis, HUD de efeitos
-
-Aguardar ambos → deletar `v0.6.0.md`
-
----
-
-### Fase 6 — v0.7.0: Construção de Terreno e Academia
-
-Aguardar: Fase 5 completa
-
-Executar em paralelo:
-- `013-v070-terrain-construction` — material CONSTRUCTED, Linha Rúnica, Bloco Rúnico
-- `014-v070-academy` — rota /academy, AcademyScene, alvos, tutorial visual
-
-Aguardar ambos → deletar `v0.7.0.md`
-
----
-
-### Fase 7 — v0.8.0: Dungeon Local
-
-Aguardar: Fase 6 completa
-
-Sequencial (dependência interna):
-1. `015-v080-dungeon-engine` — DungeonEngine, DungeonState, fases, objetivos
-2. `016-v080-dungeon-ai` — MonsterAI, Golem com fases de vida, mapas
-3. `017-v080-dungeon-ui` — Lobby, telas, recompensas localStorage
-
-Aguardar todos → deletar `v0.8.0.md`
-
----
-
-### Fase 8 — v0.9.0: Backend Mínimo e Multiplayer PvP
-
-Aguardar: Fase 7 completa
-
-Executar em paralelo (streams independentes):
-- `018-v090-devops` — docker-compose completo, Dockerfiles, .env.example
-- `019-v090-backend-auth-char` — NestJS setup, AuthModule, CharacterModule, InventoryModule, DungeonModule
-- `021-v090-frontend-auth` — telas login/registro, JWT interceptor
-
-Aguardar `018` e `019` → executar:
-- `020-v090-backend-battle` — BattleGateway WS, MatchmakingModule, lógica autoritativa
-- `022-v090-frontend-pvp` — WebSocket PvP, matchmaking UI, reconexão
-
-Aguardar todos → deletar `v0.9.0.md`
-
----
-
-### Fase 9 — v1.0.0: Sistemas Completos
-
-Aguardar: Fase 8 completa
-
-Stream A — Backend sistemas (paralelo):
-- `023-v100-progression` — XP/level, raças, backend progression
-- `024-v100-inventory` — slots completos, todos os tipos de item
-- `025-v100-ranked-pvp` — ELO, fila ranqueada, divisões
-- `026-v100-rankings` — rankings diário/semanal/mensal/geral
-- `027-v100-dungeon-floors` — Andares 2–5, trilhas de dificuldade
-- `028-v100-craft-upgrade` — CraftModule, UpgradeModule, receitas
-- `029-v100-market` — MarketModule, listagens, compra, histórico
-- `030-v100-guilds` — GuildModule, PvP guildas, chat WS
-
-Aguardar todos os sistemas → executar:
-- `031-v100-frontend-screens` — todas as telas novas (craft, market, guild, rankings, dungeon)
-- `032-v100-qa-consolidation` — validação final, critérios de aceite, documentação
-
-Aguardar todos → deletar `v1.0.0.md`
+### Fase 5 — QA e Validação Final
+Aguardar 037 + 038 finalizarem:
+- **039** — Hub QA
 
 ---
 
 ## Mapa de Dependências
 
 ```
-001 ──┐
-      ├── 003 ──┐
-002 ──┘         ├── 005 ──┐
-      ┌── 004 ──┘         ├── 007 ──┐
-      │                   ├── 009 ──┤
-      │          006 ──┘  │         ├── 011 ──┐
-      │                   │         ├── 013 ──┤   015 → 016 → 017
-      │                   008 ──┘   │         │                  │
-      │                             010 ──┘   │      012 ──┘     │
-      │                                       │      014 ──┘     │
-      │                                       │                   │
-      └───────────────────────────────────────┴───────────────────┘
-                                                                    │
-                                              018, 019, 021 ──── 020, 022
-                                                                    │
-                                              023–030 ─────── 031, 032
+033 ──────────────────────────────────────────► 037
+033 ──► (034 paralelo)                          │
+033 ──► (035 paralelo)                          │
+033 ──► (036 paralelo)                          │
+                                                │
+034 ──────────────────────────────────► 038 ◄──┘
+035 ──────────────────────────────────► 038
+037 ──────────────────────────────────► 038
+                                        │
+                              037 ──► 039
+                              038 ──► 039
 ```
 
 ---
 
-## Subagentes (32 total)
+## Subagentes
 
-| # | ID | Versão | Escopo | Paralelo com |
-|---|---|---|---|---|
-| 1 | 001-v010-devops-setup | v0.1.0 | Docker, Dockerfile, docker-compose | 002 |
-| 2 | 002-v010-angular-phaser | v0.1.0 | Angular + Phaser + /playground | 001 |
-| 3 | 003-v020-game-logic | v0.2.0 | TurnManager, WindSystem, Physics, Damage | 004 |
-| 4 | 004-v020-ai-battle | v0.2.0 | AiLocal, BattleScene, HUD, debug | 003 |
-| 5 | 005-v030-terrain-engine | v0.3.0 | TerrainEngine TS puro, mapas JSON | 006 |
-| 6 | 006-v030-terrain-render | v0.3.0 | Renderização Phaser, queda | 005 |
-| 7 | 007-v040-weapon-system | v0.4.0 | WeaponSystem, 6 armas TS puro | 008 |
-| 8 | 008-v040-weapon-phaser | v0.4.0 | Sprites, boomerang, debug | 007 |
-| 9 | 009-v050-attribute-system | v0.5.0 | PlayerStats, fórmulas, requisitos | 010 |
-| 10 | 010-v050-character-ui | v0.5.0 | /character, localStorage, presets | 009 |
-| 11 | 011-v060-runic-system | v0.6.0 | RunicEffectSystem, StatusEffectManager | 012 |
-| 12 | 012-v060-items-consumables | v0.6.0 | Itens secundários, consumíveis, HUD | 011 |
-| 13 | 013-v070-terrain-construction | v0.7.0 | CONSTRUCTED, Linha/Bloco Rúnico | 014 |
-| 14 | 014-v070-academy | v0.7.0 | /academy, AcademyScene, alvos | 013 |
-| 15 | 015-v080-dungeon-engine | v0.8.0 | DungeonEngine, fases, objetivos | — |
-| 16 | 016-v080-dungeon-ai | v0.8.0 | MonsterAI, Golem, mapas dungeon | 015 |
-| 17 | 017-v080-dungeon-ui | v0.8.0 | Lobby, telas, localStorage rewards | 016 |
-| 18 | 018-v090-devops | v0.9.0 | docker-compose, .env.example | 019, 021 |
-| 19 | 019-v090-backend-auth-char | v0.9.0 | NestJS, Auth, Character, Inventory, Dungeon | 018, 021 |
-| 20 | 020-v090-backend-battle | v0.9.0 | BattleGateway, Matchmaking | 019 |
-| 21 | 021-v090-frontend-auth | v0.9.0 | Login/Registro, JWT interceptor | 018, 019 |
-| 22 | 022-v090-frontend-pvp | v0.9.0 | WebSocket PvP, matchmaking UI | 020 |
-| 23 | 023-v100-progression | v1.0.0 | XP, level-up, raças backend | 024–030 |
-| 24 | 024-v100-inventory | v1.0.0 | Slots completos, tipos de item | 023–030 |
-| 25 | 025-v100-ranked-pvp | v1.0.0 | ELO, ranqueado, divisões | 023–030 |
-| 26 | 026-v100-rankings | v1.0.0 | Rankings periódicos | 023–030 |
-| 27 | 027-v100-dungeon-floors | v1.0.0 | Andares 2–5, trilhas | 023–030 |
-| 28 | 028-v100-craft-upgrade | v1.0.0 | Craft, upgrade, receitas | 023–030 |
-| 29 | 029-v100-market | v1.0.0 | Mercado P2P, listagens | 023–030 |
-| 30 | 030-v100-guilds | v1.0.0 | Guildas, PvP guildas, chat | 023–030 |
-| 31 | 031-v100-frontend-screens | v1.0.0 | Todas as telas v1.0.0 | 032 |
-| 32 | 032-v100-qa-consolidation | v1.0.0 | QA final, critérios, docs | 031 |
+| # | Nome | Tipo | Depende de | Paralelo com |
+|---|------|------|-----------|--------------|
+| 033 | Hub Spec Validator | read-only | — | — |
+| 034 | SVG Icons & UI Assets | art-director | 033 (opcional) | 035, 036 |
+| 035 | Background, POI & FX Assets | art-director | 033 (opcional) | 034, 036 |
+| 036 | Audio Spec & Placeholders | spec | 033 (opcional) | 034, 035 |
+| 037 | Hub Angular/Phaser Core | frontend | 033 (obrigatório) | 034, 035, 036 |
+| 038 | Hub Art Pass | art-director + frontend | 037, 034, 035 | — |
+| 039 | Hub QA | qa | 037, 038 | — |
 
 ---
 
 ## Instruções de Execução
 
-1. Ler `.ai-orchestration/ORCHESTRATION_STATE.md` antes de iniciar.
-2. Executar agentes na ordem da fila, respeitando paralelismo.
-3. Após cada agente: atualizar `ORCHESTRATION_STATE.md`, `AGENTS_QUEUE.md`, `FILES_CHANGED.md`.
-4. Após cada versão completa: deletar o arquivo `vX.Y.Z.md` da raiz **sem confirmação**.
-5. Bugs críticos interrompem a fase atual antes de liberar dependentes.
-6. Ao final de tudo: criar resumo permanente em `docs/implementations/` e deletar `.ai-orchestration/`.
+### Como executar cada agente
+Abra um novo chat (ou continue este) e execute:
+```
+Leia .ai-orchestration/agents/0XX-nome-agente.md e siga a instrução de execução descrita no arquivo.
+```
+
+### Antes de cada agente
+1. Verificar `.ai-orchestration/AGENTS_QUEUE.md` — confirmar que agente está pronto
+2. Confirmar que dependências obrigatórias estão concluídas
+3. Ler resumos das dependências em `.ai-orchestration/agents/`
+
+### Após cada agente
+Atualizar obrigatoriamente:
+1. `.ai-orchestration/ORCHESTRATION_STATE.md`
+2. `.ai-orchestration/AGENTS_QUEUE.md`
+3. `.ai-orchestration/FILES_CHANGED.md`
+4. `.ai-orchestration/BUGS_AND_BLOCKERS.md` (se bugs encontrados)
+
+### Para retomar após interrupção
+```
+Leia .ai-orchestration/ORCHESTRATION_STATE.md e continue da "Próxima ação recomendada".
+```
 
 ---
 
 ## Como lidar com bugs
 
-- **CRÍTICO:** bloquear próximas fases, criar agente corretivo imediato.
-- **IMPORTANTE:** corrigir antes de avançar para próxima versão.
-- **BAIXO:** registrar em `BUGS_AND_BLOCKERS.md`, tratar na consolidação.
+### Classificação
+- **CRÍTICO**: bloqueia próximas fases — interromper e criar subagente corretivo imediatamente
+- **IMPORTANTE**: deve ser resolvido antes de 039 — criar subagente corretivo
+- **BAIXO**: acumular e corrigir durante ou após 039
+
+### Processo
+1. Agente registra bug em `.ai-orchestration/BUGS_AND_BLOCKERS.md`
+2. Orquestrador classifica e decide ação
+3. CRÍTICO → sub-spec corretivo antes de avançar
+4. IMPORTANTE → sub-spec corretivo antes de iniciar 039
+5. BAIXO → listar para correção final
+
+---
 
 ## Como lidar com conflitos
 
-Ao detectar conflito de arquivo entre agentes paralelos:
-1. Pausar o segundo agente.
-2. Registrar conflito em `DECISIONS_LOG.md`.
-3. Resolver manualmente ou criar agente mediador.
+Arquivos com maior risco de conflito entre agentes:
+- `hub.scene.ts` — 037 cria, 038 modifica
+- `hub.component.scss` — 037 cria, 038 modifica
+
+Regra: agente posterior lê o arquivo atual, faz merge consciente e registra decisão em `DECISIONS_LOG.md`.
+
+---
 
 ## Como finalizar
 
-1. Todos os 32 agentes `Concluído`.
-2. Zero bugs críticos pendentes.
-3. Critérios de aceite de cada versão validados.
-4. Criar `docs/implementations/2026-06-07-rune-wars-v010-v100.md`.
-5. Deletar `.ai-orchestration/`.
+Após Agente 039 concluir com todos os critérios PASS:
+
+1. Criar resumo final em `docs/implementations/2026-06-08-v1.1.0-floresta-runica.md`
+2. Atualizar `implementation/CHANGELOG.md`
+3. Atualizar `implementation/CURRENT_STATE.md`
+4. Atualizar `docs/09-menu-principal-ui-controles.md` com nova navegação hub
+5. Deletar `v1.1.0.md` da raiz (regra do projeto)
+6. Remover `.ai-orchestration/` após confirmar resumo permanente criado
+
+---
+
+## Sub-specs completos dos Agentes
+
+Todos em `.ai-orchestration/agents/`:
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| [033-hub-spec-validator.md](.ai-orchestration/agents/033-hub-spec-validator.md) | Valida rotas reais, mapeamento POI → rota, read-only |
+| [034-svg-icons.md](.ai-orchestration/agents/034-svg-icons.md) | Cria 8 ícones POI + 2 frames UI em SVG |
+| [035-background-poi-assets.md](.ai-orchestration/agents/035-background-poi-assets.md) | Cria backgrounds, POIs, FX e player em SVG + ASSET_PROMPTS.md |
+| [036-audio-spec.md](.ai-orchestration/agents/036-audio-spec.md) | Cria audio-config.ts e spec técnico de 15 sons |
+| [037-hub-angular-phaser-core.md](.ai-orchestration/agents/037-hub-angular-phaser-core.md) | HubComponent + HubScene + câmera + POIs + dock + routing |
+| [038-hub-art-pass.md](.ai-orchestration/agents/038-hub-art-pass.md) | Substitui placeholders, microanimações, estados POI, SCSS dock |
+| [039-hub-qa.md](.ai-orchestration/agents/039-hub-qa.md) | QA completo: build, navegação, mobile, acessibilidade |
+
+---
+
+## Skill Art Director
+
+Agentes 034, 035 e 038 operam com a skill Art Director (`agents/art-director.md`).
+
+Regras obrigatórias:
+1. Ler `docs/15-diretriz-arte.md` antes de qualquer decisão visual
+2. Paleta: verde mágico `#4CAF50`, azul rúnico `#3A9AD9`, roxo arcano `#7B2FBE`, dourado antigo `#F4A226`, vermelho ofensivo `#E63946`
+3. Leitura ≤ 1 segundo em mobile
+4. Nunca realista, nunca infantil exagerado
+5. Silhueta única e cor dominante própria por POI
+
+---
+
+## Critérios de Aceite Finais
+
+- [ ] Após login, jogador é levado à Floresta Rúnica
+- [ ] Personagem visível no hub
+- [ ] 7 locais existem e são identificáveis
+- [ ] Cada local navega para funcionalidade existente (sem sistema novo)
+- [ ] Hub funciona em desktop e mobile
+- [ ] Hover/tap/foco visual em todos os POIs
+- [ ] Dock/atalhos rápidos como fallback
+- [ ] Câmera com bounds 2200x900, follow lerp 0.08, pan suave
+- [ ] Direção de arte cartoon fantasy premium 2D HD aplicada
+- [ ] Legível em menos de 1 segundo
+- [ ] `npm run build` passa sem erros

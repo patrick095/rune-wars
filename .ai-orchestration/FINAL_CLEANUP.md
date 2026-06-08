@@ -1,29 +1,23 @@
 # Limpeza Final
 
-## Checklist de segurança (executar antes de deletar .ai-orchestration/)
+## Checklist antes de remover .ai-orchestration/
 
-- [ ] `docs/implementations/2026-06-07-rune-wars-v010-v100.md` criado?
-- [ ] Todos os vX.Y.Z.md deletados da raiz do projeto?
-  - [ ] v0.1.0.md
-  - [ ] v0.2.0.md
-  - [ ] v0.3.0.md
-  - [ ] v0.4.0.md
-  - [ ] v0.5.0.md
-  - [ ] v0.6.0.md
-  - [ ] v0.7.0.md
-  - [ ] v0.8.0.md
-  - [ ] v0.9.0.md
-  - [ ] v1.0.0.md
-- [ ] Zero bugs críticos em `BUGS_AND_BLOCKERS.md`?
-- [ ] Todos os 32 agentes `Concluído` em `AGENTS_QUEUE.md`?
-- [ ] `implementation/CURRENT_STATE.md` atualizado para v1.0.0?
-- [ ] `implementation/CHANGELOG.md` completo?
+- [ ] Resumo final permanente criado em `docs/implementations/2026-06-08-v1.1.0-floresta-runica.md`
+- [ ] Todos os arquivos alterados registrados em FILES_CHANGED.md
+- [ ] Nenhum bug CRÍTICO pendente
+- [ ] Nenhum agente BLOQUEADO
+- [ ] Nenhuma decisão obrigatória pendente
+- [ ] `npm run build` passa após todas as alterações
 
-## Comando de limpeza (apenas após checklist completo)
+## Depois de confirmar o checklist acima
 
-```bash
-rm -rf .ai-orchestration/
-```
+1. Criar `docs/implementations/2026-06-08-v1.1.0-floresta-runica.md`
+2. Atualizar `implementation/CHANGELOG.md`
+3. Atualizar `implementation/CURRENT_STATE.md`
+4. Atualizar `docs/09-menu-principal-ui-controles.md`
+5. Deletar `v1.1.0.md` da raiz
+6. Remover `.ai-orchestration/`
 
-## Importante
-Nunca executar o comando acima antes de completar o checklist.
+## Regra de segurança
+NUNCA remover `.ai-orchestration/` antes de criar o resumo permanente.
+NUNCA remover arquivos fora de `.ai-orchestration/` durante a limpeza.

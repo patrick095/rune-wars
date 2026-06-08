@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 export interface AuthResponse {
   access_token: string;
@@ -11,7 +12,7 @@ export interface AuthResponse {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly TOKEN_KEY = 'rw_token';
-  private readonly API = '/api';
+  private readonly API = environment.apiUrl;
 
   isLoggedIn = signal(this.hasToken());
 
