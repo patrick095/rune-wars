@@ -1,0 +1,10 @@
+import { Routes } from '@angular/router';
+
+export const routes: Routes = [
+  { path: '', redirectTo: '/playground', pathMatch: 'full' },
+  {
+    path: 'playground',
+    loadComponent: () => import('./playground/playground.component')
+      .then(m => m.PlaygroundComponent)
+  }
+];

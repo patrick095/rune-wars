@@ -1,8 +1,8 @@
 # Fila de Subagentes
 
 ## Prontos para executar
-- 001-v010-devops-setup
-- 002-v010-angular-phaser
+- 003-v020-game-logic
+- 004-v020-ai-battle
 
 ## Executando
 (nenhum)
@@ -40,7 +40,8 @@
 - 032-v100-qa-consolidation (aguarda: 031)
 
 ## Concluídos
-(nenhum)
+- 001-v010-devops-setup ✓
+- 002-v010-angular-phaser ✓
 
 ## Bloqueados
 (nenhum)
