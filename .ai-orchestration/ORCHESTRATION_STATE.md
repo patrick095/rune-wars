@@ -10,7 +10,7 @@ v0.1.0.md → v1.0.0.md (10 versões, arquivos na raiz do projeto)
 Implementar Rune Wars do zero até v1.0.0 com 32 agentes especializados, economia máxima de tokens, projeto sempre funcional, deleção automática de arquivos vX.Y.Z.md após cada versão.
 
 ## Última ação concluída
-Fix de controles aplicado: `/playground` e `/dungeon` agora aceitam setas esquerda/direita para mover, cima/baixo para alterar ângulo continuamente enquanto segura, e barra de espaço para atirar.
+Fix de IA/reset aplicado: IA local em `/playground` agora escolhe tiro por simulação de trajetória com erro por dificuldade; "Jogar Novamente" reinicia HP, turnos, efeitos e estado runtime da batalha.
 
 ## Próxima ação recomendada
 Executar em paralelo: `018-v090-devops`, `019-v090-backend-auth-char`, `021-v090-frontend-auth`.

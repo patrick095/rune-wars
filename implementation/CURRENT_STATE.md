@@ -48,5 +48,6 @@ v0.8.0 — Dungeon Local Simulada
 - v0.8.0 concluída e compilando.
 - Correção aplicada para spawn inicial de inimigos baseado no grid do mapa, evitando posições fora do mapa em resoluções diferentes.
 - Correção aplicada para controles por teclado com movimento/ângulo contínuos.
+- Correção aplicada para IA local: mira por simulação de trajetória e reset completo ao jogar novamente.
 - Próximo passo:
   - Iniciar v0.9.0 com backend mínimo, autenticação e PvP multiplayer.

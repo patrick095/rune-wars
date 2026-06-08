@@ -3,7 +3,7 @@ import { TurnManager } from '../../app/shared/game-core/turn-manager';
 import { WindSystem } from '../../app/shared/game-core/wind-system';
 import { ProjectilePhysics } from '../../app/shared/game-core/projectile-physics';
 import { DamageCalculator } from '../../app/shared/game-core/damage-calculator';
-import { AiLocal, Difficulty } from '../../app/shared/game-core/ai-local';
+import { Difficulty } from '../../app/shared/game-core/ai-local';
 import { ProjectileConfig } from '../../app/shared/game-core/projectile-config';
 
 interface BattleCharacterState {
@@ -42,13 +42,17 @@ type MapName = 'plains' | 'castle';
 const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
 const PLAYER_MOVE_SPEED = 180;
 const ANGLE_CHANGE_SPEED = 80;
+const AI_SEARCH_BY_DIFFICULTY: Record<Difficulty, { angleStep: number; forceStep: number; angleError: number; forceError: number }> = {
+  easy: { angleStep: 8, forceStep: 12, angleError: 14, forceError: 14 },
+  medium: { angleStep: 5, forceStep: 8, angleError: 7, forceError: 8 },
+  hard: { angleStep: 3, forceStep: 5, angleError: 3, forceError: 4 },
+};
 
 export class BattleScene extends Phaser.Scene {
   private turnManager = new TurnManager();
   private windSystem = new WindSystem();
   private projectilePhysics = new ProjectilePhysics();
   private damageCalc = new DamageCalculator();
-  private ai = new AiLocal();
   private weaponSystem = new WeaponSystem();
   private statusEffects = new StatusEffectManager();
 
@@ -108,7 +112,33 @@ export class BattleScene extends Phaser.Scene {
     super({ key: 'BattleScene' });
   }
 
+  private resetRuntimeState(): void {
+    if (this.powerInterval) {
+      clearInterval(this.powerInterval);
+      this.powerInterval = null;
+    }
+
+    this.turnManager = new TurnManager();
+    this.windSystem = new WindSystem();
+    this.projectilePhysics = new ProjectilePhysics();
+    this.damageCalc = new DamageCalculator();
+    this.statusEffects = new StatusEffectManager();
+    this.playerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true };
+    this.aiStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false };
+    this.currentAngle = 45;
+    this.isAnimating = false;
+    this.isChargingPower = false;
+    this.powerValue = 0;
+    this.lastImpactPoint = null;
+    this.playerFall = new CharacterFall();
+    this.aiFall = new CharacterFall();
+    this.trajectory.clear();
+    this.resultOverlay.hide();
+  }
+
   create(): void {
+    this.resetRuntimeState();
+
     // Register self globally for debug panel
     (window as unknown as Record<string, unknown>)['battleScene'] = this; // eslint-disable-line
 
@@ -416,12 +446,7 @@ export class BattleScene extends Phaser.Scene {
 
   private fireAiShot(): void {
     const wind = this.windSystem.getCurrent();
-    const shot = this.ai.calculateShot(
-      { x: this.aiStats.x, y: this.aiStats.y },
-      { x: this.playerStats.x, y: this.playerStats.y },
-      wind,
-      this.difficulty
-    );
+    const shot = this.calculateAiShot();
 
     const profile = this.aiWeapon.physicsProfile;
     const config: ProjectileConfig = {
@@ -496,6 +521,50 @@ export class BattleScene extends Phaser.Scene {
         this.endTurn(isPlayerShot);
       }
     });
+  }
+
+  private calculateAiShot(): { angle: number; force: number } {
+    const profile = this.aiWeapon.physicsProfile;
+    const wind = this.windSystem.getCurrent();
+    const search = AI_SEARCH_BY_DIFFICULTY[this.difficulty];
+    let best = { angle: 135, force: 60, score: Number.POSITIVE_INFINITY };
+
+    for (let angle = 95; angle <= 175; angle += search.angleStep) {
+      for (let force = 20; force <= 100; force += search.forceStep) {
+        const config: ProjectileConfig = {
+          angle,
+          force,
+          gravityScale: profile.gravityScale,
+          windInfluence: profile.windInfluence,
+          baseDamage: this.aiWeapon.baseDamage,
+        };
+        const path = this.projectilePhysics.simulate(this.aiStats.x, this.aiStats.y, config, wind);
+        const score = this.scoreAiPath(path);
+        if (score < best.score) best = { angle, force, score };
+      }
+    }
+
+    return {
+      angle: Math.max(95, Math.min(175, best.angle + Phaser.Math.FloatBetween(-search.angleError, search.angleError))),
+      force: Math.max(20, Math.min(100, Math.round(best.force + Phaser.Math.FloatBetween(-search.forceError, search.forceError)))),
+    };
+  }
+
+  private scoreAiPath(path: Array<{ x: number; y: number }>): number {
+    let bestDistance = Number.POSITIVE_INFINITY;
+    const groundY = this.scale.height * 0.75;
+
+    for (const point of path) {
+      const dx = point.x - this.playerStats.x;
+      const dy = point.y - this.playerStats.y;
+      bestDistance = Math.min(bestDistance, Math.sqrt(dx * dx + dy * dy));
+
+      const hitTerrain = this.terrainEngine.getMaterialAt(point.x, point.y) !== TerrainMaterial.EMPTY;
+      const hitGround = point.y >= groundY;
+      if (hitTerrain || hitGround) break;
+    }
+
+    return bestDistance;
   }
 
   private onProjectileImpact(
