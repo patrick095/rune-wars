@@ -35,6 +35,7 @@ export class AppComponent implements OnInit, OnDestroy {
   closeOverlay() {
     this.activeScreen = null;
     this.screenData = null;
+    this.eventBus.closeScreen$.next();
   }
 
   ngOnDestroy() {

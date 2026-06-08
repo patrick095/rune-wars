@@ -69,9 +69,13 @@ export class HubComponent implements AfterViewInit, OnDestroy {
       });
     });
 
-    // Subscribe to openScreen$ for observability (navigation handled by AppComponent via Agent 017)
-    this.eventBus.openScreen$.subscribe(event => {
-      console.log('[HubComponent] openScreen$:', event);
+    // Block Phaser canvas input while an overlay is open
+    const canvas = document.getElementById('hub-canvas');
+    this.eventBus.openScreen$.subscribe(() => {
+      if (canvas) canvas.style.pointerEvents = 'none';
+    });
+    this.eventBus.closeScreen$.subscribe(() => {
+      if (canvas) canvas.style.pointerEvents = '';
     });
   }
 
@@ -82,13 +86,20 @@ export class HubComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  /** Converts a route path to a screen name and emits via GameEventBusService */
+  // Screens that open as overlay over the hub canvas.
+  // All others navigate via router (full-page experience).
+  private readonly OVERLAY_SCREENS = new Set(['character', 'village']);
+
+  /** Converts a route path to a screen name. Overlay screens use EventBus; others navigate. */
   private handleNavigateTo(route: string): void {
     const screen = route.startsWith('/') ? route.slice(1) : route;
-    this.eventBus.openScreen$.next({ screen });
+    if (this.OVERLAY_SCREENS.has(screen)) {
+      this.eventBus.openScreen$.next({ screen });
+    } else {
+      this.router.navigate([route]);
+    }
   }
 
-  /** @deprecated Use GameEventBusService.openScreen$ instead. Kept for backward compatibility. */
   navigateTo(route: string): void {
     this.router.navigate([route]);
   }

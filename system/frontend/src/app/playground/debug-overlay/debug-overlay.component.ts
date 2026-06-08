@@ -2,9 +2,11 @@ import { Component, Input, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewIn
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import Phaser from 'phaser';
-import { BattleScene } from '../../../game/scenes/battle.scene';
+import { BATTLE_MAPS, BattleMode, BattleScene, MapName } from '../../../game/scenes/battle.scene';
 import { WeaponSystem } from '../../shared/game-core/weapon-system';
 import { WeaponDefinition } from '../../shared/game-core/weapon-definition';
+import { ConsumableSystem } from '../../shared/game-core/consumable-system';
+import { SecondaryItemSystem } from '../../shared/game-core/secondary-item-system';
 
 interface Section {
   label: string;
@@ -73,10 +75,15 @@ interface Section {
         <span>{{ collapsed('terrain') ? '▶' : '▼' }} Terreno</span>
       </div>
       <div *ngIf="!collapsed('terrain')" class="section-body">
+        <label class="debug-label">Modo</label>
+        <select [(ngModel)]="battleMode" (ngModelChange)="onBattleModeChange($event)" class="debug-select">
+          <option value="pvp">PvP final</option>
+          <option value="dungeon">Dungeon</option>
+        </select>
+
         <label class="debug-label">Mapa</label>
         <select [(ngModel)]="selectedMap" (ngModelChange)="onMapChange($event)" class="debug-select">
-          <option value="plains">Planícies</option>
-          <option value="castle">Castelo</option>
+          <option *ngFor="let map of filteredMaps" [value]="map.id">{{ map.label }}</option>
         </select>
 
         <label class="debug-label">Material (pintar)</label>
@@ -84,6 +91,7 @@ interface Section {
           <option value="0">Vazio</option>
           <option value="1">Destrutível</option>
           <option value="2">Indestrutível</option>
+          <option value="3">Construído Rúnico</option>
         </select>
 
         <label class="debug-label">Raio Explosão: {{ explosionRadius }}</label>
@@ -92,6 +100,30 @@ interface Section {
 
         <button class="debug-btn" (click)="onDebugExplode()">Explodir no Centro</button>
         <button class="debug-btn" (click)="onResetTerrain()">Resetar Mapa</button>
+      </div>
+
+      <!-- Itens -->
+      <div class="section-header" (click)="toggle('items')">
+        <span>{{ collapsed('items') ? '▶' : '▼' }} Itens</span>
+      </div>
+      <div *ngIf="!collapsed('items')" class="section-body">
+        <label class="debug-label">Consumível</label>
+        <select [(ngModel)]="selectedConsumableId" class="debug-select">
+          <option *ngFor="let item of consumables" [value]="item.id">{{ item.name }}</option>
+        </select>
+        <div class="row-gap">
+          <button class="debug-btn-sm" (click)="onUseConsumable('player')">Jogador</button>
+          <button class="debug-btn-sm" (click)="onUseConsumable('ai')">IA</button>
+        </div>
+
+        <label class="debug-label">Item secundário</label>
+        <select [(ngModel)]="selectedSecondaryItemId" class="debug-select">
+          <option *ngFor="let item of secondaryItems" [value]="item.id">{{ item.name }}</option>
+        </select>
+        <div class="row-gap">
+          <button class="debug-btn-sm" (click)="onUseSecondaryItem('player')">Jogador</button>
+          <button class="debug-btn-sm" (click)="onUseSecondaryItem('ai')">IA</button>
+        </div>
       </div>
 
       <!-- Armas -->
@@ -298,6 +330,7 @@ export class DebugOverlayComponent implements OnInit, OnDestroy, AfterViewInit {
     perf: false,
     combat: false,
     terrain: true,
+    items: true,
     weapons: true,
     effects: true,
   };
@@ -310,15 +343,27 @@ export class DebugOverlayComponent implements OnInit, OnDestroy, AfterViewInit {
   difficulty: 'easy' | 'medium' | 'hard' = 'medium';
 
   // v0.3.0
-  selectedMap: 'plains' | 'castle' = 'plains';
+  battleMode: BattleMode = 'pvp';
+  selectedMap: MapName = 'plains';
+  readonly maps = BATTLE_MAPS;
   paintMaterial = '1';
   explosionRadius = 40;
 
+  get filteredMaps() {
+    return this.maps.filter(map => map.mode === this.battleMode);
+  }
+
   // v0.4.0
   private _weaponSystem = new WeaponSystem();
+  private _consumableSystem = new ConsumableSystem();
+  private _secondaryItemSystem = new SecondaryItemSystem();
   weapons: WeaponDefinition[] = this._weaponSystem.getAll();
   playerWeaponId = 'cannon';
   aiWeaponId = 'cannon';
+  consumables = this._consumableSystem.getAll();
+  secondaryItems = this._secondaryItemSystem.getAll();
+  selectedConsumableId = this.consumables[0]?.id ?? 'heal';
+  selectedSecondaryItemId = this.secondaryItems[0]?.id ?? 'shield';
 
   get selectedWeaponInfo(): WeaponDefinition {
     return this._weaponSystem.getById(this.playerWeaponId) ?? this._weaponSystem.getDefault();
@@ -422,11 +467,18 @@ export class DebugOverlayComponent implements OnInit, OnDestroy, AfterViewInit {
     this._scene()?.resetBattle();
     this.windValue = 0; this.playerHp = 100; this.aiHp = 100; this.baseDamage = 40; this.difficulty = 'medium';
   }
-  onMapChange(m: 'plains'|'castle'): void { this._scene()?.switchMap(m); }
+  onBattleModeChange(mode: BattleMode): void {
+    this.battleMode = mode;
+    this.selectedMap = mode === 'dungeon' ? 'dungeon_cave_entrance' : 'plains';
+    this._scene()?.setBattleMode(mode);
+  }
+  onMapChange(m: MapName): void { this._scene()?.switchMap(m); }
   onDebugExplode(): void { this._scene()?.debugExplode(this.explosionRadius); }
   onResetTerrain(): void { this._scene()?.resetTerrain(); }
   onPlayerWeaponChange(id: string): void { this._scene()?.setPlayerWeapon(id); }
   onAiWeaponChange(id: string): void { this._scene()?.setAiWeapon(id); }
+  onUseConsumable(target: 'player'|'ai'): void { this._scene()?.useDebugConsumable(target, this.selectedConsumableId); }
+  onUseSecondaryItem(target: 'player'|'ai'): void { this._scene()?.useDebugSecondaryItem(target, this.selectedSecondaryItemId); }
   onApplyEffect(target: 'player'|'ai', type: string): void { this._scene()?.applyDebugEffect(target, type); }
   onPlayerLuckChange(v: number): void { this._scene()?.setPlayerLuck(v); }
 }

@@ -22,6 +22,8 @@ import { TrajectoryIndicator } from '../ui/trajectory-indicator';
 import { ResultOverlay } from '../ui/result-overlay';
 import { WeaponSystem } from '../../app/shared/game-core/weapon-system';
 import { WeaponDefinition } from '../../app/shared/game-core/weapon-definition';
+import { Consumable, ConsumableSystem } from '../../app/shared/game-core/consumable-system';
+import { SecondaryItem, SecondaryItemSystem } from '../../app/shared/game-core/secondary-item-system';
 import { ProjectileRenderer } from '../projectiles/projectile-renderer';
 import { StatusEffectManager } from '../../app/shared/game-core/status-effect-manager';
 import { RunicEffect, RunicEffectType, rollRunicEffect, getWeaponRunicEffect } from '../../app/shared/game-core/runic-effect-system';
@@ -33,6 +35,9 @@ import mapCastle from '../../app/shared/game-core/maps/map-castle.json';
 import mapDeepMines from '../../app/shared/game-core/maps/map-deep-mines.json';
 import mapArcaneRuins from '../../app/shared/game-core/maps/map-arcane-ruins.json';
 import mapRunicForest from '../../app/shared/game-core/maps/map-runic-forest.json';
+import mapDungeonCaveEntrance from '../../app/shared/game-core/maps/dungeon-cave-entrance.json';
+import mapDungeonCaveHall from '../../app/shared/game-core/maps/dungeon-cave-hall.json';
+import mapDungeonCaveBoss from '../../app/shared/game-core/maps/dungeon-cave-boss.json';
 
 const WEAPON_COLORS: Record<string, number> = {
   cannon:     0xFFAA00,
@@ -43,7 +48,36 @@ const WEAPON_COLORS: Record<string, number> = {
   potion:     0x00FFCC,
 };
 
-type MapName = 'plains' | 'castle' | 'deep_mines' | 'arcane_ruins' | 'runic_forest';
+export type BattleMode = 'pvp' | 'dungeon';
+export type MapName =
+  | 'plains'
+  | 'castle'
+  | 'deep_mines'
+  | 'arcane_ruins'
+  | 'runic_forest'
+  | 'dungeon_cave_entrance'
+  | 'dungeon_cave_hall'
+  | 'dungeon_cave_boss';
+
+export interface BattleMapOption {
+  id: MapName;
+  label: string;
+  mode: BattleMode;
+  grid: number[][];
+}
+
+export const BATTLE_MAPS: BattleMapOption[] = [
+  { id: 'plains', label: 'Planícies', mode: 'pvp', grid: mapPlains.grid },
+  { id: 'castle', label: 'Castelo', mode: 'pvp', grid: mapCastle.grid },
+  { id: 'deep_mines', label: 'Minas Profundas', mode: 'pvp', grid: mapDeepMines.grid },
+  { id: 'arcane_ruins', label: 'Ruínas Arcanas', mode: 'pvp', grid: mapArcaneRuins.grid },
+  { id: 'runic_forest', label: 'Floresta Rúnica', mode: 'pvp', grid: mapRunicForest.grid },
+  { id: 'dungeon_cave_entrance', label: 'Dungeon: Entrada da Caverna', mode: 'dungeon', grid: mapDungeonCaveEntrance.grid },
+  { id: 'dungeon_cave_hall', label: 'Dungeon: Salão da Caverna', mode: 'dungeon', grid: mapDungeonCaveHall.grid },
+  { id: 'dungeon_cave_boss', label: 'Dungeon: Covil do Golem', mode: 'dungeon', grid: mapDungeonCaveBoss.grid },
+];
+
+const MAP_OPTIONS_BY_ID = new Map<MapName, BattleMapOption>(BATTLE_MAPS.map(map => [map.id, map]));
 const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
 const PLAYER_MOVE_SPEED = 180;
 const ANGLE_CHANGE_SPEED = 80;
@@ -60,6 +94,8 @@ export class BattleScene extends Phaser.Scene {
   private projectilePhysics = new ProjectilePhysics();
   private damageCalc = new DamageCalculator();
   private weaponSystem = new WeaponSystem();
+  private consumableSystem = new ConsumableSystem();
+  private secondaryItemSystem = new SecondaryItemSystem();
   private statusEffects = new StatusEffectManager();
 
   // v0.6.0 runic effects
@@ -76,6 +112,14 @@ export class BattleScene extends Phaser.Scene {
   private difficulty: Difficulty = 'medium';
   private isAnimating = false;
   private currentMap: MapName = 'plains';
+  private battleMode: BattleMode = 'pvp';
+  private playerShieldReduction = 0;
+  private aiShieldReduction = 0;
+  private playerInvisibleTurns = 0;
+  private calibrationShotActive = false;
+  private constructedByPlayer = 0;
+  private playerSecondaryItemId: string | null = null;
+  private aiSecondaryItemId: string | null = null;
 
   // Weapon state
   private playerWeapon!: WeaponDefinition;
@@ -92,6 +136,10 @@ export class BattleScene extends Phaser.Scene {
   private playerSprite!: Phaser.GameObjects.Rectangle;
   private aiSprite!: Phaser.GameObjects.Rectangle;
   private projectileArc!: Phaser.GameObjects.Arc;
+  private playerAvatar?: Phaser.GameObjects.Image;
+  private aiAvatar?: Phaser.GameObjects.Image;
+  private playerWeaponIcon?: Phaser.GameObjects.Image;
+  private aiWeaponIcon?: Phaser.GameObjects.Image;
 
   // HUD & UI helpers
   private hud!: CombatHud;
@@ -101,7 +149,7 @@ export class BattleScene extends Phaser.Scene {
 
   // Power bar
   private powerMeterHUD!: PowerMeterHUD;
-  private ghostTrace!: GhostTrace;
+  private ghostTrace: GhostTrace | undefined;
   private btnFire!: Phaser.GameObjects.Rectangle;
   private btnFireText!: Phaser.GameObjects.Text;
   private isChargingPower = false;
@@ -114,8 +162,17 @@ export class BattleScene extends Phaser.Scene {
   // Control buttons
   private angleText!: Phaser.GameObjects.Text;
 
+  // Set to true when started from playground (BootScene) — disables ghost trace
+  private isPlayground = false;
+
   constructor() {
     super({ key: 'BattleScene' });
+  }
+
+  init(data?: { isPlayground?: boolean; mode?: BattleMode; mapName?: MapName }): void {
+    this.isPlayground = data?.isPlayground ?? false;
+    this.battleMode = data?.mode ?? 'pvp';
+    this.currentMap = data?.mapName ?? (this.battleMode === 'dungeon' ? 'dungeon_cave_entrance' : 'plains');
   }
 
   preload(): void {
@@ -193,6 +250,8 @@ export class BattleScene extends Phaser.Scene {
     this.projectilePhysics = new ProjectilePhysics();
     this.damageCalc = new DamageCalculator();
     this.statusEffects = new StatusEffectManager();
+    this.consumableSystem = new ConsumableSystem();
+    this.secondaryItemSystem = new SecondaryItemSystem();
     this.playerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true };
     this.aiStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false };
     this.currentAngle = 45;
@@ -206,6 +265,13 @@ export class BattleScene extends Phaser.Scene {
     this.trajectory = new TrajectoryIndicator();
     this.resultOverlay.hide();
     this.previewRefreshMs = 0;
+    this.playerShieldReduction = 0;
+    this.aiShieldReduction = 0;
+    this.playerInvisibleTurns = 0;
+    this.calibrationShotActive = false;
+    this.constructedByPlayer = 0;
+    this.playerSecondaryItemId = null;
+    this.aiSecondaryItemId = null;
   }
 
   create(): void {
@@ -224,8 +290,9 @@ export class BattleScene extends Phaser.Scene {
     // Background
     this.add.rectangle(width / 2, height / 2, width, height, 0x1a1a2e);
 
-    // Initialize terrain engine with plains map
-    this.terrainEngine = new TerrainEngine(mapPlains.grid);
+    const initialMap = this.getMapOption(this.currentMap);
+    this.battleMode = initialMap.mode;
+    this.terrainEngine = new TerrainEngine(initialMap.grid);
     this.terrainRenderer = new TerrainRenderer(this, this.terrainEngine);
     this.terrainRenderer.renderFull();
 
@@ -244,18 +311,32 @@ export class BattleScene extends Phaser.Scene {
     // Player sprite (blue)
     this.playerSprite = this.add.rectangle(
       this.playerStats.x, this.playerStats.y, 40, 60, 0x4488ff
-    ).setDepth(2);
+    ).setDepth(2).setAlpha(0.18);
+    this.playerAvatar = this.add.image(this.playerStats.x, this.playerStats.y, 'human_battle')
+      .setDisplaySize(58, 72)
+      .setDepth(3);
+    this.playerWeaponIcon = this.add.image(this.playerStats.x + 34, this.playerStats.y + 2, this.weaponSpriteKey(this.playerWeapon.id))
+      .setDisplaySize(34, 34)
+      .setDepth(4);
     this.add.text(this.playerStats.x, this.playerStats.y + 40, 'Jogador', {
       fontSize: '11px', color: '#ffffff', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(3);
+    }).setOrigin(0.5).setDepth(5);
 
     // AI sprite (red)
     this.aiSprite = this.add.rectangle(
       this.aiStats.x, this.aiStats.y, 40, 60, 0xff4444
-    ).setDepth(2);
+    ).setDepth(2).setAlpha(0.18);
+    this.aiAvatar = this.add.image(this.aiStats.x, this.aiStats.y, this.battleMode === 'dungeon' ? 'dwarf_battle' : 'elf_battle')
+      .setDisplaySize(58, 72)
+      .setFlipX(true)
+      .setTint(this.battleMode === 'dungeon' ? 0xffcc88 : 0xffffff)
+      .setDepth(3);
+    this.aiWeaponIcon = this.add.image(this.aiStats.x - 34, this.aiStats.y + 2, this.weaponSpriteKey(this.aiWeapon.id))
+      .setDisplaySize(34, 34)
+      .setDepth(4);
     this.add.text(this.aiStats.x, this.aiStats.y + 40, 'Inimigo', {
       fontSize: '11px', color: '#ffffff', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(3);
+    }).setOrigin(0.5).setDepth(5);
 
     // Projectile arc managed by ProjectileRenderer
     this.projectileArc = this.projRenderer.createProjectile(
@@ -267,8 +348,10 @@ export class BattleScene extends Phaser.Scene {
     this.effectsHud = new EffectsHud(this);
     this.refreshHud();
 
-    // Ghost trace for last player shot trajectory
-    this.ghostTrace = new GhostTrace(this);
+    // Ghost trace: only in real battles (not playground)
+    if (!this.isPlayground) {
+      this.ghostTrace = new GhostTrace(this);
+    }
 
     // Controls
     this.createControls();
@@ -296,6 +379,7 @@ export class BattleScene extends Phaser.Scene {
       this.playerStats.y = this.playerSprite.y;
       this.aiStats.x = this.aiSprite.x;
       this.aiStats.y = this.aiSprite.y;
+      this.syncActorAssets();
     }
 
     this.previewRefreshMs += delta;
@@ -311,6 +395,19 @@ export class BattleScene extends Phaser.Scene {
         this.statusEffects.getEffects('ai')
       );
     }
+  }
+
+  private syncActorAssets(): void {
+    this.playerAvatar?.setPosition(this.playerSprite.x, this.playerSprite.y);
+    this.aiAvatar?.setPosition(this.aiSprite.x, this.aiSprite.y);
+    this.playerWeaponIcon?.setPosition(this.playerSprite.x + 34, this.playerSprite.y + 2);
+    this.aiWeaponIcon?.setPosition(this.aiSprite.x - 34, this.aiSprite.y + 2);
+    this.playerAvatar?.setAlpha(this.playerInvisibleTurns > 0 ? 0.38 : 1);
+  }
+
+  private weaponSpriteKey(id: string): string {
+    if (id === 'ice-book') return 'weapon_icebook_sprite';
+    return `weapon_${id}_sprite`;
   }
 
   // ──────────────────────────────────────────────────────────
@@ -423,6 +520,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.playerStats.x = this.playerSprite.x;
     this.playerStats.y = this.playerSprite.y;
+    this.syncActorAssets();
   }
 
   private clampInitialX(mapX: number, viewportWidth: number): number {
@@ -490,7 +588,7 @@ export class BattleScene extends Phaser.Scene {
     const profile = this.playerWeapon.physicsProfile;
     const config: ProjectileConfig = {
       angle: this.currentAngle,
-      force: 50, // preview with medium force
+      force: this.calibrationShotActive ? 75 : 50,
       gravityScale: profile.gravityScale,
       windInfluence: profile.windInfluence,
       baseDamage: this.playerWeapon.baseDamage,
@@ -518,12 +616,17 @@ export class BattleScene extends Phaser.Scene {
 
     const wind = this.windSystem.getCurrent();
     const path = this.projectilePhysics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
+    this.maybeBuildRunicTerrain(path, 'player');
     this.animateProjectile(path, true);
   }
 
   private fireAiShot(): void {
     const wind = this.windSystem.getCurrent();
     const shot = this.calculateAiShot();
+    if (this.playerInvisibleTurns > 0) {
+      this.time.delayedCall(350, () => this.endTurn(false));
+      return;
+    }
     if (shot.score > AI_REPOSITION_THRESHOLD && this.tryRepositionAi()) {
       this.time.delayedCall(350, () => this.endTurn(false));
       return;
@@ -539,7 +642,16 @@ export class BattleScene extends Phaser.Scene {
     };
 
     const path = this.projectilePhysics.simulate(this.aiStats.x, this.aiStats.y, config, wind);
+    this.maybeBuildRunicTerrain(path, 'ai');
     this.animateProjectile(path, false);
+  }
+
+  private maybeBuildRunicTerrain(path: Array<{ x: number; y: number }>, playerId: 'player' | 'ai'): void {
+    if (!this.secondaryItemSystem.isRunicBuilderActive(playerId)) return;
+    const created = this.terrainEngine.drawRunicLine(path.slice(0, 18), playerId);
+    this.secondaryItemSystem.consumeRunicBuilder(playerId);
+    this.constructedByPlayer = this.terrainEngine.getConstructedCount('player');
+    if (created > 0) this.terrainRenderer.renderFull();
   }
 
   private animateProjectile(
@@ -578,9 +690,9 @@ export class BattleScene extends Phaser.Scene {
 
     const clippedPath = path.slice(0, stopIndex + 1);
 
-    // Record trajectory for GhostTrace (only player shots)
+    // Record trajectory for GhostTrace (only player shots, not in playground)
     if (isPlayerShot) {
-      this.ghostTrace.recordShot(clippedPath);
+      this.ghostTrace?.recordShot(clippedPath);
     }
 
     this.projRenderer.animateAlongPath(this.projectileArc, clippedPath, () => {
@@ -721,9 +833,11 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (isPlayerShot) {
+      damage = this.applyShieldReduction('ai', damage);
       this.aiStats.hp = Math.max(0, this.aiStats.hp - damage);
       this.showDamageText(this.aiStats.x, this.aiStats.y, damage, '#ff4444');
     } else {
+      damage = this.applyShieldReduction('player', damage);
       this.playerStats.hp = Math.max(0, this.playerStats.hp - damage);
       this.showDamageText(this.playerStats.x, this.playerStats.y, damage, '#44aaff');
     }
@@ -756,6 +870,7 @@ export class BattleScene extends Phaser.Scene {
             this.playerStats.x = newX;
             this.playerStats.y = newY;
           }
+          this.syncActorAssets();
         }
       }
     }
@@ -818,10 +933,20 @@ export class BattleScene extends Phaser.Scene {
         this.fireAiShot();
       });
     } else {
+      if (this.playerInvisibleTurns > 0) this.playerInvisibleTurns -= 1;
       // Back to player — clear ghost trace from previous shot and show trajectory preview
-      this.ghostTrace.clear();
+      this.ghostTrace?.clear();
       this.updateTrajectoryPreview();
     }
+    this.syncActorAssets();
+  }
+
+  private applyShieldReduction(target: 'player' | 'ai', damage: number): number {
+    const reduction = target === 'player' ? this.playerShieldReduction : this.aiShieldReduction;
+    if (reduction <= 0) return damage;
+    if (target === 'player') this.playerShieldReduction = 0;
+    else this.aiShieldReduction = 0;
+    return Math.max(0, Math.round(damage * (1 - reduction)));
   }
 
   // ──────────────────────────────────────────────────────────
@@ -911,6 +1036,26 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  private showItemFloatingText(x: number, y: number, label: string, color = '#66ffcc'): void {
+    const text = this.add.text(x, y - 48, label, {
+      fontSize: '15px',
+      color,
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(22);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 88,
+      alpha: 0,
+      duration: 900,
+      ease: 'Power2',
+      onComplete: () => text.destroy(),
+    });
+  }
+
   // ──────────────────────────────────────────────────────────
   // HUD refresh
   // ──────────────────────────────────────────────────────────
@@ -977,6 +1122,7 @@ export class BattleScene extends Phaser.Scene {
     if (!weapon) return;
     this.playerWeapon = weapon;
     this.projectileArc.setFillStyle(WEAPON_COLORS[id] ?? 0xffff00);
+    this.playerWeaponIcon?.setTexture(this.weaponSpriteKey(id));
     this.refreshHud();
   }
 
@@ -984,6 +1130,7 @@ export class BattleScene extends Phaser.Scene {
     const weapon = this.weaponSystem.getById(id);
     if (!weapon) return;
     this.aiWeapon = weapon;
+    this.aiWeaponIcon?.setTexture(this.weaponSpriteKey(id));
     this.refreshHud();
   }
 
@@ -999,33 +1146,36 @@ export class BattleScene extends Phaser.Scene {
     this.terrainRenderer.updateCells(result.cellsDestroyed);
   }
 
-  private getGridData(mapName: MapName): number[][] {
-    switch (mapName) {
-      case 'castle': return mapCastle.grid;
-      case 'deep_mines': return mapDeepMines.grid;
-      case 'arcane_ruins': return mapArcaneRuins.grid;
-      case 'runic_forest': return mapRunicForest.grid;
-      default: return mapPlains.grid;
-    }
+  private getMapOption(mapName: MapName): BattleMapOption {
+    return MAP_OPTIONS_BY_ID.get(mapName) ?? MAP_OPTIONS_BY_ID.get('plains')!;
+  }
+
+  setBattleMode(mode: BattleMode): void {
+    const fallbackMap = mode === 'dungeon' ? 'dungeon_cave_entrance' : 'plains';
+    this.switchMap(fallbackMap);
   }
 
   resetTerrain(): void {
-    const gridData = this.getGridData(this.currentMap);
-    this.terrainEngine.loadMap(gridData);
+    const map = this.getMapOption(this.currentMap);
+    this.terrainEngine.loadMap(map.grid);
     this.terrainRenderer.renderFull();
   }
 
   switchMap(mapName: MapName): void {
     this.currentMap = mapName;
-    const gridData = this.getGridData(mapName);
-    this.terrainEngine.loadMap(gridData);
+    const map = this.getMapOption(mapName);
+    this.battleMode = map.mode;
+    this.terrainEngine.loadMap(map.grid);
     this.terrainRenderer.renderFull();
+    this.aiAvatar?.setTexture(this.battleMode === 'dungeon' ? 'dwarf_battle' : 'elf_battle');
+    this.aiAvatar?.setTint(this.battleMode === 'dungeon' ? 0xffcc88 : 0xffffff);
 
     // Re-position characters on new terrain
     const playerFloor = this.terrainEngine.getFloorBelow(this.playerSprite.x, 0);
     const aiFloor = this.terrainEngine.getFloorBelow(this.aiSprite.x, 0);
     if (playerFloor !== null) this.playerSprite.setY(playerFloor - this.playerSprite.height / 2);
     if (aiFloor !== null) this.aiSprite.setY(aiFloor - this.aiSprite.height / 2);
+    this.syncActorAssets();
   }
 
   paintCell(worldX: number, worldY: number, material: number): void {
@@ -1067,6 +1217,82 @@ export class BattleScene extends Phaser.Scene {
 
   setPlayerLuck(luck: number): void {
     this.playerLuck = Math.max(0, Math.min(100, luck));
+  }
+
+  getConsumables(): Consumable[] {
+    return this.consumableSystem.getAll();
+  }
+
+  getSecondaryItems(): SecondaryItem[] {
+    return this.secondaryItemSystem.getAll();
+  }
+
+  useDebugConsumable(target: 'player' | 'ai', id: string): void {
+    const item = this.consumableSystem.getById(id);
+    if (!item) return;
+
+    if (id === 'heal') {
+      const stats = target === 'player' ? this.playerStats : this.aiStats;
+      stats.hp = Math.min(stats.maxHp, stats.hp + Math.round(stats.maxHp * 0.25));
+      this.showItemFloatingText(stats.x, stats.y, '+Cura', '#66ff88');
+    } else if (id === 'teleport') {
+      this.teleportActor(target, this.lastImpactPoint?.x ?? this.scale.width / 2);
+    } else if (id === 'ice-throw') {
+      const effectTarget = target === 'player' ? 'ai' : 'player';
+      this.applyDebugEffect(effectTarget, 'FREEZE');
+    } else if (id === 'invisibility') {
+      if (target === 'player') this.playerInvisibleTurns = 1;
+      this.syncActorAssets();
+    } else if (id === 'calibration-shot') {
+      this.calibrationShotActive = true;
+      this.showItemFloatingText(this.playerStats.x, this.playerStats.y, 'Calibrado', '#ffdd66');
+      this.updateTrajectoryPreview();
+    }
+
+    this.refreshHud();
+    if (item.usesTurn) this.endTurn(target === 'player');
+  }
+
+  useDebugSecondaryItem(target: 'player' | 'ai', id: string): void {
+    const item = this.secondaryItemSystem.getById(id);
+    if (!item) return;
+    if (target === 'player') this.playerSecondaryItemId = id;
+    else this.aiSecondaryItemId = id;
+
+    if (id === 'shield') {
+      if (target === 'player') this.playerShieldReduction = 0.4;
+      else this.aiShieldReduction = 0.4;
+    } else if (id === 'healing-book') {
+      const stats = target === 'player' ? this.playerStats : this.aiStats;
+      stats.hp = Math.min(stats.maxHp, stats.hp + Math.round(stats.maxHp * 0.15));
+      this.showItemFloatingText(stats.x, stats.y, '+Livro', '#66ff88');
+    } else if (id === 'camouflage-orb') {
+      if (target === 'player') this.playerInvisibleTurns = 1;
+    } else if (id === 'protection-totem') {
+      if (target === 'player') this.playerShieldReduction = 0.6;
+      else this.aiShieldReduction = 0.6;
+    } else if (id === 'runic-builder') {
+      this.secondaryItemSystem.activateRunicBuilder(target, this.terrainEngine.getConstructedCount(target));
+    }
+
+    this.refreshHud();
+    this.syncActorAssets();
+    if (item.usesTurn) this.endTurn(target === 'player');
+  }
+
+  private teleportActor(target: 'player' | 'ai', x: number): void {
+    const sprite = target === 'player' ? this.playerSprite : this.aiSprite;
+    const newX = this.clampInitialX(x, this.scale.width);
+    const floorY = this.terrainEngine.getFloorBelow(newX, 0);
+    sprite.setPosition(newX, floorY !== null ? floorY - sprite.height / 2 : sprite.y);
+    if (target === 'player') {
+      this.playerStats.x = sprite.x;
+      this.playerStats.y = sprite.y;
+    } else {
+      this.aiStats.x = sprite.x;
+      this.aiStats.y = sprite.y;
+    }
+    this.syncActorAssets();
   }
 
   getActiveEffects(): { player: RunicEffect[]; ai: RunicEffect[] } {

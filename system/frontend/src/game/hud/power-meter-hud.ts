@@ -30,7 +30,9 @@ export class PowerMeterHUD {
 
   /** Update the power bar. force: 0–100 */
   update(force: number): void {
-    this.fill.setDisplaySize(force * 2, 20);
+    // setSize (not setDisplaySize) to avoid divide-by-zero when initial width is 0
+    this.fill.setSize(force * 2, 20);
+    this.fill.setVisible(force > 0);
     this.fill.setFillStyle(
       force > 70 ? 0xff4444 : force > 40 ? 0xffaa00 : 0x00ff88
     );
