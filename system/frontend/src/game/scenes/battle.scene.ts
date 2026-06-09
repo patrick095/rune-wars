@@ -1290,7 +1290,7 @@ export class BattleScene extends Phaser.Scene {
         this.ghostTrace?.recordShot(traveledPath);
       }
 
-      const impact = this.getProjectileImpact(resolvedImpact, isPlayerShot);
+      const impact = clipped.impact ?? this.getProjectileImpact(resolvedImpact, isPlayerShot);
       const teleportUtilityShot = isPlayerShot && this.teleportShotArmed;
       const explodeOnImpact = options.explodeOnImpact ?? !teleportUtilityShot;
       const applyDamage = options.applyDamage ?? !teleportUtilityShot;
@@ -1332,8 +1332,12 @@ export class BattleScene extends Phaser.Scene {
   private clipPathToFirstImpact(
     path: Array<{ x: number; y: number }>,
     isPlayerShot: boolean
-  ): { path: Array<{ x: number; y: number }>; impactPoint: { x: number; y: number } | null } {
-    if (path.length <= 1) return { path, impactPoint: null };
+  ): {
+    path: Array<{ x: number; y: number }>;
+    impactPoint: { x: number; y: number } | null;
+    impact: { hitTerrain: boolean; hitTarget: boolean; targetStats: BattleCharacterState } | null;
+  } {
+    if (path.length <= 1) return { path, impactPoint: null, impact: null };
 
     const clippedPath: Array<{ x: number; y: number }> = [path[0]];
 
@@ -1343,14 +1347,15 @@ export class BattleScene extends Phaser.Scene {
       const impactPoint = this.findImpactOnSegment(previous, current, isPlayerShot);
 
       if (impactPoint) {
+        const impact = this.getProjectileImpact(impactPoint, isPlayerShot);
         clippedPath.push(impactPoint);
-        return { path: clippedPath, impactPoint };
+        return { path: clippedPath, impactPoint, impact };
       }
 
       clippedPath.push(current);
     }
 
-    return { path: clippedPath, impactPoint: null };
+    return { path: clippedPath, impactPoint: null, impact: null };
   }
 
   private findImpactOnSegment(

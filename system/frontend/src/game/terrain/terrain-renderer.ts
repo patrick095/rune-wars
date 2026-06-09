@@ -4,6 +4,7 @@ import { CELL_SIZE, TerrainCell, TerrainMaterial } from '../../app/shared/game-c
 import { initTerrainTextures, getTileKey, getSurfaceTileKey, getBackgroundColor } from './terrain-textures';
 
 const MAX_RENDER_TEXTURE_SIZE = 1024;
+const TARGET_CHUNK_TEXTURE_SIZE = 256;
 
 interface TerrainChunk {
   rt: Phaser.GameObjects.RenderTexture;
@@ -172,7 +173,7 @@ export class TerrainRenderer {
   }
 
   private safeRenderTextureSize(): number {
-    const bounded = Math.min(MAX_RENDER_TEXTURE_SIZE, this.maxTextureSize);
+    const bounded = Math.min(TARGET_CHUNK_TEXTURE_SIZE, MAX_RENDER_TEXTURE_SIZE, this.maxTextureSize);
     return Math.max(CELL_SIZE, Math.floor(bounded / CELL_SIZE) * CELL_SIZE);
   }
 
