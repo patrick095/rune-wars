@@ -64,7 +64,7 @@ export class InventoryService {
    * Loads the inventory for a character.
    * Falls back to mock data if the backend endpoint is unavailable.
    */
-  getInventory(characterId: number): Observable<InventoryItem[]> {
+  getInventory(characterId: string): Observable<InventoryItem[]> {
     return this.http
       .get<InventoryItem[]>(`/api/inventory-slots/character/${characterId}/items`)
       .pipe(catchError(() => of(MOCK_INVENTORY)));
@@ -74,7 +74,7 @@ export class InventoryService {
    * Equips an item into a slot.
    * Falls back gracefully when the endpoint is unavailable.
    */
-  equipItem(characterId: number, itemId: string, slot: EquipmentSlotType): Observable<unknown> {
+  equipItem(characterId: string, itemId: string, slot: EquipmentSlotType): Observable<unknown> {
     return this.http
       .post(`/api/inventory-slots/character/${characterId}/equip`, { itemId, slot })
       .pipe(catchError(() => of(null)));
@@ -84,7 +84,7 @@ export class InventoryService {
    * Unequips the item from a slot.
    * Falls back gracefully when the endpoint is unavailable.
    */
-  unequipItem(characterId: number, slot: EquipmentSlotType): Observable<unknown> {
+  unequipItem(characterId: string, slot: EquipmentSlotType): Observable<unknown> {
     return this.http
       .post(`/api/inventory-slots/character/${characterId}/unequip`, { slot })
       .pipe(catchError(() => of(null)));
@@ -94,7 +94,7 @@ export class InventoryService {
    * Moves an item between two inventory positions.
    * Falls back gracefully when the endpoint is unavailable.
    */
-  moveItem(characterId: number, fromIndex: number, toIndex: number): Observable<unknown> {
+  moveItem(characterId: string, fromIndex: number, toIndex: number): Observable<unknown> {
     return this.http
       .post(`/api/inventory-slots/character/${characterId}/move`, { fromIndex, toIndex })
       .pipe(catchError(() => of(null)));

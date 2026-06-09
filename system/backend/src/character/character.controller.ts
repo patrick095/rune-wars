@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CharacterService } from './character.service';
 
@@ -25,5 +25,10 @@ export class CharacterController {
   @Put(':id')
   update(@Param('id') id: string, @Request() req: any, @Body() dto: any) {
     return this.service.update(id, req.user.userId, dto);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string, @Request() req: any) {
+    return this.service.delete(id, req.user.userId);
   }
 }

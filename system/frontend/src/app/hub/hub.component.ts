@@ -1,10 +1,11 @@
-import { AfterViewInit, Component, OnDestroy, NgZone } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import Phaser from 'phaser';
 import { HubScene } from '../../game/scenes/hub.scene';
 import { HUB_POIS, HubPointOfInterest } from '../../game/hub/hub-poi';
 import { GameEventBusService } from '../shared/services/game-event-bus.service';
+import { ActiveCharacterService } from '../shared/services/active-character.service';
 
 @Component({
   selector: 'app-hub',
@@ -15,10 +16,15 @@ import { GameEventBusService } from '../shared/services/game-event-bus.service';
 })
 export class HubComponent implements AfterViewInit, OnDestroy {
   private game: Phaser.Game | null = null;
+  private activeCharacterService = inject(ActiveCharacterService);
 
   isMobile = false;
   activePoi: HubPointOfInterest | null = null;
   dockPois = HUB_POIS;
+
+  get activeCharacterName(): string {
+    return this.activeCharacterService.character?.name ?? 'Aventureiro';
+  }
 
   constructor(
     private router: Router,

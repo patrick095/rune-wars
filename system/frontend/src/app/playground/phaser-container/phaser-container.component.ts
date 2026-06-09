@@ -1,8 +1,9 @@
-import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, Output, EventEmitter } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, Output, EventEmitter, inject } from '@angular/core';
 import Phaser from 'phaser';
 import { BootScene } from '../../../game/scenes/boot.scene';
 import { PlaygroundScene } from '../../../game/scenes/playground.scene';
 import { BattleScene } from '../../../game/scenes/battle.scene';
+import { ActiveCharacterService } from '../../shared/services/active-character.service';
 
 @Component({
   selector: 'app-phaser-container',
@@ -19,9 +20,13 @@ export class PhaserContainerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('gameContainer') containerRef!: ElementRef<HTMLDivElement>;
   @Output() gameReady = new EventEmitter<Phaser.Game>();
 
+  private activeCharacter = inject(ActiveCharacterService);
   private game: Phaser.Game | null = null;
 
   ngAfterViewInit() {
+    const playerRace = this.activeCharacter.character?.race ?? 'human';
+    (window as unknown as Record<string, unknown>)['rwPlayerRace'] = playerRace; // eslint-disable-line
+
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
       width: window.innerWidth,

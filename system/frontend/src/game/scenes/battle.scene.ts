@@ -25,7 +25,7 @@ import { CombatHud } from '../hud/combat-hud';
 import { TrajectoryIndicator } from '../ui/trajectory-indicator';
 import { ResultOverlay } from '../ui/result-overlay';
 import { WeaponSystem } from '../../app/shared/game-core/weapon-system';
-import { WeaponDefinition } from '../../app/shared/game-core/weapon-definition';
+import { WeaponDefinition, getWeaponAngleLimits } from '../../app/shared/game-core/weapon-definition';
 import { Consumable, ConsumableSystem } from '../../app/shared/game-core/consumable-system';
 import { SecondaryItem, SecondaryItemSystem } from '../../app/shared/game-core/secondary-item-system';
 import { ProjectileRenderer } from '../projectiles/projectile-renderer';
@@ -110,6 +110,16 @@ export class BattleScene extends Phaser.Scene {
   private _btnAngleMinus!: Phaser.GameObjects.Rectangle;
   private _btnAnglePlus!: Phaser.GameObjects.Rectangle;
 
+  // Mobile detection
+  private isMobile = window.matchMedia('(pointer: coarse)').matches;
+
+  // Hold-to-repeat timers for angle buttons
+  private holdTimer: ReturnType<typeof setTimeout> | null = null;
+  private holdInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Throttle for keyboard angle keys
+  private lastAngleKeyTime = 0;
+
   private playerStats: BattleCharacterState = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true, facing: 'right' };
   private aiStats: BattleCharacterState = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false, facing: 'left' };
 
@@ -172,6 +182,14 @@ export class BattleScene extends Phaser.Scene {
   // Control buttons
   private angleText!: Phaser.GameObjects.Text;
 
+  // Map drag (pan)
+  private isDraggingMap = false;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private cameraStartScrollX = 0;
+  private cameraStartScrollY = 0;
+  private wasFollowing = false;
+
   // Set to true when started from playground (BootScene) — disables ghost trace
   private isPlayground = false;
 
@@ -179,11 +197,14 @@ export class BattleScene extends Phaser.Scene {
     super({ key: 'BattleScene' });
   }
 
-  init(data?: { isPlayground?: boolean; mode?: BattleMode; mapName?: MapName; agility?: number }): void {
+  private playerRace: string = 'human';
+
+  init(data?: { isPlayground?: boolean; mode?: BattleMode; mapName?: MapName; agility?: number; playerRace?: string }): void {
     this.isPlayground = data?.isPlayground ?? false;
     this.battleMode = data?.mode ?? 'pvp';
     this.currentMap = data?.mapName ?? (this.battleMode === 'dungeon' ? 'dungeon_cave_entrance' : 'plains');
     this.playerAgility = data?.agility ?? 50;
+    this.playerRace = data?.playerRace ?? 'human';
   }
 
   preload(): void {
@@ -255,6 +276,9 @@ export class BattleScene extends Phaser.Scene {
       clearInterval(this.powerInterval);
       this.powerInterval = null;
     }
+    // Clean up hold-to-repeat timers if any
+    if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
+    if (this.holdInterval) { clearInterval(this.holdInterval); this.holdInterval = null; }
 
     this.turnManager = new TurnManager();
     this.windSystem = new WindSystem();
@@ -355,7 +379,7 @@ export class BattleScene extends Phaser.Scene {
     this.playerSprite = this.add.rectangle(
       this.playerStats.x, this.playerStats.y, 40, 60, 0x4488ff
     ).setDepth(2).setAlpha(0.18);
-    this.playerAvatar = this.add.image(this.playerStats.x, this.playerStats.y, 'human_battle')
+    this.playerAvatar = this.add.image(this.playerStats.x, this.playerStats.y, `${this.playerRace}_battle`)
       .setDisplaySize(58, 72)
       .setDepth(3);
     this.playerWeaponIcon = this.add.image(this.playerStats.x + 34, this.playerStats.y + 2, this.weaponSpriteKey(this.playerWeapon.id))
@@ -413,6 +437,9 @@ export class BattleScene extends Phaser.Scene {
     this.windSystem.generate();
     this.refreshHud();
     this.updateTrajectoryPreview();
+
+    // Map drag (pan with mouse/touch)
+    this.setupMapDrag();
 
     // Handle resize
     this.scale.on('resize', this.onResize, this);
@@ -479,22 +506,81 @@ export class BattleScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const btnY = height - 50;
     const btnH = 44;
-    const btnW = 70;
 
-    // Angle - button
-    this._btnAngleMinus = this.add.rectangle(40, btnY, btnW, btnH, 0x335588).setInteractive().setDepth(15);
-    this.add.text(40, btnY, 'Ang -', { fontSize: '13px', color: '#ffffff', fontFamily: 'monospace' })
-      .setOrigin(0.5).setDepth(16);
+    if (this.isMobile) {
+      // Mobile: larger ergonomic angle buttons (72×72) in bottom-left area
+      const mobileBtnSize = 72;
+      const mobileBtnMinusX = 44;
+      const mobileBtnPlusX = 126;
+      const mobileBtnY = height - 50;
 
-    // Angle display
-    this.angleText = this.add.text(120, btnY, `${this.currentAngle}°`, {
-      fontSize: '16px', color: '#ffdd44', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(16);
+      // Angle - button (mobile)
+      this._btnAngleMinus = this.add.rectangle(mobileBtnMinusX, mobileBtnY, mobileBtnSize, mobileBtnSize, 0x335588)
+        .setInteractive().setDepth(20).setScrollFactor(0);
+      this.add.text(mobileBtnMinusX, mobileBtnY, '◀', { fontSize: '26px', color: '#ffffff', fontFamily: 'monospace' })
+        .setOrigin(0.5).setDepth(21).setScrollFactor(0);
 
-    // Angle + button
-    this._btnAnglePlus = this.add.rectangle(200, btnY, btnW, btnH, 0x335588).setInteractive().setDepth(15);
-    this.add.text(200, btnY, 'Ang +', { fontSize: '13px', color: '#ffffff', fontFamily: 'monospace' })
-      .setOrigin(0.5).setDepth(16);
+      // Angle display (centered between the two buttons, above them)
+      const angleDisplayX = (mobileBtnMinusX + mobileBtnPlusX) / 2;
+      this.angleText = this.add.text(angleDisplayX, mobileBtnY - mobileBtnSize / 2 - 12, `${this.currentAngle}°`, {
+        fontSize: '16px', color: '#ffdd44', fontFamily: 'monospace',
+      }).setOrigin(0.5).setDepth(21).setScrollFactor(0);
+
+      // Angle + button (mobile)
+      this._btnAnglePlus = this.add.rectangle(mobileBtnPlusX, mobileBtnY, mobileBtnSize, mobileBtnSize, 0x335588)
+        .setInteractive().setDepth(20).setScrollFactor(0);
+      this.add.text(mobileBtnPlusX, mobileBtnY, '▶', { fontSize: '26px', color: '#ffffff', fontFamily: 'monospace' })
+        .setOrigin(0.5).setDepth(21).setScrollFactor(0);
+
+      // Mobile angle button events with hold-to-repeat and visual feedback
+      this._btnAngleMinus.on('pointerdown', () => {
+        this._btnAngleMinus.setAlpha(0.7);
+        this.onAngleButtonDown(-1);
+      });
+      this._btnAngleMinus.on('pointerup', () => {
+        this._btnAngleMinus.setAlpha(1.0);
+        this.onAngleButtonUp();
+      });
+      this._btnAngleMinus.on('pointerout', () => {
+        this._btnAngleMinus.setAlpha(1.0);
+        this.onAngleButtonUp();
+      });
+
+      this._btnAnglePlus.on('pointerdown', () => {
+        this._btnAnglePlus.setAlpha(0.7);
+        this.onAngleButtonDown(1);
+      });
+      this._btnAnglePlus.on('pointerup', () => {
+        this._btnAnglePlus.setAlpha(1.0);
+        this.onAngleButtonUp();
+      });
+      this._btnAnglePlus.on('pointerout', () => {
+        this._btnAnglePlus.setAlpha(1.0);
+        this.onAngleButtonUp();
+      });
+    } else {
+      // Desktop: original compact angle buttons
+      const btnW = 70;
+
+      // Angle - button
+      this._btnAngleMinus = this.add.rectangle(40, btnY, btnW, btnH, 0x335588).setInteractive().setDepth(15).setScrollFactor(0);
+      this.add.text(40, btnY, 'Ang -', { fontSize: '13px', color: '#ffffff', fontFamily: 'monospace' })
+        .setOrigin(0.5).setDepth(16).setScrollFactor(0);
+
+      // Angle display
+      this.angleText = this.add.text(120, btnY, `${this.currentAngle}°`, {
+        fontSize: '16px', color: '#ffdd44', fontFamily: 'monospace',
+      }).setOrigin(0.5).setDepth(16).setScrollFactor(0);
+
+      // Angle + button
+      this._btnAnglePlus = this.add.rectangle(200, btnY, btnW, btnH, 0x335588).setInteractive().setDepth(15).setScrollFactor(0);
+      this.add.text(200, btnY, 'Ang +', { fontSize: '13px', color: '#ffffff', fontFamily: 'monospace' })
+        .setOrigin(0.5).setDepth(16).setScrollFactor(0);
+
+      // Desktop angle button events (simple click)
+      this._btnAngleMinus.on('pointerdown', () => this.changeAngle(-5));
+      this._btnAnglePlus.on('pointerdown', () => this.changeAngle(5));
+    }
 
     // Power bar (Phaser-native, updates in real time during mousedown)
     const barX = width / 2;
@@ -503,20 +589,44 @@ export class BattleScene extends Phaser.Scene {
 
     // Fire button
     const btnFireX = width - 70;
-    this.btnFire = this.add.rectangle(btnFireX, btnY, 100, btnH, 0x884400).setInteractive().setDepth(15);
+    this.btnFire = this.add.rectangle(btnFireX, btnY, 100, btnH, 0x884400).setInteractive().setDepth(15).setScrollFactor(0);
     this.btnFireText = this.add.text(btnFireX, btnY, 'ATIRAR', {
       fontSize: '15px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(16);
-
-    // Events
-    this._btnAngleMinus.on('pointerdown', () => this.adjustAngle(-5));
-    this._btnAnglePlus.on('pointerdown', () => this.adjustAngle(5));
+    }).setOrigin(0.5).setDepth(16).setScrollFactor(0);
 
     this.btnFire.on('pointerover', () => this.btnFire.setFillStyle(0xaa6600));
     this.btnFire.on('pointerout', () => this.btnFire.setFillStyle(0x884400));
     this.btnFire.on('pointerdown', () => this.startChargingPower(this.btnFire, this.btnFireText));
     this.btnFire.on('pointerup', () => this.releaseFire(this.btnFire, this.btnFireText));
     this.btnFire.on('pointerupoutside', () => this.releaseFire(this.btnFire, this.btnFireText));
+  }
+
+  private changeAngle(delta: number): void {
+    if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
+    if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
+    const limits = getWeaponAngleLimits(this.playerWeapon?.id ?? 'default');
+    this.currentAngle = Math.round(Math.max(limits.minAngle, Math.min(limits.maxAngle, this.currentAngle + delta)));
+    this.updateAngleDisplay();
+    this.updateTrajectoryPreview();
+  }
+
+  private onAngleButtonDown(delta: 1 | -1): void {
+    this.changeAngle(delta);
+    this.holdTimer = setTimeout(() => {
+      this.holdInterval = setInterval(() => this.changeAngle(delta), 80);
+    }, 400);
+  }
+
+  private onAngleButtonUp(): void {
+    if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
+    if (this.holdInterval) { clearInterval(this.holdInterval); this.holdInterval = null; }
+  }
+
+  private handleAngleKey(delta: 1 | -1): void {
+    const now = Date.now();
+    if (now - this.lastAngleKeyTime < 100) return;
+    this.lastAngleKeyTime = now;
+    this.changeAngle(delta);
   }
 
   private createKeyboardControls(): void {
@@ -537,6 +647,41 @@ export class BattleScene extends Phaser.Scene {
     this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
   }
 
+  private setupMapDrag(): void {
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.button === 0 || p.wasTouch) {
+        this.isDraggingMap = true;
+        this.dragStartX = p.x;
+        this.dragStartY = p.y;
+        this.cameraStartScrollX = this.cameras.main.scrollX;
+        this.cameraStartScrollY = this.cameras.main.scrollY;
+        // Suspender follow se estiver ativo
+        if ((this.cameras.main as any)._follow) { // eslint-disable-line @typescript-eslint/no-explicit-any
+          this.wasFollowing = true;
+          this.cameras.main.stopFollow();
+        }
+      }
+    });
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (!this.isDraggingMap || !p.isDown) return;
+      const dx = this.dragStartX - p.x;
+      const dy = this.dragStartY - p.y;
+      this.cameras.main.setScroll(
+        this.cameraStartScrollX + dx,
+        this.cameraStartScrollY + dy
+      );
+    });
+    this.input.on('pointerup', () => {
+      if (this.isDraggingMap && this.wasFollowing) {
+        // Retomar follow no sprite correto baseado no turno atual
+        const followTarget = this.turnManager.isPlayerTurn ? this.playerSprite : this.aiSprite;
+        this.cameras.main.startFollow(followTarget, true, 0.08, 0.08);
+      }
+      this.isDraggingMap = false;
+      this.wasFollowing = false;
+    });
+  }
+
   private handleKeyboardInput(delta: number): void {
     if (!this.cursors || !this.turnManager.isPlayerTurn || this.isAnimating) return;
     const dt = delta / 1000;
@@ -552,11 +697,11 @@ export class BattleScene extends Phaser.Scene {
       changed = true;
     }
     if (this.cursors.up?.isDown) {
-      this.adjustAngle(ANGLE_CHANGE_SPEED * dt);
+      this.handleAngleKey(1);
       changed = true;
     }
     if (this.cursors.down?.isDown) {
-      this.adjustAngle(-ANGLE_CHANGE_SPEED * dt);
+      this.handleAngleKey(-1);
       changed = true;
     }
 
@@ -575,9 +720,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private adjustAngle(delta: number): void {
-    if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
-    if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
-    this.currentAngle = Math.round(Math.max(5, Math.min(175, this.currentAngle + delta)));
+    this.changeAngle(delta);
+  }
+
+  private clampCurrentAngleForWeapon(): void {
+    const limits = getWeaponAngleLimits(this.playerWeapon?.id ?? 'default');
+    const nextAngle = Math.round(Math.max(limits.minAngle, Math.min(limits.maxAngle, this.currentAngle)));
+    if (nextAngle === this.currentAngle) return;
+    this.currentAngle = nextAngle;
     this.updateAngleDisplay();
     this.updateTrajectoryPreview();
   }
@@ -661,7 +811,9 @@ export class BattleScene extends Phaser.Scene {
 
     if (this.powerValue < 5) return; // too low, ignore
 
-    this.firePlayerShot(this.currentAngle, this.powerValue);
+    const shotPower = this.powerValue;
+    this.firePlayerShot(this.currentAngle, shotPower);
+    this.powerMeterHUD.recordShot(shotPower);
     this.powerValue = 0;
     this.powerMeterHUD.update(0);
   }
@@ -992,6 +1144,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private endTurn(_wasPlayerShot: boolean): void {
+    this.onAngleButtonUp(); // clean up hold-to-repeat timers
     this.turnManager.nextTurn();
     this.windSystem.generate();
 
@@ -1227,6 +1380,7 @@ export class BattleScene extends Phaser.Scene {
     this.playerWeapon = weapon;
     this.projectileArc.setFillStyle(WEAPON_COLORS[id] ?? 0xffff00);
     this.playerWeaponIcon?.setTexture(this.weaponSpriteKey(id));
+    this.clampCurrentAngleForWeapon();
     this.refreshHud();
   }
 

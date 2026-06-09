@@ -14,8 +14,11 @@ export class Character {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ length: 50 })
+  @Column({ length: 50, unique: true })
   name: string;
+
+  @Column({ length: 20, default: 'human' })
+  race: string;
 
   @Column({ default: 1 })
   level: number;

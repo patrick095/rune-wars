@@ -4,17 +4,20 @@
 
   <section class="player-panel" aria-label="Resumo do personagem">
     <div class="avatar">
-      <span>R</span>
+      <span>{{ activeCharacterName[0] | uppercase }}</span>
     </div>
     <div class="player-meta">
       <div class="name-row">
-        <strong>Ragnar</strong>
-        <span>Nv. 50</span>
+        <strong>{{ activeCharacterName }}</strong>
+        <span>Nv. 1</span>
       </div>
-      <div class="bar hp"><b>HP</b><i><em style="width: 100%"></em><span>3410/3410</span></i></div>
-      <div class="bar exp"><b>EXP</b><i><em style="width: 65%"></em><span>65%</span></i></div>
+      <div class="bar hp"><b>HP</b><i><em style="width: 100%"></em><span>100/100</span></i></div>
+      <div class="bar exp"><b>EXP</b><i><em style="width: 0%"></em><span>0%</span></i></div>
     </div>
-    <div class="power">⚔ Poder: 152.340</div>
+    <div class="power">
+      <span class="playing-as">Jogando como: {{ activeCharacterName }}</span>
+      <button type="button" class="switch-character-btn" (click)="navigateTo('/character-select')">Trocar Personagem</button>
+    </div>
   </section>
 
   <section class="resource-bar" aria-label="Recursos">

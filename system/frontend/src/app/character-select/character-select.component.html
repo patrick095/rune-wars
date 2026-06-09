@@ -1,0 +1,158 @@
+<div class="cs-container">
+  <!-- Header -->
+  <header class="cs-header">
+    <h1 class="cs-title">Escolha seu Personagem</h1>
+    <button class="btn-logout" type="button" (click)="logout()">Sair</button>
+  </header>
+
+  <!-- Active character banner -->
+  @if (hasActiveCharacter) {
+    <div class="cs-active-banner">
+      <span>Personagem atual: <strong>{{ activeCharacterName }}</strong></span>
+      <button class="btn-hub" type="button" (click)="goToHub()">Voltar ao Hub</button>
+    </div>
+  }
+
+  <!-- Loading state -->
+  @if (loading) {
+    <div class="cs-loading">
+      <div class="spinner"></div>
+      <span>Carregando...</span>
+    </div>
+  }
+
+  <!-- Error state -->
+  @if (!loading && error) {
+    <div class="cs-error">
+      <p>{{ error }}</p>
+      <button class="btn-retry" type="button" (click)="loadCharacters()">Tentar novamente</button>
+    </div>
+  }
+
+  <!-- Characters grid -->
+  @if (!loading && !error) {
+    <div class="cs-grid">
+
+      <!-- Existing character cards -->
+      @for (char of characters; track char.id) {
+        <div class="cs-card">
+          <img
+            class="char-avatar"
+            [src]="'assets/characters/' + char.race + '_idle.png'"
+            [alt]="char.race"
+            width="80"
+            height="80"
+          />
+          <div class="char-name">{{ char.name }}</div>
+          <div class="char-meta">{{ char.race | titlecase }} • Nível {{ char.level }}</div>
+          <div class="char-actions">
+            <button class="btn-select" type="button" (click)="selectCharacter(char)">Selecionar</button>
+            <button class="btn-delete" type="button" (click)="confirmDelete(char)">Deletar</button>
+          </div>
+        </div>
+      }
+
+      <!-- Create new card -->
+      <div
+        class="cs-card cs-card--create"
+        [class.cs-card--disabled]="!canCreateMore"
+        (click)="canCreateMore ? openCreateModal() : null"
+        [attr.role]="canCreateMore ? 'button' : null"
+        [attr.tabindex]="canCreateMore ? 0 : null"
+        (keydown.enter)="canCreateMore ? openCreateModal() : null"
+      >
+        <div class="create-icon">+</div>
+        <div class="create-label">Criar Personagem</div>
+        @if (!canCreateMore) {
+          <div class="create-limit">Limite atingido (5/5)</div>
+        }
+      </div>
+
+    </div>
+  }
+</div>
+
+<!-- Create character modal -->
+@if (showCreateModal) {
+  <div class="modal-overlay" (click)="closeCreateModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2 class="modal-title">Criar Personagem</h2>
+
+      <form [formGroup]="nameForm" (ngSubmit)="createCharacter()">
+        <!-- Name field -->
+        <div class="form-field">
+          <label for="char-name">Nome</label>
+          <input
+            id="char-name"
+            type="text"
+            formControlName="name"
+            placeholder="Seu personagem..."
+            autocomplete="off"
+          />
+          @if (getNameErrors()) {
+            <span class="field-error">{{ getNameErrors() }}</span>
+          }
+        </div>
+
+        <!-- Race selection -->
+        <div class="form-field">
+          <label>Raça</label>
+          <div class="race-grid">
+            @for (r of races; track r.value) {
+              <button
+                type="button"
+                class="race-btn"
+                [class.race-btn--active]="nameForm.get('race')?.value === r.value"
+                (click)="selectRace(r.value)"
+              >
+                <img
+                  [src]="'assets/characters/' + r.value + '_idle.png'"
+                  [alt]="r.label"
+                  width="48"
+                  height="48"
+                />
+                <span>{{ r.label }}</span>
+              </button>
+            }
+          </div>
+          @if (nameForm.get('race')?.touched && nameForm.get('race')?.hasError('required')) {
+            <span class="field-error">Selecione uma raça.</span>
+          }
+        </div>
+
+        <!-- API error -->
+        @if (createError) {
+          <div class="form-error">{{ createError }}</div>
+        }
+
+        <!-- Actions -->
+        <div class="modal-actions">
+          <button
+            class="btn-create"
+            type="submit"
+            [disabled]="nameForm.invalid || creating"
+          >
+            {{ creating ? 'Criando...' : 'Criar' }}
+          </button>
+          <button class="btn-cancel" type="button" (click)="closeCreateModal()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- Delete confirmation modal -->
+@if (showDeleteConfirm && characterToDelete) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal modal--confirm" (click)="$event.stopPropagation()">
+      <h2 class="modal-title">Confirmar Deleção</h2>
+      <p class="confirm-text">
+        Tem certeza que deseja deletar <strong>{{ characterToDelete.name }}</strong>? Esta ação é irreversível.
+      </p>
+      <div class="modal-actions">
+        <button class="btn-delete-confirm" type="button" (click)="deleteCharacter()">Confirmar</button>
+        <button class="btn-cancel" type="button" (click)="cancelDelete()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+}

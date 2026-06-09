@@ -150,9 +150,11 @@
 
   <!-- ── TAB: Cofre ───────────────────────────────────────────────────── -->
   <ng-container *ngIf="activeTab === 'vault'">
-    <app-vault-grid
-      [characterId]="characterId"
-      [characterGold]="0"
-    ></app-vault-grid>
+    <ng-container *ngIf="characterId as activeCharacterId">
+      <app-vault-grid
+        [characterId]="activeCharacterId"
+        [characterGold]="0"
+      ></app-vault-grid>
+    </ng-container>
   </ng-container>
 </div>

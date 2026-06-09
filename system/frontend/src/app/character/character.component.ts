@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttributeCalculator } from '../shared/game-core/attribute-calculator';
@@ -8,6 +8,7 @@ import { PlayerBaseStats, PlayerStats } from '../shared/game-core/player-stats';
 import { WeaponDefinition } from '../shared/game-core/weapon-definition';
 import { CharacterStorageService } from '../shared/services/character-storage.service';
 import { InventoryService } from '../shared/services/inventory.service';
+import { ActiveCharacterService } from '../shared/services/active-character.service';
 import { BuildPreset, CHARACTER_PRESETS } from './character-presets';
 import { InventoryItem, EquipmentSlotType } from '../shared/game-core/types';
 import { EquipmentSlotsComponent } from '../shared/components/equipment-slots/equipment-slots.component';
@@ -41,8 +42,12 @@ export class CharacterComponent implements OnInit {
   equippedItems: Partial<Record<EquipmentSlotType, InventoryItem>> = {};
   inventoryLoading = false;
 
-  /** Numeric id used when calling the backend. Adjust as needed. */
-  readonly characterId = 1;
+  private activeCharacter = inject(ActiveCharacterService);
+
+  /** UUID of the active character, used when calling the backend. */
+  get characterId(): string | null {
+    return this.activeCharacter.characterId;
+  }
 
   constructor(
     private storageService: CharacterStorageService,
@@ -126,9 +131,14 @@ export class CharacterComponent implements OnInit {
   // ── Inventory logic ───────────────────────────────────────────────────────
 
   loadInventory(): void {
+    const charId = this.characterId;
     if (this.inventoryLoading) return;
+    if (!charId) {
+      this.inventoryItems = [];
+      return;
+    }
     this.inventoryLoading = true;
-    this.inventoryService.getInventory(this.characterId).subscribe({
+    this.inventoryService.getInventory(charId).subscribe({
       next: (items) => {
         this.inventoryItems = items;
         this.inventoryLoading = false;
@@ -141,18 +151,21 @@ export class CharacterComponent implements OnInit {
   }
 
   onEquip(event: { slot: EquipmentSlotType; item: InventoryItem }): void {
+    const charId = this.characterId;
     // Optimistic update
     this.equippedItems = { ...this.equippedItems, [event.slot]: event.item };
     // Remove item from inventory grid
     this.inventoryItems = this.inventoryItems.map((it) =>
       it?.id === event.item.id ? null : it,
     );
+    if (!charId) return;
     this.inventoryService
-      .equipItem(this.characterId, event.item.id, event.slot)
+      .equipItem(charId, event.item.id, event.slot)
       .subscribe();
   }
 
   onUnequip(event: { slot: EquipmentSlotType }): void {
+    const charId = this.characterId;
     const item = this.equippedItems[event.slot];
     if (!item) return;
     // Optimistic update — return item to first empty slot in inventory
@@ -167,10 +180,12 @@ export class CharacterComponent implements OnInit {
     const next = { ...this.equippedItems };
     delete next[event.slot];
     this.equippedItems = next;
-    this.inventoryService.unequipItem(this.characterId, event.slot).subscribe();
+    if (!charId) return;
+    this.inventoryService.unequipItem(charId, event.slot).subscribe();
   }
 
   onItemMove(event: { fromIndex: number; toIndex: number }): void {
+    const charId = this.characterId;
     const items = [...this.inventoryItems];
     // Pad with nulls if needed
     while (items.length <= Math.max(event.fromIndex, event.toIndex)) {
@@ -180,8 +195,9 @@ export class CharacterComponent implements OnInit {
     items[event.fromIndex] = items[event.toIndex];
     items[event.toIndex] = temp;
     this.inventoryItems = items;
+    if (!charId) return;
     this.inventoryService
-      .moveItem(this.characterId, event.fromIndex, event.toIndex)
+      .moveItem(charId, event.fromIndex, event.toIndex)
       .subscribe();
   }
 

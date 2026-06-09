@@ -10,6 +10,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
-    this.scene.start('BattleScene', { isPlayground: true });
+    const playerRace = (window as unknown as Record<string, unknown>)['rwPlayerRace'] as string | undefined ?? 'human'; // eslint-disable-line
+    this.scene.start('BattleScene', { isPlayground: true, playerRace });
   }
 }

@@ -1,0 +1,485 @@
+// ─── Color tokens (dark fantasy theme) ──────────────────────────────────────
+$bg-deep:       #0d0d18;
+$bg-card:       #16182a;
+$bg-card-hover: #1e2138;
+$border:        #2e3254;
+$border-accent: #4a5280;
+$text-primary:  #e8e8f0;
+$text-muted:    #8890b0;
+$accent:        #7c6af7;
+$green:         #3ecf74;
+$green-dark:    #2aa358;
+$red:           #e05252;
+$red-dark:      #b83c3c;
+$disabled-bg:   #1a1c2e;
+$disabled-text: #44475a;
+
+// ─── Layout ──────────────────────────────────────────────────────────────────
+.cs-container {
+  min-height: 100vh;
+  background: $bg-deep;
+  color: $text-primary;
+  padding: 0 0 3rem;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+// ─── Header ──────────────────────────────────────────────────────────────────
+.cs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid $border;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.cs-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: $text-primary;
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid $border-accent;
+  color: $text-muted;
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: border-color 0.2s, color 0.2s;
+
+  &:hover {
+    border-color: $red;
+    color: $red;
+  }
+}
+
+// ─── Active character banner ──────────────────────────────────────────────────
+.cs-active-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 2rem;
+  background: rgba($accent, 0.12);
+  border-bottom: 1px solid rgba($accent, 0.3);
+  font-size: 0.95rem;
+  color: $text-muted;
+
+  strong {
+    color: $text-primary;
+  }
+}
+
+.btn-hub {
+  background: $accent;
+  border: none;
+  color: #fff;
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: opacity 0.2s;
+
+  &:hover { opacity: 0.85; }
+}
+
+// ─── Loading ──────────────────────────────────────────────────────────────────
+.cs-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 5rem 2rem;
+  color: $text-muted;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid $border;
+  border-top-color: $accent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// ─── Error ────────────────────────────────────────────────────────────────────
+.cs-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  color: $red;
+
+  p { margin: 0; }
+}
+
+.btn-retry {
+  background: transparent;
+  border: 1px solid $red;
+  color: $red;
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: $red;
+    color: #fff;
+  }
+}
+
+// ─── Grid ─────────────────────────────────────────────────────────────────────
+.cs-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding: 2rem;
+}
+
+// ─── Character card ───────────────────────────────────────────────────────────
+.cs-card {
+  background: $bg-card;
+  border: 1px solid $border;
+  border-radius: 12px;
+  padding: 1.5rem 1.25rem;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+
+  &:hover {
+    border-color: $border-accent;
+    background: $bg-card-hover;
+    transform: translateY(-2px);
+  }
+}
+
+.char-avatar {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+}
+
+.char-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: $text-primary;
+  text-align: center;
+  word-break: break-word;
+}
+
+.char-meta {
+  font-size: 0.8rem;
+  color: $text-muted;
+  text-align: center;
+}
+
+.char-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.btn-select {
+  background: $green;
+  border: none;
+  color: #fff;
+  padding: 0.45rem 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  width: 100%;
+  transition: background 0.2s;
+
+  &:hover { background: $green-dark; }
+}
+
+.btn-delete {
+  background: transparent;
+  border: 1px solid $red;
+  color: $red;
+  padding: 0.4rem 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  width: 100%;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: $red;
+    color: #fff;
+  }
+}
+
+// ─── Create card ──────────────────────────────────────────────────────────────
+.cs-card--create {
+  border-style: dashed;
+  cursor: pointer;
+  justify-content: center;
+
+  &:hover {
+    border-color: $accent;
+    background: rgba($accent, 0.06);
+  }
+
+  .create-icon {
+    font-size: 2.5rem;
+    color: $accent;
+    line-height: 1;
+    font-weight: 300;
+  }
+
+  .create-label {
+    font-size: 0.9rem;
+    color: $text-muted;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .create-limit {
+    font-size: 0.75rem;
+    color: $disabled-text;
+    text-align: center;
+  }
+}
+
+.cs-card--disabled {
+  border-color: $border;
+  background: $disabled-bg;
+  cursor: default;
+  transform: none !important;
+
+  &:hover {
+    border-color: $border;
+    background: $disabled-bg;
+  }
+
+  .create-icon { color: $disabled-text; }
+  .create-label { color: $disabled-text; }
+}
+
+// ─── Modal overlay ────────────────────────────────────────────────────────────
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  background: $bg-card;
+  border: 1px solid $border-accent;
+  border-radius: 14px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  color: $text-primary;
+}
+
+.modal--confirm {
+  max-width: 360px;
+  text-align: center;
+}
+
+.modal-title {
+  margin: 0 0 1.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: $text-primary;
+}
+
+// ─── Form ─────────────────────────────────────────────────────────────────────
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  input[type="text"] {
+    background: $bg-deep;
+    border: 1px solid $border;
+    border-radius: 8px;
+    color: $text-primary;
+    padding: 0.6rem 0.9rem;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+
+    &::placeholder { color: $text-muted; }
+
+    &:focus {
+      border-color: $accent;
+    }
+  }
+}
+
+.field-error {
+  font-size: 0.8rem;
+  color: $red;
+}
+
+.form-error {
+  background: rgba($red, 0.1);
+  border: 1px solid rgba($red, 0.3);
+  border-radius: 6px;
+  color: $red;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+// ─── Race grid ────────────────────────────────────────────────────────────────
+.race-grid {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.race-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  background: $bg-deep;
+  border: 2px solid $border;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  color: $text-muted;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+
+  img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+
+  &:hover {
+    border-color: $border-accent;
+    color: $text-primary;
+  }
+
+  &.race-btn--active {
+    border-color: $accent;
+    background: rgba($accent, 0.1);
+    color: $text-primary;
+  }
+}
+
+// ─── Modal actions ────────────────────────────────────────────────────────────
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.btn-create {
+  background: $green;
+  border: none;
+  color: #fff;
+  padding: 0.55rem 1.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: background 0.2s, opacity 0.2s;
+
+  &:hover:not(:disabled) { background: $green-dark; }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid $border-accent;
+  color: $text-muted;
+  padding: 0.55rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: border-color 0.2s, color 0.2s;
+
+  &:hover {
+    border-color: $text-primary;
+    color: $text-primary;
+  }
+}
+
+.btn-delete-confirm {
+  background: $red;
+  border: none;
+  color: #fff;
+  padding: 0.55rem 1.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: background 0.2s;
+
+  &:hover { background: $red-dark; }
+}
+
+.confirm-text {
+  color: $text-muted;
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+
+  strong { color: $text-primary; }
+}
+
+// ─── Responsive ───────────────────────────────────────────────────────────────
+@media (max-width: 600px) {
+  .cs-grid {
+    padding: 1rem;
+    justify-content: center;
+  }
+
+  .cs-card {
+    width: 150px;
+  }
+
+  .cs-header {
+    padding: 1rem;
+  }
+
+  .modal {
+    padding: 1.5rem 1rem;
+  }
+}

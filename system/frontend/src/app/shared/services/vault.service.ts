@@ -27,25 +27,25 @@ export class VaultService {
     );
   }
 
-  depositItem(characterId: number, itemId: string, vaultSlotIndex: number): Observable<any> {
+  depositItem(characterId: string, itemId: string, vaultSlotIndex: number): Observable<any> {
     return this.http.post('/api/vault/deposit/item', { characterId, itemId, slotIndex: vaultSlotIndex }).pipe(
       catchError(err => { throw err; })
     );
   }
 
-  withdrawItem(characterId: number, vaultSlotIndex: number, inventorySlotIndex: number): Observable<any> {
+  withdrawItem(characterId: string, vaultSlotIndex: number, inventorySlotIndex: number): Observable<any> {
     return this.http.post('/api/vault/withdraw/item', { characterId, vaultSlotIndex, inventorySlotIndex }).pipe(
       catchError(err => { throw err; })
     );
   }
 
-  depositGold(characterId: number, amount: number): Observable<any> {
+  depositGold(characterId: string, amount: number): Observable<any> {
     return this.http.post('/api/vault/deposit/gold', { characterId, amount }).pipe(
       catchError(err => { throw err; })
     );
   }
 
-  withdrawGold(characterId: number, amount: number): Observable<any> {
+  withdrawGold(characterId: string, amount: number): Observable<any> {
     return this.http.post('/api/vault/withdraw/gold', { characterId, amount }).pipe(
       catchError(err => { throw err; })
     );

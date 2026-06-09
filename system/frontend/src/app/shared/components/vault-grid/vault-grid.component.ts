@@ -13,7 +13,7 @@ import { InventoryItem } from '../../game-core/types';
   styleUrls: ['./vault-grid.component.scss']
 })
 export class VaultGridComponent implements OnInit {
-  @Input() characterId: number = 0;
+  @Input() characterId: string = '';
   @Input() characterGold: number = 0;
   @Output() vaultChanged = new EventEmitter<void>();
 
