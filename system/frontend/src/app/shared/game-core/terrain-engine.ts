@@ -1,7 +1,7 @@
 import { CELL_SIZE, ExplosionResult, TerrainCell, TerrainMaterial } from './terrain-types';
 
-export const GRID_COLS = 300;
-export const GRID_ROWS = 80;
+export const GRID_COLS = 450;
+export const GRID_ROWS = 160;
 
 export interface MapMeta {
   name?: string;

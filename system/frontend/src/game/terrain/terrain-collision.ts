@@ -3,7 +3,8 @@ import { TerrainMaterial } from '../../app/shared/game-core/terrain-types';
 
 const CHAR_HALF_WIDTH = 20;
 const CHAR_HEIGHT = 60;
-const MAX_STEP_HEIGHT = 12;
+const MAX_STEP_HEIGHT = 24;
+const MAX_STEP_DOWN = 40;
 
 export interface MoveResult {
   canMove: boolean;
@@ -48,6 +49,11 @@ export function tryHorizontalMove(
 
   if (heightDiff < -MAX_STEP_HEIGHT) {
     return { canMove: false, newX: currentX, newY: currentY };
+  }
+
+  if (heightDiff > MAX_STEP_DOWN) {
+    // Drop is too large for an instant step — let CharacterFall handle the descent
+    return { canMove: true, newX: targetX, newY: currentY };
   }
 
   const newY = nextFloorY - CHAR_HEIGHT / 2;

@@ -1,0 +1,43 @@
+<div class="pvp-room">
+  <div class="room-header">
+    <button class="btn-back" (click)="goLobby()">← Lobby</button>
+    <h2>Sala: {{ room?.name ?? '...' }}</h2>
+  </div>
+
+  @if (error) {
+    <div class="error-banner">{{ error }}</div>
+  }
+
+  <div class="player-slots">
+    <div class="slot slot--filled">
+      <span class="slot-label">Jogador 1</span>
+      <span class="slot-name">{{ playerName }}</span>
+    </div>
+    <div class="slot" [class.slot--filled]="(room?.playerIds?.length ?? room?.playerCount ?? 0) >= 2">
+      <span class="slot-label">Jogador 2</span>
+      <span class="slot-name">{{ secondSlotLabel }}</span>
+    </div>
+  </div>
+
+  @if (isOwner) {
+    <div class="map-selector">
+      <label for="map-select">Mapa</label>
+      <select id="map-select" [(ngModel)]="selectedMap">
+        <option value="plains">Planícies</option>
+        <option value="castle">Castelo</option>
+        <option value="deep_mines">Minas Profundas</option>
+        <option value="arcane_ruins">Ruínas Arcanas</option>
+        <option value="runic_forest">Floresta Rúnica</option>
+      </select>
+    </div>
+  } @else {
+    <div class="map-info">
+      <span>Mapa: {{ room?.mapName ?? selectedMap }}</span>
+    </div>
+  }
+
+  <div class="room-actions">
+    <button class="btn-action btn-vs-ai" (click)="vsAI()">⚔️ Jogar vs CPU</button>
+    <button class="btn-action btn-wait" (click)="waitForPlayer()">👥 Aguardar Jogador</button>
+  </div>
+</div>

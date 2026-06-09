@@ -21,19 +21,21 @@ import { selectSpawns, spawnToWorld, moveSpeed, moveBudget } from '../terrain/sp
 import { MovementBudgetHUD } from '../hud/movement-budget-hud';
 import { TerrainRenderer } from '../terrain/terrain-renderer';
 import { CharacterFall } from '../terrain/character-fall';
-import { CombatHud } from '../hud/combat-hud';
+import { CombatHud, LastShotInfo } from '../hud/combat-hud';
 import { TrajectoryIndicator } from '../ui/trajectory-indicator';
 import { ResultOverlay } from '../ui/result-overlay';
 import { WeaponSystem } from '../../app/shared/game-core/weapon-system';
 import { WeaponDefinition, getWeaponAngleLimits } from '../../app/shared/game-core/weapon-definition';
 import { Consumable, ConsumableSystem } from '../../app/shared/game-core/consumable-system';
 import { SecondaryItem, SecondaryItemSystem } from '../../app/shared/game-core/secondary-item-system';
+import { ShotModifierSystem } from '../../app/shared/game-core/shot-modifier-system';
 import { ProjectileRenderer } from '../projectiles/projectile-renderer';
 import { StatusEffectManager } from '../../app/shared/game-core/status-effect-manager';
 import { RunicEffect, RunicEffectType, rollRunicEffect, getWeaponRunicEffect } from '../../app/shared/game-core/runic-effect-system';
 import { EffectsHud } from '../hud/effects-hud';
 import { PowerMeterHUD } from '../hud/power-meter-hud';
 import { GhostTrace } from '../hud/ghost-trace';
+import { ItemDock, DockItem } from '../hud/item-dock';
 import mapPlains from '../../app/shared/game-core/maps/map-plains.json';
 import mapCastle from '../../app/shared/game-core/maps/map-castle.json';
 import mapDeepMines from '../../app/shared/game-core/maps/map-deep-mines.json';
@@ -83,6 +85,9 @@ export const BATTLE_MAPS: BattleMapOption[] = [
 
 const MAP_OPTIONS_BY_ID = new Map<MapName, BattleMapOption>(BATTLE_MAPS.map(map => [map.id, map]));
 const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
+const MIN_SHOT_POWER = 5;
+const POWER_STEP = 2;
+const POWER_TICK_MS = 30;
 const PLAYER_MOVE_SPEED = 180;
 const ANGLE_CHANGE_SPEED = 80;
 const AI_SEARCH_BY_DIFFICULTY: Record<Difficulty, { angleStep: number; forceStep: number; angleError: number; forceError: number }> = {
@@ -100,11 +105,17 @@ export class BattleScene extends Phaser.Scene {
   private weaponSystem = new WeaponSystem();
   private consumableSystem = new ConsumableSystem();
   private secondaryItemSystem = new SecondaryItemSystem();
+  private shotModifierSystem = new ShotModifierSystem();
   private statusEffects = new StatusEffectManager();
 
   // v0.6.0 runic effects
   private playerLuck = 10;
   private lastImpactPoint: { x: number; y: number } | null = null;
+  private teleportShotArmed = false;
+
+  // v1.4.0 last-shot info for HUD display
+  private lastPlayerShot: LastShotInfo | null = null;
+  private lastAiShot: LastShotInfo | null = null;
 
   // Control buttons references for FREEZE lock
   private _btnAngleMinus!: Phaser.GameObjects.Rectangle;
@@ -166,6 +177,14 @@ export class BattleScene extends Phaser.Scene {
   private effectsHud!: EffectsHud;
   private trajectory = new TrajectoryIndicator();
   private resultOverlay = new ResultOverlay();
+  private battleMenuButton?: Phaser.GameObjects.Rectangle;
+  private battleMenuButtonText?: Phaser.GameObjects.Text;
+  private battleMenuPanel?: Phaser.GameObjects.Container;
+  private battleMenuOpen = false;
+
+  // Item docks (consumables + shot modifiers)
+  private consumableDock!: ItemDock;
+  private modifierDock!: ItemDock;
 
   // Power bar
   private powerMeterHUD!: PowerMeterHUD;
@@ -174,6 +193,7 @@ export class BattleScene extends Phaser.Scene {
   private btnFireText!: Phaser.GameObjects.Text;
   private isChargingPower = false;
   private powerValue = 0;
+  private powerChargeStartedAt = 0;
   private powerInterval: ReturnType<typeof setInterval> | null = null;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
@@ -208,6 +228,17 @@ export class BattleScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // Terrain PNG backgrounds (graceful fallback — loads silently if files not found)
+    this.load.image('terrain_plains_bg',       'assets/terrain/plains_bg.png');
+    this.load.image('terrain_castle_bg',        'assets/terrain/castle_bg.png');
+    this.load.image('terrain_deep_mines_bg',    'assets/terrain/deep_mines_bg.png');
+    this.load.image('terrain_arcane_ruins_bg',  'assets/terrain/arcane_ruins_bg.png');
+    this.load.image('terrain_runic_forest_bg',  'assets/terrain/runic_forest_bg.png');
+    this.load.image('terrain_dungeon_bg',        'assets/terrain/dungeon_bg.png');
+    // Terrain tile textures (override programmatic generation when present)
+    this.load.image('terrain_destructible',     'assets/terrain/destructible.png');
+    this.load.image('terrain_indestructible',   'assets/terrain/indestructible.png');
+
     this.load.image('human_idle', 'assets/characters/human_idle.png');
     this.load.image('human_battle', 'assets/characters/human_battle.png');
     this.load.image('dwarf_idle', 'assets/characters/dwarf_idle.png');
@@ -287,6 +318,7 @@ export class BattleScene extends Phaser.Scene {
     this.statusEffects = new StatusEffectManager();
     this.consumableSystem = new ConsumableSystem();
     this.secondaryItemSystem = new SecondaryItemSystem();
+    this.shotModifierSystem = new ShotModifierSystem();
     this.playerStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: true, facing: 'right' };
     this.aiStats = { hp: 100, maxHp: 100, x: 0, y: 0, isPlayer: false, facing: 'left' };
     this.moveBudgetTotal = moveBudget(this.playerAgility);
@@ -296,6 +328,8 @@ export class BattleScene extends Phaser.Scene {
     this.isChargingPower = false;
     this.powerValue = 0;
     this.lastImpactPoint = null;
+    this.lastPlayerShot = null;
+    this.lastAiShot = null;
     this.playerFall = new CharacterFall();
     this.aiFall = new CharacterFall();
     this.trajectory.destroy();
@@ -324,20 +358,27 @@ export class BattleScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
 
-    // Background
-    this.add.rectangle(width / 2, height / 2, width, height, 0x1a1a2e);
-
     const initialMap = this.getMapOption(this.currentMap);
     this.battleMode = initialMap.mode;
     this.terrainEngine = new TerrainEngine(initialMap.grid);
-    this.terrainRenderer = new TerrainRenderer(this, this.terrainEngine);
+
+    // World-sized fallback behind the painted map background.
+    this.add.rectangle(
+      this.terrainEngine.worldWidth / 2,
+      this.terrainEngine.worldHeight / 2,
+      this.terrainEngine.worldWidth,
+      this.terrainEngine.worldHeight,
+      0x1a1a2e
+    ).setDepth(-20);
+
+    this.terrainRenderer = new TerrainRenderer(this, this.terrainEngine, this.currentMap);
     this.terrainRenderer.renderFull();
 
     // Camera bounds
     const worldW = this.terrainEngine.worldWidth;
     const worldH = this.terrainEngine.worldHeight;
     this.cameras.main.setBounds(0, 0, worldW, worldH);
-    this.cameras.main.setZoom(0.9);
+    this.cameras.main.setZoom(0.7);
 
     // Position characters using spawn points from map meta if available
     const mapJson = this.getMapJsonById(this.currentMap);
@@ -345,21 +386,21 @@ export class BattleScene extends Phaser.Scene {
     const rawSpawns = mapMeta?.spawnPoints ?? [];
     const charHeight = 60;
     const spawns = rawSpawns.length >= 2
-      ? selectSpawns(rawSpawns, 2)
+      ? selectSpawns(rawSpawns, 2, this.terrainEngine)
       : [];
 
-    const fallbackY = height * 0.65;
-    const playerX = 120;
-    const aiX = this.clampInitialX(MAP_WORLD_WIDTH - 120, width);
+    const worldCenterY = worldH / 2;
+    const fallbackPlayerX = worldW * 0.1;
+    const fallbackAiX = worldW * 0.9;
 
     if (spawns[0]) {
       const p = spawnToWorld(spawns[0], CELL_SIZE, charHeight);
       this.playerStats.x = p.x;
       this.playerStats.y = p.y;
     } else {
-      const playerFloor = this.terrainEngine.getFloorBelow(playerX, 0);
-      this.playerStats.x = playerX;
-      this.playerStats.y = playerFloor !== null ? playerFloor - 30 : fallbackY;
+      const playerFloor = this.terrainEngine.getFloorBelow(fallbackPlayerX, worldCenterY);
+      this.playerStats.x = fallbackPlayerX;
+      this.playerStats.y = playerFloor !== null ? playerFloor - 30 : worldCenterY;
     }
 
     if (spawns[1]) {
@@ -367,9 +408,9 @@ export class BattleScene extends Phaser.Scene {
       this.aiStats.x = a.x;
       this.aiStats.y = a.y;
     } else {
-      const aiFloor = this.terrainEngine.getFloorBelow(aiX, 0);
-      this.aiStats.x = aiX;
-      this.aiStats.y = aiFloor !== null ? aiFloor - 30 : fallbackY;
+      const aiFloor = this.terrainEngine.getFloorBelow(fallbackAiX, worldCenterY);
+      this.aiStats.x = fallbackAiX;
+      this.aiStats.y = aiFloor !== null ? aiFloor - 30 : worldCenterY;
     }
 
     this.playerStats.facing = 'right';
@@ -432,6 +473,10 @@ export class BattleScene extends Phaser.Scene {
     // Controls
     this.createControls();
     this.createKeyboardControls();
+
+    // Item docks (fixed in bottom bar, player turn only)
+    this.createItemDocks();
+    this.createBattleMenu();
 
     // Wind generate on scene start
     this.windSystem.generate();
@@ -601,6 +646,110 @@ export class BattleScene extends Phaser.Scene {
     this.btnFire.on('pointerupoutside', () => this.releaseFire(this.btnFire, this.btnFireText));
   }
 
+  private createBattleMenu(): void {
+    const { width } = this.scale;
+    const x = width - 32;
+    const y = 40;
+
+    this.battleMenuButton = this.add.rectangle(x, y, 42, 34, 0x1f2937, 0.92)
+      .setStrokeStyle(1, 0x7dd3fc, 0.8)
+      .setInteractive()
+      .setDepth(30)
+      .setScrollFactor(0);
+    this.battleMenuButtonText = this.add.text(x, y - 1, 'Menu', {
+      fontSize: '11px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(31).setScrollFactor(0);
+
+    this.battleMenuButton.on('pointerover', () => this.battleMenuButton?.setFillStyle(0x334155, 0.96));
+    this.battleMenuButton.on('pointerout', () => this.battleMenuButton?.setFillStyle(0x1f2937, 0.92));
+    this.battleMenuButton.on('pointerdown', () => this.toggleBattleMenu());
+
+    this.layoutBattleMenuButton();
+  }
+
+  private toggleBattleMenu(force?: boolean): void {
+    const nextOpen = force ?? !this.battleMenuOpen;
+    this.battleMenuOpen = nextOpen;
+
+    if (!nextOpen) {
+      this.battleMenuPanel?.destroy(true);
+      this.battleMenuPanel = undefined;
+      return;
+    }
+
+    this.battleMenuPanel?.destroy(true);
+
+    const { width } = this.scale;
+    const panelWidth = 156;
+    const panelX = width - panelWidth - 16;
+    const panelY = 64;
+
+    const bg = this.add.rectangle(0, 0, panelWidth, 112, 0x111827, 0.95)
+      .setOrigin(0, 0)
+      .setStrokeStyle(1, 0x7dd3fc, 0.75);
+    const surrenderBtn = this.add.rectangle(12, 14, panelWidth - 24, 36, 0x7f1d1d, 0.95)
+      .setOrigin(0, 0)
+      .setInteractive();
+    const surrenderText = this.add.text(panelWidth / 2, 32, 'Desistir', {
+      fontSize: '13px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const exitBtn = this.add.rectangle(12, 62, panelWidth - 24, 36, 0x334155, 0.95)
+      .setOrigin(0, 0)
+      .setInteractive();
+    const exitText = this.add.text(panelWidth / 2, 80, 'Sair', {
+      fontSize: '13px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    surrenderBtn.on('pointerover', () => surrenderBtn.setFillStyle(0x991b1b, 0.98));
+    surrenderBtn.on('pointerout', () => surrenderBtn.setFillStyle(0x7f1d1d, 0.95));
+    surrenderBtn.on('pointerdown', () => this.surrenderBattle());
+    exitBtn.on('pointerover', () => exitBtn.setFillStyle(0x475569, 0.98));
+    exitBtn.on('pointerout', () => exitBtn.setFillStyle(0x334155, 0.95));
+    exitBtn.on('pointerdown', () => this.exitBattle());
+
+    this.battleMenuPanel = this.add.container(panelX, panelY, [
+      bg,
+      surrenderBtn,
+      surrenderText,
+      exitBtn,
+      exitText,
+    ]).setDepth(30).setScrollFactor(0);
+  }
+
+  private layoutBattleMenuButton(): void {
+    const { width } = this.scale;
+    const x = width - 32;
+    this.battleMenuButton?.setPosition(x, 40);
+    this.battleMenuButtonText?.setPosition(x, 39);
+    if (this.battleMenuOpen) {
+      this.toggleBattleMenu(true);
+    }
+  }
+
+  private surrenderBattle(): void {
+    this.toggleBattleMenu(false);
+    this.isChargingPower = false;
+    if (this.powerInterval) {
+      clearInterval(this.powerInterval);
+      this.powerInterval = null;
+    }
+    this.isAnimating = true;
+    this.resultOverlay.show(this, false);
+  }
+
+  private exitBattle(): void {
+    window.dispatchEvent(new CustomEvent('rune-wars:battle-exit'));
+  }
+
   private changeAngle(delta: number): void {
     if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
     if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
@@ -645,6 +794,71 @@ export class BattleScene extends Phaser.Scene {
       if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
     });
     this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
+  }
+
+  private createItemDocks(): void {
+    const { width, height } = this.scale;
+
+    // Consumable dock — bottom-left area (below movement bar, above edge)
+    const consumableItems = this.buildConsumableDockItems();
+    const consumableDockX = 80;
+    const consumableDockY = height - 110;
+    this.consumableDock = new ItemDock(
+      this,
+      consumableDockX,
+      consumableDockY,
+      consumableItems,
+      (id) => this.onConsumableDockSelect(id)
+    );
+
+    // Shot modifier dock — bottom-right area
+    const modifierItems = this.buildModifierDockItems();
+    const modifierDockX = width - 180;
+    const modifierDockY = height - 110;
+    this.modifierDock = new ItemDock(
+      this,
+      modifierDockX,
+      modifierDockY,
+      modifierItems,
+      (id) => this.onModifierDockSelect(id)
+    );
+  }
+
+  private buildConsumableDockItems(): DockItem[] {
+    return this.consumableSystem.getAll().map((c) => ({
+      id: c.id,
+      label: c.name,
+      iconKey: this.textures.exists(`consumable_${c.id}`) ? `consumable_${c.id}` : undefined,
+    }));
+  }
+
+  private buildModifierDockItems(): DockItem[] {
+    const modifierDefs: Array<{ id: string; label: string }> = [
+      { id: 'shot_plus1',      label: '+1 Tiro' },
+      { id: 'shot_x3',         label: 'x3 Tiros' },
+      { id: 'shot_damage_2x',  label: 'Dano x2' },
+      { id: 'shot_dig_2x',     label: 'Escav x2' },
+    ];
+    const activeId = this.shotModifierSystem.getActive();
+    return modifierDefs.map((m) => ({
+      id: m.id,
+      label: m.label,
+      active: m.id === activeId,
+    }));
+  }
+
+  private onConsumableDockSelect(id: string): void {
+    if (!this.turnManager.isPlayerTurn || this.isAnimating) return;
+    if (this.statusEffects.hasEffect('player', 'ITEM_BLOCK')) return;
+    this.useDebugConsumable('player', id);
+  }
+
+  private onModifierDockSelect(id: string): void {
+    if (!this.turnManager.isPlayerTurn || this.isAnimating) return;
+    if (this.statusEffects.hasEffect('player', 'ITEM_BLOCK')) return;
+    this.shotModifierSystem.activate(id as import('../../app/shared/game-core/shot-modifier-system').ShotModifierType);
+    // Refresh dock to reflect new active state
+    this.modifierDock.refresh(this.buildModifierDockItems());
   }
 
   private setupMapDrag(): void {
@@ -775,13 +989,16 @@ export class BattleScene extends Phaser.Scene {
     btn: Phaser.GameObjects.Rectangle,
     btnText: Phaser.GameObjects.Text
   ): void {
+    if (this.playerFall.isFalling) return;
     if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
     // FREEZE blocks power charging
     if (this.statusEffects.hasEffect('player', 'FREEZE')) return;
     if (this.isChargingPower) return;
 
     this.isChargingPower = true;
-    this.powerValue = 0;
+    this.powerChargeStartedAt = this.time.now;
+    this.powerValue = MIN_SHOT_POWER;
+    this.powerMeterHUD.update(this.powerValue);
     btn.setFillStyle(0xcc8800);
     btnText.setText('...');
 
@@ -789,9 +1006,10 @@ export class BattleScene extends Phaser.Scene {
     const maxForce = this.statusEffects.hasEffect('player', 'WEAK_SHOT') ? 40 : 100;
 
     this.powerInterval = setInterval(() => {
-      this.powerValue = Math.min(maxForce, this.powerValue + 2);
+      const elapsedTicks = Math.max(0, Math.floor((this.time.now - this.powerChargeStartedAt) / POWER_TICK_MS));
+      this.powerValue = Math.min(maxForce, MIN_SHOT_POWER + elapsedTicks * POWER_STEP);
       this.powerMeterHUD.update(this.powerValue);
-    }, 30);
+    }, POWER_TICK_MS);
   }
 
   private releaseFire(
@@ -809,7 +1027,12 @@ export class BattleScene extends Phaser.Scene {
     btn.setFillStyle(0x884400);
     btnText.setText('ATIRAR');
 
-    if (this.powerValue < 5) return; // too low, ignore
+    // Pointer/touch release can happen before the first interval tick.
+    const maxForce = this.statusEffects.hasEffect('player', 'WEAK_SHOT') ? 40 : 100;
+    const elapsedTicks = Math.max(0, Math.floor((this.time.now - this.powerChargeStartedAt) / POWER_TICK_MS));
+    this.powerValue = Math.min(maxForce, Math.max(this.powerValue, MIN_SHOT_POWER + elapsedTicks * POWER_STEP));
+
+    if (this.powerValue < MIN_SHOT_POWER) return; // too low, ignore
 
     const shotPower = this.powerValue;
     this.firePlayerShot(this.currentAngle, shotPower);
@@ -846,21 +1069,56 @@ export class BattleScene extends Phaser.Scene {
   // Shooting
   // ──────────────────────────────────────────────────────────
 
+  private buildWindStr(): string {
+    const wind = this.windSystem.getCurrent();
+    const windDir = wind.direction >= 0 ? '→' : '←';
+    const windIntensity = Math.round(Math.abs(wind.direction * wind.intensity));
+    return `${windDir}${windIntensity}`;
+  }
+
   private firePlayerShot(angle: number, force: number): void {
     this.trajectory.clear();
     const profile = this.playerWeapon.physicsProfile;
-    const config: ProjectileConfig = {
-      angle: this.getWorldAngle(angle),
-      force,
-      gravityScale: profile.gravityScale,
-      windInfluence: profile.windInfluence,
-      baseDamage: this.playerWeapon.baseDamage,
-    };
-
     const wind = this.windSystem.getCurrent();
-    const path = this.projectilePhysics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
-    this.maybeBuildRunicTerrain(path, 'player');
-    this.animateProjectile(path, true);
+
+    this.lastPlayerShot = { playerLabel: 'Jogador', force, windStr: this.buildWindStr() };
+
+    const { shots, delayedShots } = this.shotModifierSystem.resolve(
+      this.getWorldAngle(angle),
+      force,
+      this.playerWeapon
+    );
+    this.shotModifierSystem.consumeAll();
+
+    // Fire all immediate shots
+    for (const shotCfg of shots) {
+      const config: ProjectileConfig = {
+        angle: shotCfg.angle,
+        force: shotCfg.force,
+        gravityScale: profile.gravityScale,
+        windInfluence: profile.windInfluence,
+        baseDamage: shotCfg.baseDamage ?? this.playerWeapon.baseDamage,
+      };
+      const path = this.projectilePhysics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
+      this.maybeBuildRunicTerrain(path, 'player');
+      this.animateProjectileWithOverrides(path, true, shotCfg.baseDamage, shotCfg.excavationRadius);
+    }
+
+    // Schedule delayed shots (e.g. shot_plus1)
+    for (const shotCfg of delayedShots) {
+      this.time.delayedCall(shotCfg.delayMs ?? 700, () => {
+        const config: ProjectileConfig = {
+          angle: shotCfg.angle,
+          force: shotCfg.force,
+          gravityScale: profile.gravityScale,
+          windInfluence: profile.windInfluence,
+          baseDamage: shotCfg.baseDamage ?? this.playerWeapon.baseDamage,
+        };
+        const path = this.projectilePhysics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
+        this.maybeBuildRunicTerrain(path, 'player');
+        this.animateProjectileWithOverrides(path, true, shotCfg.baseDamage, shotCfg.excavationRadius);
+      });
+    }
   }
 
   private fireAiShot(): void {
@@ -884,6 +1142,8 @@ export class BattleScene extends Phaser.Scene {
       baseDamage: this.aiWeapon.baseDamage,
     };
 
+    this.lastAiShot = { playerLabel: 'IA', force: shot.force, windStr: this.buildWindStr() };
+
     const path = this.projectilePhysics.simulate(this.aiStats.x, this.aiStats.y, config, wind);
     this.maybeBuildRunicTerrain(path, 'ai');
     this.animateProjectile(path, false);
@@ -901,6 +1161,38 @@ export class BattleScene extends Phaser.Scene {
     path: Array<{ x: number; y: number }>,
     isPlayerShot: boolean
   ): void {
+    const weapon = isPlayerShot ? this.playerWeapon : this.aiWeapon;
+    this.animateProjectileResolved(path, isPlayerShot, weapon.baseDamage, weapon.excavationRadius);
+  }
+
+  /**
+   * Fires a projectile with optional baseDamage and excavationRadius overrides
+   * (used by ShotModifierSystem for modifiers like shot_damage_2x and shot_dig_2x).
+   * Falls back to the weapon's own values when overrides are undefined.
+   */
+  private animateProjectileWithOverrides(
+    path: Array<{ x: number; y: number }>,
+    isPlayerShot: boolean,
+    baseDamageOverride?: number,
+    excavationRadiusOverride?: number
+  ): void {
+    if (path.length === 0) return;
+
+    const weapon = isPlayerShot ? this.playerWeapon : this.aiWeapon;
+    this.animateProjectileResolved(
+      path,
+      isPlayerShot,
+      baseDamageOverride ?? weapon.baseDamage,
+      excavationRadiusOverride ?? weapon.excavationRadius
+    );
+  }
+
+  private animateProjectileResolved(
+    path: Array<{ x: number; y: number }>,
+    isPlayerShot: boolean,
+    baseDamage: number,
+    excavationRadius: number
+  ): void {
     if (path.length === 0) return;
 
     this.isAnimating = true;
@@ -909,59 +1201,61 @@ export class BattleScene extends Phaser.Scene {
     const color = WEAPON_COLORS[weapon.id] ?? 0xffff00;
     this.projectileArc.setFillStyle(color);
 
-    const { height } = this.scale;
-    const groundY = height * 0.75;
-    const excavationRadius = weapon.excavationRadius;
-    const baseDamage = weapon.baseDamage;
-
-    // Build a filtered path with early-exit detection for terrain/target/ground
-    let stopIndex = path.length - 1;
-    for (let i = 0; i < path.length; i++) {
-      const point = path[i];
-      const terrainMat = this.terrainEngine.getMaterialAt(point.x, point.y);
-      const hitTerrain = terrainMat !== TerrainMaterial.EMPTY;
-      const targetStats = isPlayerShot ? this.aiStats : this.playerStats;
-      const dx = Math.abs(point.x - targetStats.x);
-      const dy = Math.abs(point.y - targetStats.y);
-      const hitTarget = dx < 30 && dy < 40;
-      const hitGround = point.y >= groundY;
-      if (hitTerrain || hitTarget || hitGround) {
-        stopIndex = i;
-        break;
-      }
-    }
-
-    const clippedPath = path.slice(0, stopIndex + 1);
-
-    // Record trajectory for GhostTrace (only player shots, not in playground)
-    if (isPlayerShot) {
-      this.ghostTrace?.recordShot(clippedPath);
-    }
-
-    this.projRenderer.animateAlongPath(this.projectileArc, clippedPath, () => {
+    this.projRenderer.animateAlongPath(this.projectileArc, path, impactPoint => {
       this.projectileArc.setVisible(false);
       this.isAnimating = false;
 
-      const impactPoint = clippedPath[clippedPath.length - 1];
+      const resolvedImpact = impactPoint ?? path[path.length - 1];
+      const traveledPath = this.pathUntilImpact(path, resolvedImpact);
 
-      // Explode terrain using weapon's excavation radius
-      const explodeResult = this.terrainEngine.explode(
-        impactPoint.x, impactPoint.y, excavationRadius
-      );
-      this.terrainRenderer.updateCells(explodeResult.cellsDestroyed);
+      if (isPlayerShot) {
+        this.ghostTrace?.recordShot(traveledPath);
+      }
 
-      // Check if the last point was a target hit
-      const targetStats = isPlayerShot ? this.aiStats : this.playerStats;
-      const dx = Math.abs(impactPoint.x - targetStats.x);
-      const dy = Math.abs(impactPoint.y - targetStats.y);
-      const hitTarget = dx < 30 && dy < 40;
+      const impact = this.getProjectileImpact(resolvedImpact, isPlayerShot);
 
-      if (hitTarget) {
-        this.onProjectileImpact(impactPoint.x, impactPoint.y, isPlayerShot, targetStats, baseDamage);
+      if (impact.hitTerrain || impact.hitTarget) {
+        const explodeResult = this.terrainEngine.explode(
+          resolvedImpact.x, resolvedImpact.y, excavationRadius
+        );
+        this.terrainRenderer.updateCells(explodeResult.cellsDestroyed);
+      }
+
+      this.resolveTeleportShot(isPlayerShot, resolvedImpact, impact.hitTerrain);
+
+      if (impact.hitTarget) {
+        this.onProjectileImpact(resolvedImpact.x, resolvedImpact.y, isPlayerShot, impact.targetStats, baseDamage);
       } else {
         this.endTurn(isPlayerShot);
       }
+    }, (x, y) => {
+      const impact = this.getProjectileImpact({ x, y }, isPlayerShot);
+      return impact.hitTerrain || impact.hitTarget;
     });
+  }
+
+  private getProjectileImpact(point: { x: number; y: number }, isPlayerShot: boolean): {
+    hitTerrain: boolean;
+    hitTarget: boolean;
+    targetStats: BattleCharacterState;
+  } {
+    const targetStats = isPlayerShot ? this.aiStats : this.playerStats;
+    const dx = Math.abs(point.x - targetStats.x);
+    const dy = Math.abs(point.y - targetStats.y);
+
+    return {
+      hitTerrain: this.terrainEngine.getMaterialAt(point.x, point.y) !== TerrainMaterial.EMPTY,
+      hitTarget: dx < 30 && dy < 40,
+      targetStats,
+    };
+  }
+
+  private pathUntilImpact(
+    path: Array<{ x: number; y: number }>,
+    impactPoint: { x: number; y: number }
+  ): Array<{ x: number; y: number }> {
+    const index = path.findIndex(point => point.x === impactPoint.x && point.y === impactPoint.y);
+    return index >= 0 ? path.slice(0, index + 1) : path;
   }
 
   private calculateAiShot(): { angle: number; force: number; score: number } {
@@ -1043,7 +1337,6 @@ export class BattleScene extends Phaser.Scene {
 
   private scoreAiPath(path: Array<{ x: number; y: number }>): number {
     let bestDistance = Number.POSITIVE_INFINITY;
-    const groundY = this.scale.height * 0.75;
 
     for (const point of path) {
       const dx = point.x - this.playerStats.x;
@@ -1051,8 +1344,7 @@ export class BattleScene extends Phaser.Scene {
       bestDistance = Math.min(bestDistance, Math.sqrt(dx * dx + dy * dy));
 
       const hitTerrain = this.terrainEngine.getMaterialAt(point.x, point.y) !== TerrainMaterial.EMPTY;
-      const hitGround = point.y >= groundY;
-      if (hitTerrain || hitGround) break;
+      if (hitTerrain) break;
     }
 
     return bestDistance;
@@ -1181,6 +1473,9 @@ export class BattleScene extends Phaser.Scene {
     if (!this.turnManager.isPlayerTurn) {
       this.cameras.main.startFollow(this.aiSprite, true, 0.08, 0.08);
       this.movementBudgetHUD?.setVisible(false);
+      // Hide docks during AI turn
+      this.consumableDock?.setVisible(false);
+      this.modifierDock?.setVisible(false);
       this.time.delayedCall(1000, () => {
         this.fireAiShot();
       });
@@ -1192,6 +1487,13 @@ export class BattleScene extends Phaser.Scene {
       this.movementBudgetHUD?.setVisible(true);
       if (this.playerInvisibleTurns > 0) this.playerInvisibleTurns -= 1;
       this.ghostTrace?.clear();
+      // Consume any unused shot modifier at the start of each player turn
+      this.shotModifierSystem.consumeAll();
+      // Refresh and show docks on player turn start
+      this.consumableDock?.refresh(this.buildConsumableDockItems());
+      this.consumableDock?.setVisible(true);
+      this.modifierDock?.refresh(this.buildModifierDockItems());
+      this.modifierDock?.setVisible(true);
       this.updateTrajectoryPreview();
     }
     this.syncActorAssets();
@@ -1322,6 +1624,10 @@ export class BattleScene extends Phaser.Scene {
       ? this.playerWeapon?.name
       : this.aiWeapon?.name;
 
+    const lastShotInfo = this.turnManager.isPlayerTurn
+      ? this.lastPlayerShot ?? undefined
+      : this.lastAiShot ?? undefined;
+
     this.hud.update(
       this.playerStats.hp,
       this.playerStats.maxHp,
@@ -1329,12 +1635,14 @@ export class BattleScene extends Phaser.Scene {
       this.aiStats.maxHp,
       this.windSystem.getCurrent(),
       this.turnManager.isPlayerTurn,
-      currentWeaponName
+      currentWeaponName,
+      lastShotInfo
     );
   }
 
   private onResize(): void {
     this.refreshHud();
+    this.layoutBattleMenuButton();
   }
 
   // ──────────────────────────────────────────────────────────
@@ -1442,21 +1750,29 @@ export class BattleScene extends Phaser.Scene {
     const rawSpawns = mapMeta?.spawnPoints ?? [];
     const charHeight = 60;
 
-    if (rawSpawns.length >= 2) {
-      const spawns = selectSpawns(rawSpawns, 2);
-      if (spawns[0]) {
-        const p = spawnToWorld(spawns[0], CELL_SIZE, charHeight);
-        this.playerSprite.setPosition(p.x, p.y);
-      }
-      if (spawns[1]) {
-        const a = spawnToWorld(spawns[1], CELL_SIZE, charHeight);
-        this.aiSprite.setPosition(a.x, a.y);
-      }
+    const spawns = rawSpawns.length >= 2
+      ? selectSpawns(rawSpawns, 2, this.terrainEngine)
+      : [];
+
+    const worldW = this.terrainEngine.worldWidth;
+    const worldCenterY = this.terrainEngine.worldHeight / 2;
+
+    if (spawns[0]) {
+      const p = spawnToWorld(spawns[0], CELL_SIZE, charHeight);
+      this.playerSprite.setPosition(p.x, p.y);
     } else {
-      const playerFloor = this.terrainEngine.getFloorBelow(this.playerSprite.x, 0);
-      const aiFloor = this.terrainEngine.getFloorBelow(this.aiSprite.x, 0);
-      if (playerFloor !== null) this.playerSprite.setY(playerFloor - this.playerSprite.height / 2);
-      if (aiFloor !== null) this.aiSprite.setY(aiFloor - this.aiSprite.height / 2);
+      const fallbackX = worldW * 0.1;
+      const playerFloor = this.terrainEngine.getFloorBelow(fallbackX, worldCenterY);
+      this.playerSprite.setPosition(fallbackX, playerFloor !== null ? playerFloor - this.playerSprite.height / 2 : worldCenterY);
+    }
+
+    if (spawns[1]) {
+      const a = spawnToWorld(spawns[1], CELL_SIZE, charHeight);
+      this.aiSprite.setPosition(a.x, a.y);
+    } else {
+      const fallbackX = worldW * 0.9;
+      const aiFloor = this.terrainEngine.getFloorBelow(fallbackX, worldCenterY);
+      this.aiSprite.setPosition(fallbackX, aiFloor !== null ? aiFloor - this.aiSprite.height / 2 : worldCenterY);
     }
     this.syncActorAssets();
   }
@@ -1540,7 +1856,11 @@ export class BattleScene extends Phaser.Scene {
       stats.hp = Math.min(stats.maxHp, stats.hp + Math.round(stats.maxHp * 0.25));
       this.showItemFloatingText(stats.x, stats.y, '+Cura', '#66ff88');
     } else if (id === 'teleport') {
-      this.teleportActor(target, this.lastImpactPoint?.x ?? this.scale.width / 2);
+      if (target !== 'player') return;
+      this.teleportShotArmed = true;
+      this.showItemFloatingText(this.playerStats.x, this.playerStats.y, 'Teleporte armado', '#88ccff');
+      this.refreshHud();
+      return;
     } else if (id === 'ice-throw') {
       const effectTarget = target === 'player' ? 'ai' : 'player';
       this.applyDebugEffect(effectTarget, 'FREEZE');
@@ -1584,10 +1904,35 @@ export class BattleScene extends Phaser.Scene {
     if (item.usesTurn) this.endTurn(target === 'player');
   }
 
-  private teleportActor(target: 'player' | 'ai', x: number): void {
+  private resolveTeleportShot(
+    isPlayerShot: boolean,
+    impactPoint: { x: number; y: number },
+    hitTerrain: boolean
+  ): void {
+    if (!isPlayerShot || !this.teleportShotArmed) return;
+
+    this.teleportShotArmed = false;
+
+    if (!hitTerrain) {
+      this.showItemFloatingText(this.playerStats.x, this.playerStats.y, 'Teleporte falhou', '#bbbbbb');
+      return;
+    }
+
+    const teleported = this.teleportActor('player', impactPoint.x, Math.max(0, impactPoint.y - 80));
+    if (teleported) {
+      this.showItemFloatingText(this.playerStats.x, this.playerStats.y, 'Teleporte', '#88ccff');
+      this.cameras.main.startFollow(this.playerSprite, true, 0.08, 0.08);
+    } else {
+      this.showItemFloatingText(this.playerStats.x, this.playerStats.y, 'Teleporte falhou', '#bbbbbb');
+    }
+  }
+
+  private teleportActor(target: 'player' | 'ai', x: number, floorSearchY = 0): boolean {
     const sprite = target === 'player' ? this.playerSprite : this.aiSprite;
-    const newX = this.clampInitialX(x, this.scale.width);
-    const floorY = this.terrainEngine.getFloorBelow(newX, 0);
+    const newX = Math.max(72, Math.min(x, MAP_WORLD_WIDTH - 72));
+    const floorY = this.terrainEngine.getFloorBelow(newX, floorSearchY);
+    if (floorY === null) return false;
+
     sprite.setPosition(newX, floorY !== null ? floorY - sprite.height / 2 : sprite.y);
     if (target === 'player') {
       this.playerStats.x = sprite.x;
@@ -1597,6 +1942,7 @@ export class BattleScene extends Phaser.Scene {
       this.aiStats.y = sprite.y;
     }
     this.syncActorAssets();
+    return true;
   }
 
   getActiveEffects(): { player: RunicEffect[]; ai: RunicEffect[] } {

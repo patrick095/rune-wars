@@ -13,20 +13,34 @@ const MAP_COLORS: Record<string, { destructible: number; indestructible: number;
 const CONSTRUCTED_COLOR = 0x44aaff;
 const CONSTRUCTED_GLOW  = 0x2266aa;
 
-let _initialized = false;
-
 export function initTerrainTextures(scene: Phaser.Scene): void {
-  if (_initialized) return;
-  _initialized = true;
-
   const size = CELL_SIZE;
 
   for (const [mapName, colors] of Object.entries(MAP_COLORS)) {
-    generateTile(scene, `tile_${mapName}_destructible`, size, colors.destructible, false);
-    generateTile(scene, `tile_${mapName}_indestructible`, size, colors.indestructible, true);
+    aliasLoadedTile(scene, 'terrain_destructible', `tile_${mapName}_destructible`);
+    aliasLoadedTile(scene, 'terrain_indestructible', `tile_${mapName}_indestructible`);
+
+    // Skip programmatic generation if PNG texture was preloaded
+    if (!scene.textures.exists(`tile_${mapName}_destructible`)) {
+      generateTile(scene, `tile_${mapName}_destructible`, size, colors.destructible, false);
+    }
+    if (!scene.textures.exists(`tile_${mapName}_indestructible`)) {
+      generateTile(scene, `tile_${mapName}_indestructible`, size, colors.indestructible, true);
+    }
   }
 
-  generateConstructedTile(scene, 'tile_constructed', size);
+  if (!scene.textures.exists('tile_constructed')) {
+    generateConstructedTile(scene, 'tile_constructed', size);
+  }
+}
+
+function aliasLoadedTile(scene: Phaser.Scene, sourceKey: string, targetKey: string): void {
+  if (!scene.textures.exists(sourceKey) || scene.textures.exists(targetKey)) return;
+
+  const source = scene.textures.get(sourceKey).getSourceImage() as HTMLImageElement | undefined;
+  if (!source) return;
+
+  scene.textures.addImage(targetKey, source);
 }
 
 function generateTile(

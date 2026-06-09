@@ -1,20 +1,83 @@
-<!-- Canvas Phaser fica no router-outlet (não destruído) -->
-<router-outlet></router-outlet>
+<div class="game-shell">
+  <div class="game-frame" id="game-frame">
 
-<!-- Overlay angular sobre o canvas -->
-<div class="game-overlay" *ngIf="activeScreen" (click)="$event.stopPropagation()">
-  <div class="overlay-backdrop" (click)="closeOverlay()"></div>
-  <div class="overlay-content">
-    <button class="overlay-close" (click)="closeOverlay()" aria-label="Fechar">✕</button>
+    <!-- Auth/character-select screens rendered via router-outlet -->
+    @if (!isGameRoute) {
+      <router-outlet></router-outlet>
+    }
 
-    <!-- Renderizar componente baseado na screen ativa -->
-    <ng-container [ngSwitch]="activeScreen">
-      <ng-container *ngSwitchCase="'character'">
-        <app-character></app-character>
-      </ng-container>
-      <ng-container *ngSwitchDefault>
-        <p>Tela: {{ activeScreen }}</p>
-      </ng-container>
-    </ng-container>
+    <!-- Post-login single-screen: screen is controlled by GameNavigatorService signal -->
+    @if (isGameRoute) {
+      <div class="screen-transition" [class.active]="screenActive()">
+        @switch (navigator.screen()) {
+          @case ('hub') {
+            <app-hub></app-hub>
+          }
+          @case ('playground') {
+            <app-playground></app-playground>
+          }
+          @case ('pvp-lobby') {
+            <app-pvp-lobby></app-pvp-lobby>
+          }
+          @case ('pvp-room') {
+            <app-pvp-room></app-pvp-room>
+          }
+          @case ('battle') {
+            <app-battle-host></app-battle-host>
+          }
+          @case ('dungeon') {
+            <app-dungeon></app-dungeon>
+          }
+          @case ('academy') {
+            <app-academy></app-academy>
+          }
+          @case ('craft') {
+            <app-craft></app-craft>
+          }
+          @case ('upgrade') {
+            <app-upgrade></app-upgrade>
+          }
+          @case ('market') {
+            <app-market></app-market>
+          }
+          @case ('guild') {
+            <app-guild></app-guild>
+          }
+          @case ('rankings') {
+            <app-rankings></app-rankings>
+          }
+          @case ('character') {
+            <app-character></app-character>
+          }
+          @default {
+            <app-hub></app-hub>
+          }
+        }
+      </div>
+    }
+
+    <!-- Modal backdrop: blocks Phaser canvas clicks for modal-type screens -->
+    @if (isModalScreen()) {
+      <div class="modal-backdrop" (click)="navigator.goTo('hub')"></div>
+    }
+
+    <!-- Overlay angular sobre o canvas -->
+    <div class="game-overlay" *ngIf="activeScreen" (click)="$event.stopPropagation()">
+      <div class="overlay-backdrop" (click)="closeOverlay()"></div>
+      <div class="overlay-content">
+        <button class="overlay-close" (click)="closeOverlay()" aria-label="Fechar">✕</button>
+
+        <!-- Renderizar componente baseado na screen ativa -->
+        <ng-container [ngSwitch]="activeScreen">
+          <ng-container *ngSwitchCase="'character'">
+            <app-character></app-character>
+          </ng-container>
+          <ng-container *ngSwitchDefault>
+            <p>Tela: {{ activeScreen }}</p>
+          </ng-container>
+        </ng-container>
+      </div>
+    </div>
+
   </div>
 </div>

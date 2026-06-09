@@ -72,7 +72,7 @@ export class DungeonScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.add.rectangle(width / 2, height / 2, width, height, 0x141725);
     this.terrainEngine = new TerrainEngine(MAPS[this.phase.map].grid);
-    this.terrainRenderer = new TerrainRenderer(this, this.terrainEngine);
+    this.terrainRenderer = new TerrainRenderer(this, this.terrainEngine, this.phase.map);
     this.terrainRenderer.renderFull();
     this.enemyRenderer = new EnemyRenderer(this);
 

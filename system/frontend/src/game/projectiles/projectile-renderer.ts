@@ -13,10 +13,11 @@ export class ProjectileRenderer {
   animateAlongPath(
     projectile: Phaser.GameObjects.Arc,
     path: Array<{ x: number; y: number }>,
-    onComplete: () => void
+    onComplete: (impactPoint: { x: number; y: number } | null) => void,
+    checkImpact?: (x: number, y: number) => boolean
   ): void {
     if (path.length === 0) {
-      onComplete();
+      onComplete(null);
       return;
     }
 
@@ -31,9 +32,15 @@ export class ProjectileRenderer {
         projectile.setPosition(point.x, point.y);
         index++;
 
+        if (checkImpact && checkImpact(point.x, point.y)) {
+          event.remove();
+          onComplete(point);
+          return;
+        }
+
         if (index >= path.length) {
           event.remove();
-          onComplete();
+          onComplete(point);
         }
       },
     });

@@ -6,6 +6,7 @@ import { HubScene } from '../../game/scenes/hub.scene';
 import { HUB_POIS, HubPointOfInterest } from '../../game/hub/hub-poi';
 import { GameEventBusService } from '../shared/services/game-event-bus.service';
 import { ActiveCharacterService } from '../shared/services/active-character.service';
+import { GameNavigatorService, GameScreen } from '../shared/services/game-navigator.service';
 
 @Component({
   selector: 'app-hub',
@@ -26,6 +27,22 @@ export class HubComponent implements AfterViewInit, OnDestroy {
     return this.activeCharacterService.character?.name ?? 'Aventureiro';
   }
 
+  private navigator = inject(GameNavigatorService);
+
+  /** Maps legacy route paths to GameScreen values for single-screen navigation */
+  private readonly ROUTE_TO_SCREEN: Partial<Record<string, GameScreen>> = {
+    academy:    'academy',
+    dungeon:    'dungeon',
+    pvp:        'pvp-lobby',
+    craft:      'craft',
+    upgrade:    'upgrade',
+    market:     'market',
+    guild:      'guild',
+    rankings:   'rankings',
+    playground: 'playground',
+    character:  'character',
+  };
+
   constructor(
     private router: Router,
     private ngZone: NgZone,
@@ -35,8 +52,9 @@ export class HubComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.isMobile = window.innerWidth <= 768;
     const canvasHost = document.getElementById('hub-canvas');
-    const width = canvasHost?.clientWidth || window.innerWidth;
-    const height = canvasHost?.clientHeight || window.innerHeight;
+    const frame = document.getElementById('game-frame');
+    const width = canvasHost?.clientWidth || frame?.clientWidth || window.innerWidth;
+    const height = canvasHost?.clientHeight || frame?.clientHeight || window.innerHeight;
 
     // Phaser must run outside Angular zone to avoid excessive change detection
     this.ngZone.runOutsideAngular(() => {
@@ -92,21 +110,25 @@ export class HubComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  // Screens that open as overlay over the hub canvas.
-  // All others navigate via router (full-page experience).
-  private readonly OVERLAY_SCREENS = new Set(['character', 'village']);
-
-  /** Converts a route path to a screen name. Overlay screens use EventBus; others navigate. */
+  /** Converts a route path to a GameScreen and navigates via GameNavigatorService. */
   private handleNavigateTo(route: string): void {
-    const screen = route.startsWith('/') ? route.slice(1) : route;
-    if (this.OVERLAY_SCREENS.has(screen)) {
-      this.eventBus.openScreen$.next({ screen });
+    const path = route.startsWith('/') ? route.slice(1) : route;
+    const gameScreen = this.ROUTE_TO_SCREEN[path];
+    if (gameScreen) {
+      this.navigator.goTo(gameScreen);
     } else {
+      // Fallback for auth-level routes (e.g. character-select)
       this.router.navigate([route]);
     }
   }
 
   navigateTo(route: string): void {
-    this.router.navigate([route]);
+    const path = route.startsWith('/') ? route.slice(1) : route;
+    const gameScreen = this.ROUTE_TO_SCREEN[path];
+    if (gameScreen) {
+      this.navigator.goTo(gameScreen);
+    } else {
+      this.router.navigate([route]);
+    }
   }
 }

@@ -15,6 +15,7 @@ import { UpgradeModule } from './upgrade/upgrade.module';
 import { MarketModule } from './market/market.module';
 import { GuildsModule } from './guilds/guilds.module';
 import { VaultModule } from './vault/vault.module';
+import { PvpModule } from './pvp/pvp.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -44,6 +45,7 @@ import { HealthController } from './health.controller';
     MarketModule,
     GuildsModule,
     VaultModule,
+    PvpModule,
   ],
   controllers: [HealthController],
 })

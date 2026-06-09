@@ -19,6 +19,7 @@ interface Section {
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
+    @if (visible) {
     <div class="debug-overlay" #panel [style.left.px]="posX" [style.top.px]="posY" *ngIf="game">
 
       <!-- Header (drag handle) -->
@@ -189,6 +190,7 @@ interface Section {
       </div>
 
     </div>
+    }
   `,
   styles: [`
     .debug-overlay {
@@ -321,6 +323,7 @@ interface Section {
   `]
 })
 export class DebugOverlayComponent implements OnInit, OnDestroy, AfterViewInit {
+  @Input() visible = false;
   @Input() game: Phaser.Game | null = null;
   @ViewChild('panel') panelRef!: ElementRef<HTMLDivElement>;
 

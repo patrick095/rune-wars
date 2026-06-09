@@ -13,7 +13,7 @@ export class ConsumableSystem {
       id: 'teleport',
       name: 'Teleporte',
       usesTurn: true,
-      description: 'Teletransporta o jogador para o ponto de impacto do último tiro.',
+      description: 'Arma o próximo disparo para teleportar o jogador onde ele bater no mapa.',
     },
     {
       id: 'heal',

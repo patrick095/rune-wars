@@ -11,6 +11,11 @@ export class CharacterFall {
   private fallDurationMs = 0;
 
   update(sprite: FallSprite, engine: TerrainEngine, dt: number): 'alive' | 'dead' {
+    if (sprite.y > engine.worldHeight * 1.05) {
+      console.warn(`[Fall] Player cruzou death line em y=${sprite.y}`);
+      return 'dead';
+    }
+
     const feetY = sprite.y + sprite.height / 2;
     const floorY = engine.getFloorBelow(sprite.x, feetY);
 
