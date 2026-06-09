@@ -49,13 +49,8 @@ export class TerrainRenderer {
 
   updateCells(destroyed: TerrainCell[]): void {
     if (destroyed.length === 0) return;
-
-    for (const cell of destroyed) {
-      const px = cell.x * CELL_SIZE;
-      const py = cell.y * CELL_SIZE;
-      // Fill with transparent to erase — usar fill com alpha 0
-      this.rt.fill(0x000000, 0, px, py, CELL_SIZE, CELL_SIZE);
-    }
+    // Re-render all from engine state (most reliable erase method)
+    this.renderFull();
   }
 
   destroy(): void {

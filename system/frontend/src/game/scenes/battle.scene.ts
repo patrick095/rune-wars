@@ -816,9 +816,16 @@ export class BattleScene extends Phaser.Scene {
     const profile = this.aiWeapon.physicsProfile;
     const wind = this.windSystem.getCurrent();
     const search = AI_SEARCH_BY_DIFFICULTY[this.difficulty];
-    let best = { angle: 135, force: 60, score: Number.POSITIVE_INFINITY };
 
-    for (let angle = 95; angle <= 175; angle += search.angleStep) {
+    // Dynamic angle range based on player position relative to AI
+    const playerIsLeft = this.playerStats.x < this.aiStats.x;
+    const angleMin = playerIsLeft ? 95 : 5;
+    const angleMax = playerIsLeft ? 175 : 85;
+    const defaultAngle = playerIsLeft ? 135 : 45;
+
+    let best = { angle: defaultAngle, force: 60, score: Number.POSITIVE_INFINITY };
+
+    for (let angle = angleMin; angle <= angleMax; angle += search.angleStep) {
       for (let force = 20; force <= 100; force += search.forceStep) {
         const config: ProjectileConfig = {
           angle,
@@ -834,7 +841,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     return {
-      angle: Math.max(95, Math.min(175, best.angle + Phaser.Math.FloatBetween(-search.angleError, search.angleError))),
+      angle: Math.max(angleMin, Math.min(angleMax, best.angle + Phaser.Math.FloatBetween(-search.angleError, search.angleError))),
       force: Math.max(20, Math.min(100, Math.round(best.force + Phaser.Math.FloatBetween(-search.forceError, search.forceError)))),
       score: best.score,
     };
