@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { TerrainEngine, GRID_COLS, GRID_ROWS } from '../../app/shared/game-core/terrain-engine';
 import { CELL_SIZE, TerrainCell, TerrainMaterial } from '../../app/shared/game-core/terrain-types';
-import { initTerrainTextures, getTileKey, getBackgroundColor } from './terrain-textures';
+import { initTerrainTextures, getTileKey, getSurfaceTileKey, getBackgroundColor } from './terrain-textures';
 
 const MAX_RENDER_TEXTURE_SIZE = 1024;
 
@@ -21,6 +21,8 @@ export class TerrainRenderer {
   private chunks: TerrainChunk[] = [];
   private bg!: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image;
   private readonly maxTextureSize: number;
+  private colsPerChunk = 1;
+  private rowsPerChunk = 1;
 
   constructor(
     private scene: Phaser.Scene,
@@ -73,29 +75,48 @@ export class TerrainRenderer {
   }
 
   renderFull(): void {
-    const grid = this.engine.getGrid();
-
     for (const chunk of this.chunks) {
-      chunk.rt.clear();
-
-      for (let row = chunk.rowStart; row < chunk.rowStart + chunk.rows; row++) {
-        for (let col = chunk.colStart; col < chunk.colStart + chunk.cols; col++) {
-          const mat = grid[row][col];
-          if (mat === TerrainMaterial.EMPTY) continue;
-
-          const tileKey = getTileKey(mat, this.mapName);
-          const px = (col - chunk.colStart) * CELL_SIZE;
-          const py = (row - chunk.rowStart) * CELL_SIZE;
-          chunk.rt.drawFrame(tileKey, 0, px, py);
-        }
-      }
+      this.renderChunk(chunk);
     }
   }
 
   updateCells(destroyed: TerrainCell[]): void {
     if (destroyed.length === 0) return;
-    // Re-render all from engine state (most reliable erase method)
-    this.renderFull();
+
+    let minCol = GRID_COLS - 1;
+    let maxCol = 0;
+    let minRow = GRID_ROWS - 1;
+    let maxRow = 0;
+
+    for (const cell of destroyed) {
+      minCol = Math.min(minCol, cell.x);
+      maxCol = Math.max(maxCol, cell.x);
+      minRow = Math.min(minRow, cell.y);
+      maxRow = Math.max(maxRow, cell.y);
+    }
+
+    minCol = Math.max(0, minCol - 1);
+    maxCol = Math.min(GRID_COLS - 1, maxCol + 1);
+    minRow = Math.max(0, minRow - 1);
+    maxRow = Math.min(GRID_ROWS - 1, maxRow + 1);
+
+    const chunkColStart = Math.floor(minCol / this.colsPerChunk);
+    const chunkColEnd = Math.floor(maxCol / this.colsPerChunk);
+    const chunkRowStart = Math.floor(minRow / this.rowsPerChunk);
+    const chunkRowEnd = Math.floor(maxRow / this.rowsPerChunk);
+    const chunksPerRow = Math.ceil(GRID_COLS / this.colsPerChunk);
+
+    const dirtyChunks = new Set<TerrainChunk>();
+    for (let chunkRow = chunkRowStart; chunkRow <= chunkRowEnd; chunkRow++) {
+      for (let chunkCol = chunkColStart; chunkCol <= chunkColEnd; chunkCol++) {
+        const chunk = this.chunks[chunkRow * chunksPerRow + chunkCol];
+        if (chunk) dirtyChunks.add(chunk);
+      }
+    }
+
+    for (const chunk of dirtyChunks) {
+      this.renderChunk(chunk);
+    }
   }
 
   destroy(): void {
@@ -105,13 +126,13 @@ export class TerrainRenderer {
   }
 
   private createChunks(): void {
-    const colsPerChunk = Math.max(1, Math.floor(this.safeRenderTextureSize() / CELL_SIZE));
-    const rowsPerChunk = Math.max(1, Math.floor(this.safeRenderTextureSize() / CELL_SIZE));
+    this.colsPerChunk = Math.max(1, Math.floor(this.safeRenderTextureSize() / CELL_SIZE));
+    this.rowsPerChunk = Math.max(1, Math.floor(this.safeRenderTextureSize() / CELL_SIZE));
 
-    for (let rowStart = 0; rowStart < GRID_ROWS; rowStart += rowsPerChunk) {
-      for (let colStart = 0; colStart < GRID_COLS; colStart += colsPerChunk) {
-        const cols = Math.min(colsPerChunk, GRID_COLS - colStart);
-        const rows = Math.min(rowsPerChunk, GRID_ROWS - rowStart);
+    for (let rowStart = 0; rowStart < GRID_ROWS; rowStart += this.rowsPerChunk) {
+      for (let colStart = 0; colStart < GRID_COLS; colStart += this.colsPerChunk) {
+        const cols = Math.min(this.colsPerChunk, GRID_COLS - colStart);
+        const rows = Math.min(this.rowsPerChunk, GRID_ROWS - rowStart);
         const x = colStart * CELL_SIZE;
         const y = rowStart * CELL_SIZE;
         const width = cols * CELL_SIZE;
@@ -122,6 +143,30 @@ export class TerrainRenderer {
           .setOrigin(0, 0);
 
         this.chunks.push({ rt, colStart, rowStart, cols, rows });
+      }
+    }
+  }
+
+  private renderChunk(chunk: TerrainChunk): void {
+    const grid = this.engine.getGrid();
+
+    chunk.rt.clear();
+
+    for (let row = chunk.rowStart; row < chunk.rowStart + chunk.rows; row++) {
+      for (let col = chunk.colStart; col < chunk.colStart + chunk.cols; col++) {
+        const mat = grid[row][col];
+        if (mat === TerrainMaterial.EMPTY) continue;
+
+        const tileKey = getTileKey(mat, this.mapName);
+        const px = (col - chunk.colStart) * CELL_SIZE;
+        const py = (row - chunk.rowStart) * CELL_SIZE;
+        chunk.rt.drawFrame(tileKey, 0, px, py);
+
+        const aboveMat = row > 0 ? grid[row - 1][col] : TerrainMaterial.EMPTY;
+        const surfaceKey = aboveMat === TerrainMaterial.EMPTY ? getSurfaceTileKey(mat, this.mapName) : null;
+        if (surfaceKey) {
+          chunk.rt.drawFrame(surfaceKey, 0, px, py);
+        }
       }
     }
   }

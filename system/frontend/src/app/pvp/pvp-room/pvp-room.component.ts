@@ -109,27 +109,8 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   }
 
   vsAI(): void {
-    const roomId = this.navigator.roomId();
-    const deleteAndLaunch = () => {
-      this.skipLeaveOnDestroy = true;
-      this.navigator.launchBattle({ mapName: this.selectedMap, vsAI: true });
-    };
-
-    if (roomId) {
-      this.api.delete<unknown>(`/pvp/rooms/${roomId}`).subscribe({
-        next: () => {
-          this.navigator.setRoomId(null);
-          deleteAndLaunch();
-        },
-        error: () => {
-          // Even on error, proceed to battle
-          this.navigator.setRoomId(null);
-          deleteAndLaunch();
-        },
-      });
-    } else {
-      deleteAndLaunch();
-    }
+    this.skipLeaveOnDestroy = true;
+    this.navigator.launchBattle({ mapName: this.selectedMap, vsAI: true });
   }
 
   waitForPlayer(): void {

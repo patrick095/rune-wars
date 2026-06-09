@@ -28,7 +28,7 @@ import { WeaponSystem } from '../../app/shared/game-core/weapon-system';
 import { WeaponDefinition, getWeaponAngleLimits } from '../../app/shared/game-core/weapon-definition';
 import { Consumable, ConsumableSystem } from '../../app/shared/game-core/consumable-system';
 import { SecondaryItem, SecondaryItemSystem } from '../../app/shared/game-core/secondary-item-system';
-import { ShotModifierSystem } from '../../app/shared/game-core/shot-modifier-system';
+import { ShotConfig, ShotModifierSystem } from '../../app/shared/game-core/shot-modifier-system';
 import { ProjectileRenderer } from '../projectiles/projectile-renderer';
 import { StatusEffectManager } from '../../app/shared/game-core/status-effect-manager';
 import { RunicEffect, RunicEffectType, rollRunicEffect, getWeaponRunicEffect } from '../../app/shared/game-core/runic-effect-system';
@@ -88,6 +88,7 @@ const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
 const MIN_SHOT_POWER = 5;
 const POWER_STEP = 2;
 const POWER_TICK_MS = 30;
+const PROJECTILE_COLLISION_RADIUS = 7;
 const PLAYER_MOVE_SPEED = 180;
 const ANGLE_CHANGE_SPEED = 80;
 const AI_SEARCH_BY_DIFFICULTY: Record<Difficulty, { angleStep: number; forceStep: number; angleError: number; forceError: number }> = {
@@ -96,6 +97,16 @@ const AI_SEARCH_BY_DIFFICULTY: Record<Difficulty, { angleStep: number; forceStep
   hard: { angleStep: 3, forceStep: 5, angleError: 3, forceError: 4 },
 };
 const AI_REPOSITION_THRESHOLD = 70;
+
+interface ProjectileAnimationOptions {
+  projectile?: Phaser.GameObjects.Arc;
+  destroyProjectileOnComplete?: boolean;
+  endTurnOnComplete?: boolean;
+  applyDamage?: boolean;
+  explodeOnImpact?: boolean;
+  turnToken?: number;
+  onComplete?: (gameEnded: boolean) => void;
+}
 
 export class BattleScene extends Phaser.Scene {
   private turnManager = new TurnManager();
@@ -151,6 +162,9 @@ export class BattleScene extends Phaser.Scene {
   private constructedByPlayer = 0;
   private playerSecondaryItemId: string | null = null;
   private aiSecondaryItemId: string | null = null;
+  private activeVolleyId = 0;
+  private lastEndedTurnNumber = 0;
+  private scheduledTurnEvents: Phaser.Time.TimerEvent[] = [];
 
   // Weapon state
   private playerWeapon!: WeaponDefinition;
@@ -228,13 +242,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Terrain PNG backgrounds (graceful fallback — loads silently if files not found)
-    this.load.image('terrain_plains_bg',       'assets/terrain/plains_bg.png');
-    this.load.image('terrain_castle_bg',        'assets/terrain/castle_bg.png');
-    this.load.image('terrain_deep_mines_bg',    'assets/terrain/deep_mines_bg.png');
-    this.load.image('terrain_arcane_ruins_bg',  'assets/terrain/arcane_ruins_bg.png');
-    this.load.image('terrain_runic_forest_bg',  'assets/terrain/runic_forest_bg.png');
-    this.load.image('terrain_dungeon_bg',        'assets/terrain/dungeon_bg.png');
+    // Terrain PNG background: only load the selected map. Each full background is several MB.
+    this.preloadCurrentMapBackground();
     // Terrain tile textures (override programmatic generation when present)
     this.load.image('terrain_destructible',     'assets/terrain/destructible.png');
     this.load.image('terrain_indestructible',   'assets/terrain/indestructible.png');
@@ -276,30 +285,12 @@ export class BattleScene extends Phaser.Scene {
     this.load.image('weapon_icebook_sprite',   'assets/items/weapons/ice-book_sprite.png');
     this.load.image('weapon_potion_sprite',    'assets/items/weapons/potion_sprite.png');
 
-    // Equipment craftáveis (48x48)
-    this.load.image('equipment_sword_iron',         'assets/items/equipment/sword_iron.png');
-    this.load.image('equipment_sword_steel',        'assets/items/equipment/sword_steel.png');
-    this.load.image('equipment_bow_wood',           'assets/items/equipment/bow_wood.png');
-    this.load.image('equipment_staff_runic',        'assets/items/equipment/staff_runic.png');
-    this.load.image('equipment_armor_leather',      'assets/items/equipment/armor_leather.png');
-    this.load.image('equipment_helmet_iron',        'assets/items/equipment/helmet_iron.png');
-    this.load.image('equipment_boots_swift',        'assets/items/equipment/boots_swift.png');
-    this.load.image('equipment_ring_luck',          'assets/items/equipment/ring_luck.png');
-    this.load.image('equipment_necklace_vitality',  'assets/items/equipment/necklace_vitality.png');
-    this.load.image('equipment_bracelet_strength',  'assets/items/equipment/bracelet_strength.png');
+  }
 
-    // Materiais de craft (32x32)
-    this.load.image('material_iron_ore',        'assets/items/materials/iron_ore.png');
-    this.load.image('material_steel_bar',       'assets/items/materials/steel_bar.png');
-    this.load.image('material_hardwood',        'assets/items/materials/hardwood.png');
-    this.load.image('material_fiber',           'assets/items/materials/fiber.png');
-    this.load.image('material_rune_crystal',    'assets/items/materials/rune_crystal.png');
-    this.load.image('material_leather',         'assets/items/materials/leather.png');
-    this.load.image('material_agility_crystal', 'assets/items/materials/agility_crystal.png');
-    this.load.image('material_gold_nugget',     'assets/items/materials/gold_nugget.png');
-    this.load.image('material_luck_gem',        'assets/items/materials/luck_gem.png');
-    this.load.image('material_life_crystal',    'assets/items/materials/life_crystal.png');
-    this.load.image('material_strength_gem',    'assets/items/materials/strength_gem.png');
+  private preloadCurrentMapBackground(): void {
+    const key = this.currentMap.startsWith('dungeon') ? 'terrain_dungeon_bg' : `terrain_${this.currentMap}_bg`;
+    const file = this.currentMap.startsWith('dungeon') ? 'dungeon_bg' : `${this.currentMap}_bg`;
+    this.load.image(key, `assets/terrain/${file}.png`);
   }
 
   private resetRuntimeState(): void {
@@ -343,6 +334,9 @@ export class BattleScene extends Phaser.Scene {
     this.constructedByPlayer = 0;
     this.playerSecondaryItemId = null;
     this.aiSecondaryItemId = null;
+    this.activeVolleyId = 0;
+    this.lastEndedTurnNumber = 0;
+    this.clearScheduledTurnEvents();
   }
 
   create(): void {
@@ -499,12 +493,12 @@ export class BattleScene extends Phaser.Scene {
 
       if (playerFallState === 'dead' && this.playerStats.hp > 0) {
         this.playerStats.hp = 0;
-        this.resultOverlay.show(this, false);
+        this.finishBattle(false);
         return;
       }
       if (aiFallState === 'dead' && this.aiStats.hp > 0) {
         this.aiStats.hp = 0;
-        this.resultOverlay.show(this, true);
+        this.finishBattle(true);
         return;
       }
 
@@ -743,11 +737,26 @@ export class BattleScene extends Phaser.Scene {
       this.powerInterval = null;
     }
     this.isAnimating = true;
-    this.resultOverlay.show(this, false);
+    this.finishBattle(false);
   }
 
   private exitBattle(): void {
     window.dispatchEvent(new CustomEvent('rune-wars:battle-exit'));
+  }
+
+  private finishBattle(victory: boolean): void {
+    this.toggleBattleMenu(false);
+    this.isAnimating = true;
+    this.resultOverlay.show(this, victory, {
+      showRestartButton: this.isPlayground,
+      subtitle: this.isPlayground ? undefined : 'Voltando para a sala...',
+    });
+
+    if (!this.isPlayground) {
+      this.time.delayedCall(1600, () => {
+        window.dispatchEvent(new CustomEvent('rune-wars:battle-finished', { detail: { victory } }));
+      });
+    }
   }
 
   private changeAngle(delta: number): void {
@@ -1090,8 +1099,57 @@ export class BattleScene extends Phaser.Scene {
     );
     this.shotModifierSystem.consumeAll();
 
-    // Fire all immediate shots
+    this.firePlayerShotVolley([...shots, ...delayedShots], profile, wind);
+  }
+
+  private firePlayerShotVolley(
+    shots: ShotConfig[],
+    profile: WeaponDefinition['physicsProfile'],
+    wind: ReturnType<WindSystem['getCurrent']>
+  ): void {
+    if (shots.length === 0) return;
+
+    const volleyId = ++this.activeVolleyId;
+    const turnToken = this.turnManager.turnNumber;
+    let pending = shots.length;
+    let gameEnded = false;
+
+    const completeShot = (ended: boolean): void => {
+      if (volleyId !== this.activeVolleyId || this.turnManager.turnNumber !== turnToken) return;
+      gameEnded = gameEnded || ended;
+      pending -= 1;
+      if (pending > 0) {
+        this.isAnimating = true;
+        return;
+      }
+      if (gameEnded) return;
+      this.endTurn(true);
+    };
+
     for (const shotCfg of shots) {
+      const launch = () => {
+        if (volleyId !== this.activeVolleyId || this.turnManager.turnNumber !== turnToken || !this.turnManager.isPlayerTurn) {
+          completeShot(true);
+          return;
+        }
+        this.launchPlayerVolleyProjectile(shotCfg, shots.length, profile, wind, turnToken, completeShot);
+      };
+      if (shotCfg.delayMs && shotCfg.delayMs > 0) {
+        this.scheduleTurnEvent(shotCfg.delayMs, launch);
+      } else {
+        launch();
+      }
+    }
+  }
+
+  private launchPlayerVolleyProjectile(
+    shotCfg: ShotConfig,
+    volleySize: number,
+    profile: WeaponDefinition['physicsProfile'],
+    wind: ReturnType<WindSystem['getCurrent']>,
+    turnToken: number,
+    completeShot: (gameEnded: boolean) => void
+  ): void {
       const config: ProjectileConfig = {
         angle: shotCfg.angle,
         force: shotCfg.force,
@@ -1101,35 +1159,39 @@ export class BattleScene extends Phaser.Scene {
       };
       const path = this.projectilePhysics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
       this.maybeBuildRunicTerrain(path, 'player');
-      this.animateProjectileWithOverrides(path, true, shotCfg.baseDamage, shotCfg.excavationRadius);
-    }
 
-    // Schedule delayed shots (e.g. shot_plus1)
-    for (const shotCfg of delayedShots) {
-      this.time.delayedCall(shotCfg.delayMs ?? 700, () => {
-        const config: ProjectileConfig = {
-          angle: shotCfg.angle,
-          force: shotCfg.force,
-          gravityScale: profile.gravityScale,
-          windInfluence: profile.windInfluence,
-          baseDamage: shotCfg.baseDamage ?? this.playerWeapon.baseDamage,
-        };
-        const path = this.projectilePhysics.simulate(this.playerStats.x, this.playerStats.y, config, wind);
-        this.maybeBuildRunicTerrain(path, 'player');
-        this.animateProjectileWithOverrides(path, true, shotCfg.baseDamage, shotCfg.excavationRadius);
+      const projectile = volleySize === 1
+        ? this.projectileArc
+        : this.projRenderer.createProjectile(WEAPON_COLORS[this.playerWeapon.id] ?? 0xffff00);
+
+      this.animateProjectileWithOverrides(path, true, shotCfg.baseDamage, shotCfg.excavationRadius, {
+        projectile,
+        destroyProjectileOnComplete: volleySize > 1,
+        endTurnOnComplete: false,
+        turnToken,
+        onComplete: completeShot,
       });
-    }
   }
 
-  private fireAiShot(): void {
+  private fireAiShot(turnToken = this.turnManager.turnNumber): void {
+    if (this.turnManager.isPlayerTurn || this.turnManager.turnNumber !== turnToken) return;
+
     const wind = this.windSystem.getCurrent();
     const shot = this.calculateAiShot();
     if (this.playerInvisibleTurns > 0) {
-      this.time.delayedCall(350, () => this.endTurn(false));
+      this.scheduleTurnEvent(350, () => {
+        if (!this.turnManager.isPlayerTurn && this.turnManager.turnNumber === turnToken) {
+          this.endTurn(false);
+        }
+      });
       return;
     }
     if (shot.score > AI_REPOSITION_THRESHOLD && this.tryRepositionAi()) {
-      this.time.delayedCall(350, () => this.endTurn(false));
+      this.scheduleTurnEvent(350, () => {
+        if (!this.turnManager.isPlayerTurn && this.turnManager.turnNumber === turnToken) {
+          this.endTurn(false);
+        }
+      });
       return;
     }
 
@@ -1146,7 +1208,7 @@ export class BattleScene extends Phaser.Scene {
 
     const path = this.projectilePhysics.simulate(this.aiStats.x, this.aiStats.y, config, wind);
     this.maybeBuildRunicTerrain(path, 'ai');
-    this.animateProjectile(path, false);
+    this.animateProjectileResolved(path, false, this.aiWeapon.baseDamage, this.aiWeapon.excavationRadius, { turnToken });
   }
 
   private maybeBuildRunicTerrain(path: Array<{ x: number; y: number }>, playerId: 'player' | 'ai'): void {
@@ -1174,7 +1236,8 @@ export class BattleScene extends Phaser.Scene {
     path: Array<{ x: number; y: number }>,
     isPlayerShot: boolean,
     baseDamageOverride?: number,
-    excavationRadiusOverride?: number
+    excavationRadiusOverride?: number,
+    options: ProjectileAnimationOptions = {}
   ): void {
     if (path.length === 0) return;
 
@@ -1183,7 +1246,8 @@ export class BattleScene extends Phaser.Scene {
       path,
       isPlayerShot,
       baseDamageOverride ?? weapon.baseDamage,
-      excavationRadiusOverride ?? weapon.excavationRadius
+      excavationRadiusOverride ?? weapon.excavationRadius,
+      options
     );
   }
 
@@ -1191,7 +1255,8 @@ export class BattleScene extends Phaser.Scene {
     path: Array<{ x: number; y: number }>,
     isPlayerShot: boolean,
     baseDamage: number,
-    excavationRadius: number
+    excavationRadius: number,
+    options: ProjectileAnimationOptions = {}
   ): void {
     if (path.length === 0) return;
 
@@ -1199,22 +1264,38 @@ export class BattleScene extends Phaser.Scene {
 
     const weapon = isPlayerShot ? this.playerWeapon : this.aiWeapon;
     const color = WEAPON_COLORS[weapon.id] ?? 0xffff00;
-    this.projectileArc.setFillStyle(color);
+    const projectile = options.projectile ?? this.projectileArc;
+    const turnToken = options.turnToken ?? this.turnManager.turnNumber;
+    const clipped = this.clipPathToFirstImpact(path, isPlayerShot);
+    const animationPath = clipped.path;
+    projectile.setFillStyle(color);
 
-    this.projRenderer.animateAlongPath(this.projectileArc, path, impactPoint => {
-      this.projectileArc.setVisible(false);
+    this.projRenderer.animateAlongPath(projectile, animationPath, impactPoint => {
+      projectile.setVisible(false);
+      if (options.destroyProjectileOnComplete) {
+        projectile.destroy();
+      }
+
+      if (this.turnManager.turnNumber !== turnToken) {
+        options.onComplete?.(true);
+        return;
+      }
+
       this.isAnimating = false;
 
-      const resolvedImpact = impactPoint ?? path[path.length - 1];
-      const traveledPath = this.pathUntilImpact(path, resolvedImpact);
+      const resolvedImpact = clipped.impactPoint ?? impactPoint ?? animationPath[animationPath.length - 1];
+      const traveledPath = animationPath;
 
       if (isPlayerShot) {
         this.ghostTrace?.recordShot(traveledPath);
       }
 
       const impact = this.getProjectileImpact(resolvedImpact, isPlayerShot);
+      const teleportUtilityShot = isPlayerShot && this.teleportShotArmed;
+      const explodeOnImpact = options.explodeOnImpact ?? !teleportUtilityShot;
+      const applyDamage = options.applyDamage ?? !teleportUtilityShot;
 
-      if (impact.hitTerrain || impact.hitTarget) {
+      if (explodeOnImpact && (impact.hitTerrain || impact.hitTarget)) {
         const explodeResult = this.terrainEngine.explode(
           resolvedImpact.x, resolvedImpact.y, excavationRadius
         );
@@ -1223,15 +1304,76 @@ export class BattleScene extends Phaser.Scene {
 
       this.resolveTeleportShot(isPlayerShot, resolvedImpact, impact.hitTerrain);
 
-      if (impact.hitTarget) {
-        this.onProjectileImpact(resolvedImpact.x, resolvedImpact.y, isPlayerShot, impact.targetStats, baseDamage);
-      } else {
+      const tdx = resolvedImpact.x - impact.targetStats.x;
+      const tdy = resolvedImpact.y - impact.targetStats.y;
+      const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
+      const effectiveRadius = Math.max(excavationRadius, 30);
+      const inSplashZone = distToTarget <= effectiveRadius;
+
+      let gameEnded = false;
+      if (applyDamage && inSplashZone) {
+        gameEnded = this.onProjectileImpact(
+          resolvedImpact.x,
+          resolvedImpact.y,
+          isPlayerShot,
+          impact.targetStats,
+          baseDamage,
+          effectiveRadius,
+          options.endTurnOnComplete ?? true
+        );
+      } else if (options.endTurnOnComplete ?? true) {
         this.endTurn(isPlayerShot);
       }
-    }, (x, y) => {
-      const impact = this.getProjectileImpact({ x, y }, isPlayerShot);
-      return impact.hitTerrain || impact.hitTarget;
+
+      options.onComplete?.(gameEnded);
     });
+  }
+
+  private clipPathToFirstImpact(
+    path: Array<{ x: number; y: number }>,
+    isPlayerShot: boolean
+  ): { path: Array<{ x: number; y: number }>; impactPoint: { x: number; y: number } | null } {
+    if (path.length <= 1) return { path, impactPoint: null };
+
+    const clippedPath: Array<{ x: number; y: number }> = [path[0]];
+
+    for (let i = 1; i < path.length; i++) {
+      const previous = path[i - 1];
+      const current = path[i];
+      const impactPoint = this.findImpactOnSegment(previous, current, isPlayerShot);
+
+      if (impactPoint) {
+        clippedPath.push(impactPoint);
+        return { path: clippedPath, impactPoint };
+      }
+
+      clippedPath.push(current);
+    }
+
+    return { path: clippedPath, impactPoint: null };
+  }
+
+  private findImpactOnSegment(
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+    isPlayerShot: boolean
+  ): { x: number; y: number } | null {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const steps = Math.max(1, Math.ceil(distance / 2));
+
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const point = {
+        x: start.x + dx * t,
+        y: start.y + dy * t,
+      };
+      const impact = this.getProjectileImpact(point, isPlayerShot);
+      if (impact.hitTerrain || impact.hitTarget) return point;
+    }
+
+    return null;
   }
 
   private getProjectileImpact(point: { x: number; y: number }, isPlayerShot: boolean): {
@@ -1244,18 +1386,26 @@ export class BattleScene extends Phaser.Scene {
     const dy = Math.abs(point.y - targetStats.y);
 
     return {
-      hitTerrain: this.terrainEngine.getMaterialAt(point.x, point.y) !== TerrainMaterial.EMPTY,
+      hitTerrain: this.hasTerrainNearProjectile(point.x, point.y),
       hitTarget: dx < 30 && dy < 40,
       targetStats,
     };
   }
 
-  private pathUntilImpact(
-    path: Array<{ x: number; y: number }>,
-    impactPoint: { x: number; y: number }
-  ): Array<{ x: number; y: number }> {
-    const index = path.findIndex(point => point.x === impactPoint.x && point.y === impactPoint.y);
-    return index >= 0 ? path.slice(0, index + 1) : path;
+  private hasTerrainNearProjectile(x: number, y: number): boolean {
+    const samples = [
+      { x, y },
+      { x: x + PROJECTILE_COLLISION_RADIUS, y },
+      { x: x - PROJECTILE_COLLISION_RADIUS, y },
+      { x, y: y + PROJECTILE_COLLISION_RADIUS },
+      { x, y: y - PROJECTILE_COLLISION_RADIUS },
+      { x: x + PROJECTILE_COLLISION_RADIUS * 0.7, y: y + PROJECTILE_COLLISION_RADIUS * 0.7 },
+      { x: x - PROJECTILE_COLLISION_RADIUS * 0.7, y: y + PROJECTILE_COLLISION_RADIUS * 0.7 },
+      { x: x + PROJECTILE_COLLISION_RADIUS * 0.7, y: y - PROJECTILE_COLLISION_RADIUS * 0.7 },
+      { x: x - PROJECTILE_COLLISION_RADIUS * 0.7, y: y - PROJECTILE_COLLISION_RADIUS * 0.7 },
+    ];
+
+    return samples.some(point => this.terrainEngine.getMaterialAt(point.x, point.y) !== TerrainMaterial.EMPTY);
   }
 
   private calculateAiShot(): { angle: number; force: number; score: number } {
@@ -1355,15 +1505,18 @@ export class BattleScene extends Phaser.Scene {
     impactY: number,
     isPlayerShot: boolean,
     targetStats: BattleCharacterState,
-    baseDamage: number
-  ): void {
+    baseDamage: number,
+    excavationRadius: number,
+    shouldEndTurn = true
+  ): boolean {
     // Track last impact point (for teleport consumable)
     this.lastImpactPoint = { x: impactX, y: impactY };
 
     let damage = this.damageCalc.calculate(
       impactX, impactY,
       targetStats.x, targetStats.y,
-      baseDamage
+      baseDamage,
+      excavationRadius
     );
 
     const shooterId = isPlayerShot ? 'player' : 'ai';
@@ -1424,18 +1577,27 @@ export class BattleScene extends Phaser.Scene {
 
     // Check game over
     if (this.aiStats.hp <= 0) {
-      this.resultOverlay.show(this, true);
-      return;
+      this.finishBattle(true);
+      return true;
     }
     if (this.playerStats.hp <= 0) {
-      this.resultOverlay.show(this, false);
-      return;
+      this.finishBattle(false);
+      return true;
     }
 
-    this.endTurn(isPlayerShot);
+    if (shouldEndTurn) {
+      this.endTurn(isPlayerShot);
+    }
+    return false;
   }
 
   private endTurn(_wasPlayerShot: boolean): void {
+    const endingTurnNumber = this.turnManager.turnNumber;
+    if (this.lastEndedTurnNumber === endingTurnNumber) return;
+
+    this.lastEndedTurnNumber = endingTurnNumber;
+    this.activeVolleyId++;
+    this.clearScheduledTurnEvents();
     this.onAngleButtonUp(); // clean up hold-to-repeat timers
     this.turnManager.nextTurn();
     this.windSystem.generate();
@@ -1462,11 +1624,11 @@ export class BattleScene extends Phaser.Scene {
 
     // Check game over from BLEED
     if (this.aiStats.hp <= 0) {
-      this.resultOverlay.show(this, true);
+      this.finishBattle(true);
       return;
     }
     if (this.playerStats.hp <= 0) {
-      this.resultOverlay.show(this, false);
+      this.finishBattle(false);
       return;
     }
 
@@ -1476,8 +1638,9 @@ export class BattleScene extends Phaser.Scene {
       // Hide docks during AI turn
       this.consumableDock?.setVisible(false);
       this.modifierDock?.setVisible(false);
-      this.time.delayedCall(1000, () => {
-        this.fireAiShot();
+      const aiTurnToken = this.turnManager.turnNumber;
+      this.scheduleTurnEvent(1000, () => {
+        this.fireAiShot(aiTurnToken);
       });
     } else {
       this.cameras.main.startFollow(this.playerSprite, true, 0.08, 0.08);
@@ -1497,6 +1660,22 @@ export class BattleScene extends Phaser.Scene {
       this.updateTrajectoryPreview();
     }
     this.syncActorAssets();
+  }
+
+  private scheduleTurnEvent(delayMs: number, callback: () => void): Phaser.Time.TimerEvent {
+    const event = this.time.delayedCall(delayMs, () => {
+      this.scheduledTurnEvents = this.scheduledTurnEvents.filter(item => item !== event);
+      callback();
+    });
+    this.scheduledTurnEvents.push(event);
+    return event;
+  }
+
+  private clearScheduledTurnEvents(): void {
+    for (const event of this.scheduledTurnEvents) {
+      event.remove(false);
+    }
+    this.scheduledTurnEvents = [];
   }
 
   private applyShieldReduction(target: 'player' | 'ai', damage: number): number {

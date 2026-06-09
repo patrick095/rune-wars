@@ -25,7 +25,7 @@ export class ProjectileRenderer {
     let index = 0;
 
     const event = this.scene.time.addEvent({
-      delay: 16,
+      delay: 8,
       repeat: path.length - 1,
       callback: () => {
         const point = path[index];

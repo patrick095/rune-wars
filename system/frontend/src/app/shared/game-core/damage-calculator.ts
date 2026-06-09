@@ -4,26 +4,17 @@ export class DamageCalculator {
     impactY: number,
     targetX: number,
     targetY: number,
-    baseDamage: number
+    baseDamage: number,
+    excavationRadius = 60
   ): number {
     const dx = impactX - targetX;
     const dy = impactY - targetY;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    let multiplier: number;
+    if (excavationRadius <= 0 || distance > excavationRadius) return 0;
 
-    if (distance <= 10) {
-      multiplier = 1.0;
-    } else if (distance <= 30) {
-      multiplier = 0.75;
-    } else if (distance <= 60) {
-      multiplier = 0.5;
-    } else if (distance <= 100) {
-      multiplier = 0.25;
-    } else {
-      multiplier = 0;
-    }
-
+    // Linear: 100% at distance 0, 50% at edge of blast radius
+    const multiplier = 1.0 - 0.5 * (distance / excavationRadius);
     return Math.round(baseDamage * multiplier);
   }
 }

@@ -37,10 +37,11 @@ export class BattleHostComponent implements AfterViewInit, OnDestroy {
   private readonly activeCharacter = inject(ActiveCharacterService);
   private readonly navigator = inject(GameNavigatorService);
   private game: Phaser.Game | null = null;
-  private readonly onBattleExit = () => this.navigator.goTo('hub');
+  private readonly onBattleExit = () => this.returnToPvpRoom();
 
   ngAfterViewInit(): void {
     window.addEventListener('rune-wars:battle-exit', this.onBattleExit);
+    window.addEventListener('rune-wars:battle-finished', this.onBattleExit);
 
     const config = this.navigator.battleConfig();
     const playerRace = this.activeCharacter.character?.race ?? 'human';
@@ -74,8 +75,13 @@ export class BattleHostComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('rune-wars:battle-exit', this.onBattleExit);
+    window.removeEventListener('rune-wars:battle-finished', this.onBattleExit);
     this.game?.destroy(true);
     this.game = null;
     delete (window as unknown as Record<string, unknown>)['rwBattleConfig'];
+  }
+
+  private returnToPvpRoom(): void {
+    this.navigator.goTo('pvp-room');
   }
 }
