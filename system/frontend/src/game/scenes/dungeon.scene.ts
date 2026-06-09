@@ -10,6 +10,9 @@ import { GolemBoss } from '../enemies/golem-boss';
 import mapEntrance from '../../app/shared/game-core/maps/dungeon-cave-entrance.json';
 import mapHall from '../../app/shared/game-core/maps/dungeon-cave-hall.json';
 import mapBoss from '../../app/shared/game-core/maps/dungeon-cave-boss.json';
+// [v1.5.0] novos componentes integrados
+import { BattleHud, BattleHudState } from '../hud/battle-hud';
+import { BattleInputController } from '../input/battle-input-controller';
 
 interface DungeonSceneData {
   phaseIndex?: number;
@@ -52,6 +55,10 @@ export class DungeonScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
 
+  // [v1.5.0] BattleHud e BattleInputController — unificação de HUD/input
+  private battleHud!: BattleHud;
+  private battleInputController!: BattleInputController;
+
   constructor() {
     super({ key: 'DungeonScene' });
   }
@@ -80,10 +87,63 @@ export class DungeonScene extends Phaser.Scene {
     this.createHud();
     this.createControls();
     this.createKeyboardControls();
+
+    // [v1.5.0] BattleHud — unified HUD entry point
+    this.battleHud = new BattleHud();
+    this.battleHud.create(this);
+
+    // [v1.5.0] BattleInputController — unified keyboard input
+    this.battleInputController = new BattleInputController();
+    this.battleInputController.attach(this);
+
+    // [v1.5.0] Listen to BattleInputController events
+    this.events.on('consumable:use', (data: { slotIndex: number }) => {
+      // Dungeon: consumíveis por slot — reservado para integração futura com ConsumableSystem
+      void data;
+    });
+    this.events.on('modifier:use', (data: { slotIndex: number }) => {
+      // Dungeon: modificadores por slot — reservado para integração futura
+      void data;
+    });
+    this.events.on('charge:start', () => {
+      if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
+    });
+    this.events.on('angle:left', () => this.adjustAngle(-5));
+    this.events.on('angle:right', () => this.adjustAngle(5));
   }
 
   override update(_time: number, delta: number): void {
     this.handleKeyboardInput(delta);
+
+    // [v1.5.0] BattleHud update — sincroniza estado com HUD unificado
+    if (this.battleHud) {
+      const playerState = this.state?.playerState;
+      const liveEnemies = this.state?.enemies?.filter((e: EnemyState) => e.alive) ?? [];
+      const firstEnemy = liveEnemies[0] as EnemyState | undefined;
+      const hudState: BattleHudState = {
+        player: {
+          name: 'Jogador',
+          hp: playerState?.hp ?? 100,
+          maxHp: playerState?.maxHp ?? 100,
+          stamina: 100,
+          maxStamina: 100,
+        },
+        enemy: {
+          name: firstEnemy ? (firstEnemy.type ?? 'Inimigo') : 'Nenhum',
+          hp: firstEnemy?.hp ?? 0,
+          maxHp: firstEnemy?.maxHp ?? 100,
+          stamina: 100,
+          maxStamina: 100,
+        },
+        wind: { x: 0, y: 0 },
+        power: this.power,
+        angle: this.angle,
+        isCharging: this.isChargingPower,
+        consumables: [],
+        modifiers: [],
+      };
+      this.battleHud.update(hudState);
+    }
   }
 
   private placeActors(): void {
@@ -164,7 +224,8 @@ export class DungeonScene extends Phaser.Scene {
   private createKeyboardControls(): void {
     if (!this.input.keyboard) return;
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    // [v1.5.0] SPACE, LEFT e RIGHT são tratados pelo BattleInputController
+    // this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard.addCapture([
       Phaser.Input.Keyboard.KeyCodes.LEFT,
       Phaser.Input.Keyboard.KeyCodes.RIGHT,
@@ -173,18 +234,27 @@ export class DungeonScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.SPACE,
     ]);
 
-    this.spaceKey.on('down', () => {
-      if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
-    });
-    this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
+    // [v1.5.0] SPACE 'down' agora é tratado via BattleInputController → evento 'charge:start'
+    // this.spaceKey.on('down', () => {
+    //   if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
+    // });
+    // this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
+
+    // Manter SPACE 'up' para soltar o tiro — BattleInputController não emite 'charge:stop'
+    const spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
   }
 
   private handleKeyboardInput(delta: number): void {
     if (!this.cursors || this.busy) return;
     const dt = delta / 1000;
 
+    // [v1.5.0] LEFT/RIGHT e SPACE geridos pelo BattleInputController via eventos
+    // Mantém LEFT/RIGHT aqui para movimento analógico contínuo (pressão mantida)
+    // Os eventos 'angle:left'/'angle:right' do BIC disparam apenas no keydown (passo discreto)
     if (this.cursors.left?.isDown) this.movePlayer(-PLAYER_MOVE_SPEED * dt);
     if (this.cursors.right?.isDown) this.movePlayer(PLAYER_MOVE_SPEED * dt);
+    // UP/DOWN continuam para controle analógico fino de ângulo
     if (this.cursors.up?.isDown) this.adjustAngle(ANGLE_CHANGE_SPEED * dt);
     if (this.cursors.down?.isDown) this.adjustAngle(-ANGLE_CHANGE_SPEED * dt);
   }

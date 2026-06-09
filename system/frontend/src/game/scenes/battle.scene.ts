@@ -36,6 +36,12 @@ import { EffectsHud } from '../hud/effects-hud';
 import { PowerMeterHUD } from '../hud/power-meter-hud';
 import { GhostTrace } from '../hud/ghost-trace';
 import { ItemDock, DockItem } from '../hud/item-dock';
+// [v1.5.0] novos componentes integrados
+import { BattleHud, BattleHudState } from '../hud/battle-hud';
+import { BattleInputController } from '../input/battle-input-controller';
+import { MapModifierManager } from '../map/map-modifier-manager';
+import { CharacterSprite, Race } from '../character/character-sprite';
+import { CharacterAnimator } from '../character/character-animator';
 import mapPlains from '../../app/shared/game-core/maps/map-plains.json';
 import mapCastle from '../../app/shared/game-core/maps/map-castle.json';
 import mapDeepMines from '../../app/shared/game-core/maps/map-deep-mines.json';
@@ -187,7 +193,17 @@ export class BattleScene extends Phaser.Scene {
   private aiWeaponIcon?: Phaser.GameObjects.Image;
 
   // HUD & UI helpers
+  // [v1.5.0] CombatHud mantido mas desativado — substituído por BattleHud
+  // private hud!: CombatHud;
   private hud!: CombatHud;
+  private battleHud!: BattleHud; // [v1.5.0]
+  private battleInputController!: BattleInputController; // [v1.5.0]
+  private mapModifierManager!: MapModifierManager; // [v1.5.0]
+  // [v1.5.0] CharacterSprite e CharacterAnimator para player e enemy
+  private playerCharacterSprite!: CharacterSprite;
+  private aiCharacterSprite!: CharacterSprite;
+  private playerCharacterAnimator!: CharacterAnimator;
+  private aiCharacterAnimator!: CharacterAnimator;
   private effectsHud!: EffectsHud;
   private trajectory = new TrajectoryIndicator();
   private resultOverlay = new ResultOverlay();
@@ -450,6 +466,36 @@ export class BattleScene extends Phaser.Scene {
     this.effectsHud = new EffectsHud(this);
     this.refreshHud();
 
+    // [v1.5.0] BattleHud — unified HUD entry point
+    this.battleHud = new BattleHud();
+    this.battleHud.create(this);
+
+    // [v1.5.0] BattleInputController — unified keyboard input
+    this.battleInputController = new BattleInputController();
+    this.battleInputController.attach(this);
+
+    // [v1.5.0] MapModifierManager — power-up orbs on the map
+    this.mapModifierManager = new MapModifierManager();
+
+    // [v1.5.0] CharacterSprite for player
+    this.playerCharacterSprite = CharacterSprite.create(this, (this.playerRace as Race) ?? 'human', this.playerStats.x, this.playerStats.y);
+    this.playerCharacterSprite.container.setDepth(10);
+
+    // [v1.5.0] CharacterSprite for enemy (always elf in PvP, dwarf in dungeon)
+    const aiRace: Race = this.battleMode === 'dungeon' ? 'dwarf' : 'elf';
+    this.aiCharacterSprite = CharacterSprite.create(this, aiRace, this.aiStats.x, this.aiStats.y);
+    this.aiCharacterSprite.container.setDepth(10);
+
+    // [v1.5.0] CharacterAnimator — uses the base sprite layer
+    const playerBaseSprite = this.playerCharacterSprite.base;
+    if (playerBaseSprite && playerBaseSprite instanceof Phaser.GameObjects.Sprite) {
+      this.playerCharacterAnimator = new CharacterAnimator(this, playerBaseSprite, (this.playerRace as Race) ?? 'human');
+    }
+    const aiBaseSprite = this.aiCharacterSprite.base;
+    if (aiBaseSprite && aiBaseSprite instanceof Phaser.GameObjects.Sprite) {
+      this.aiCharacterAnimator = new CharacterAnimator(this, aiBaseSprite, aiRace);
+    }
+
     // Ghost trace: only in real battles (not playground)
     if (!this.isPlayground) {
       this.ghostTrace = new GhostTrace(this);
@@ -521,6 +567,42 @@ export class BattleScene extends Phaser.Scene {
         this.statusEffects.getEffects('player'),
         this.statusEffects.getEffects('ai')
       );
+    }
+
+    // [v1.5.0] BattleHud update every frame
+    if (this.battleHud) {
+      const wind = this.windSystem.getCurrent();
+      const hudState: BattleHudState = {
+        player: {
+          name: 'Jogador',
+          hp: this.playerStats.hp,
+          maxHp: this.playerStats.maxHp,
+          stamina: this.moveBudgetTotal - this.moveBudgetUsed,
+          maxStamina: this.moveBudgetTotal,
+        },
+        enemy: {
+          name: 'Inimigo',
+          hp: this.aiStats.hp,
+          maxHp: this.aiStats.maxHp,
+          stamina: 100,
+          maxStamina: 100,
+        },
+        wind: { x: wind.direction * wind.intensity, y: 0 },
+        power: this.powerValue,
+        angle: this.currentAngle,
+        isCharging: this.isChargingPower,
+        consumables: [],
+        modifiers: [],
+      };
+      this.battleHud.update(hudState);
+    }
+
+    // [v1.5.0] Sync CharacterSprite positions with sprite positions
+    if (this.playerCharacterSprite) {
+      this.playerCharacterSprite.setPosition(this.playerSprite.x, this.playerSprite.y);
+    }
+    if (this.aiCharacterSprite) {
+      this.aiCharacterSprite.setPosition(this.aiSprite.x, this.aiSprite.y);
     }
   }
 
@@ -1092,6 +1174,9 @@ export class BattleScene extends Phaser.Scene {
 
     this.lastPlayerShot = { playerLabel: 'Jogador', force, windStr: this.buildWindStr() };
 
+    // [v1.5.0] CharacterAnimator: transition to shoot state
+    this.playerCharacterAnimator?.transition('shoot');
+
     const { shots, delayedShots } = this.shotModifierSystem.resolve(
       this.getWorldAngle(angle),
       force,
@@ -1175,6 +1260,9 @@ export class BattleScene extends Phaser.Scene {
 
   private fireAiShot(turnToken = this.turnManager.turnNumber): void {
     if (this.turnManager.isPlayerTurn || this.turnManager.turnNumber !== turnToken) return;
+
+    // [v1.5.0] CharacterAnimator: AI shoot animation
+    this.aiCharacterAnimator?.transition('shoot');
 
     const wind = this.windSystem.getCurrent();
     const shot = this.calculateAiShot();
@@ -1270,6 +1358,26 @@ export class BattleScene extends Phaser.Scene {
     const animationPath = clipped.path;
     projectile.setFillStyle(color);
 
+    // [v1.5.0] MapModifier projectile state — mutable object threaded through animation
+    const mapModProjState = {
+      baseDamage,
+      excavationRadius,
+      isCritical: false,
+      applyStatus: (_status: string, _duration: number) => { /* status effects via map modifiers reserved for future integration */ },
+    };
+
+    // [v1.5.0] checkImpact callback: detect map modifier collisions per-point
+    // Projectile passes through modifiers (returns false = no stop), but effect is applied
+    const checkMapModifier = (x: number, y: number): boolean => {
+      if (this.mapModifierManager) {
+        const mod = this.mapModifierManager.checkProjectileCollision(x, y);
+        if (mod) {
+          this.mapModifierManager.applyEffect(mod, mapModProjState);
+        }
+      }
+      return false; // never stops projectile
+    };
+
     this.projRenderer.animateAlongPath(projectile, animationPath, impactPoint => {
       projectile.setVisible(false);
       if (options.destroyProjectileOnComplete) {
@@ -1295,9 +1403,13 @@ export class BattleScene extends Phaser.Scene {
       const explodeOnImpact = options.explodeOnImpact ?? !teleportUtilityShot;
       const applyDamage = options.applyDamage ?? !teleportUtilityShot;
 
+      // [v1.5.0] Use mapModProjState values (may have been mutated by modifier collisions)
+      const resolvedBaseDamage = mapModProjState.baseDamage;
+      const resolvedExcavationRadius = mapModProjState.excavationRadius;
+
       if (explodeOnImpact && (impact.hitTerrain || impact.hitTarget)) {
         const explodeResult = this.terrainEngine.explode(
-          resolvedImpact.x, resolvedImpact.y, excavationRadius
+          resolvedImpact.x, resolvedImpact.y, resolvedExcavationRadius
         );
         this.terrainRenderer.updateCells(explodeResult.cellsDestroyed);
       }
@@ -1307,7 +1419,7 @@ export class BattleScene extends Phaser.Scene {
       const tdx = resolvedImpact.x - impact.targetStats.x;
       const tdy = resolvedImpact.y - impact.targetStats.y;
       const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
-      const effectiveRadius = Math.max(excavationRadius, 30);
+      const effectiveRadius = Math.max(resolvedExcavationRadius, 30);
       const inSplashZone = distToTarget <= effectiveRadius;
 
       let gameEnded = false;
@@ -1317,7 +1429,7 @@ export class BattleScene extends Phaser.Scene {
           resolvedImpact.y,
           isPlayerShot,
           impact.targetStats,
-          baseDamage,
+          resolvedBaseDamage,
           effectiveRadius,
           options.endTurnOnComplete ?? true
         );
@@ -1326,7 +1438,7 @@ export class BattleScene extends Phaser.Scene {
       }
 
       options.onComplete?.(gameEnded);
-    });
+    }, checkMapModifier); // [v1.5.0] pass checkMapModifier to detect modifier collisions
   }
 
   private clipPathToFirstImpact(
@@ -1536,10 +1648,22 @@ export class BattleScene extends Phaser.Scene {
       damage = this.applyShieldReduction('ai', damage);
       this.aiStats.hp = Math.max(0, this.aiStats.hp - damage);
       this.showDamageText(this.aiStats.x, this.aiStats.y, damage, '#ff4444');
+      // [v1.5.0] CharacterAnimator: AI damage/die animation
+      if (this.aiStats.hp <= 0) {
+        this.aiCharacterAnimator?.transition('die');
+      } else {
+        this.aiCharacterAnimator?.transition('damage');
+      }
     } else {
       damage = this.applyShieldReduction('player', damage);
       this.playerStats.hp = Math.max(0, this.playerStats.hp - damage);
       this.showDamageText(this.playerStats.x, this.playerStats.y, damage, '#44aaff');
+      // [v1.5.0] CharacterAnimator: player damage/die animation
+      if (this.playerStats.hp <= 0) {
+        this.playerCharacterAnimator?.transition('die');
+      } else {
+        this.playerCharacterAnimator?.transition('damage');
+      }
     }
 
     // Roll runic effect from shooter's weapon
@@ -1607,6 +1731,14 @@ export class BattleScene extends Phaser.Scene {
     this.turnManager.nextTurn();
     this.windSystem.generate();
 
+    // [v1.5.0] MapModifierManager: at end of each full round (after AI turn), spawn new modifiers
+    if (this.turnManager.isPlayerTurn && this.mapModifierManager) {
+      this.mapModifierManager.onRoundEnd();
+      this.mapModifierManager.trySpawn(this, (x, y) => {
+        return this.terrainEngine.getMaterialAt(x, y) !== TerrainMaterial.EMPTY;
+      });
+    }
+
     // Tick status effects for the player whose turn is starting
     const activePlayerId = this.turnManager.isPlayerTurn ? 'player' : 'ai';
     const activeStats = this.turnManager.isPlayerTurn ? this.playerStats : this.aiStats;
@@ -1663,6 +1795,8 @@ export class BattleScene extends Phaser.Scene {
       this.modifierDock?.refresh(this.buildModifierDockItems());
       this.modifierDock?.setVisible(true);
       this.updateTrajectoryPreview();
+      // [v1.5.0] BattleInputController: reset charge flag on new player turn
+      this.battleInputController?.resetTurn();
     }
     this.syncActorAssets();
   }

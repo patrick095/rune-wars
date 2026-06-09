@@ -7,6 +7,9 @@ import { ProjectileConfig } from '../../app/shared/game-core/projectile-config';
 import { TrajectoryIndicator } from '../ui/trajectory-indicator';
 import { TutorialVisual } from '../tutorial/tutorial-visual';
 import { AcademyTarget, FIXED_TARGETS, MOVING_TARGETS } from '../targets/academy-targets';
+// [v1.5.0] novos componentes integrados
+import { BattleHud, BattleHudState } from '../hud/battle-hud';
+import { BattleInputController } from '../input/battle-input-controller';
 
 type AcademyMode = 'free' | 'fixed-targets' | 'moving-targets' | 'runic-training';
 
@@ -58,6 +61,10 @@ export class AcademyScene extends Phaser.Scene {
   private isAnimating = false;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
+
+  // [v1.5.0] BattleHud e BattleInputController — unificação de HUD/input
+  private battleHud!: BattleHud;
+  private battleInputController!: BattleInputController;
 
   // Targets
   private liveTargets: LiveTarget[] = [];
@@ -117,6 +124,29 @@ export class AcademyScene extends Phaser.Scene {
     this.createControls();
     this.createKeyboardControls();
 
+    // [v1.5.0] BattleHud — unified HUD entry point
+    this.battleHud = new BattleHud();
+    this.battleHud.create(this);
+
+    // [v1.5.0] BattleInputController — unified keyboard input
+    this.battleInputController = new BattleInputController();
+    this.battleInputController.attach(this);
+
+    // [v1.5.0] Listen to BattleInputController events
+    this.events.on('consumable:use', (data: { slotIndex: number }) => {
+      // Academy não usa consumíveis — reservado para expansão futura
+      void data;
+    });
+    this.events.on('modifier:use', (data: { slotIndex: number }) => {
+      // Academy não usa modificadores — reservado para expansão futura
+      void data;
+    });
+    this.events.on('charge:start', () => {
+      if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
+    });
+    this.events.on('angle:left', () => this.adjustAngle(-5));
+    this.events.on('angle:right', () => this.adjustAngle(5));
+
     // Tutorial on first access
     this.tutorial = new TutorialVisual(this);
     if (!TutorialVisual.hasBeenSeen()) {
@@ -130,6 +160,22 @@ export class AcademyScene extends Phaser.Scene {
   override update(_time: number, delta: number): void {
     if (!this.isAnimating) {
       this.handleKeyboardInput(delta / 1000);
+    }
+
+    // [v1.5.0] BattleHud update — sincroniza estado com HUD unificado
+    if (this.battleHud) {
+      const wind = this.windSystem.getCurrent();
+      const hudState: BattleHudState = {
+        player: { name: 'Jogador', hp: 100, maxHp: 100, stamina: 100, maxStamina: 100 },
+        enemy: { name: 'Alvo', hp: 100, maxHp: 100, stamina: 100, maxStamina: 100 },
+        wind: { x: wind.direction * wind.intensity, y: 0 },
+        power: this.powerValue,
+        angle: this.currentAngle,
+        isCharging: this.isChargingPower,
+        consumables: [],
+        modifiers: [],
+      };
+      this.battleHud.update(hudState);
     }
 
     const dt = delta / 1000;
@@ -207,7 +253,8 @@ export class AcademyScene extends Phaser.Scene {
   private createKeyboardControls(): void {
     if (!this.input.keyboard) return;
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    // [v1.5.0] SPACE, LEFT e RIGHT são tratados pelo BattleInputController
+    // this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard.addCapture([
       Phaser.Input.Keyboard.KeyCodes.LEFT,
       Phaser.Input.Keyboard.KeyCodes.RIGHT,
@@ -216,15 +263,22 @@ export class AcademyScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.SPACE,
     ]);
 
-    this.spaceKey.on('down', () => {
-      if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
-    });
-    this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
+    // [v1.5.0] SPACE agora é tratado via BattleInputController → evento 'charge:start'
+    // this.spaceKey.on('down', () => {
+    //   if (!this.isChargingPower) this.startChargingPower(this.btnFire, this.btnFireText);
+    // });
+    // this.spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
+
+    // Manter SPACE 'up' para soltar o tiro — BattleInputController não emite 'charge:stop'
+    const spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    spaceKey.on('up', () => this.releaseFire(this.btnFire, this.btnFireText));
   }
 
   private handleKeyboardInput(dt: number): void {
     if (!this.cursors || this.isAnimating) return;
 
+    // [v1.5.0] UP/DOWN continuam aqui (controle análogo fino de ângulo)
+    // LEFT/RIGHT e SPACE são geridos pelo BattleInputController via eventos
     const ANGLE_CHANGE_SPEED = 80;
     if (this.cursors.up?.isDown) {
       this.adjustAngle(ANGLE_CHANGE_SPEED * dt);
