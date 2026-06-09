@@ -1,76 +1,89 @@
-# Estado da Orquestração — Rune Wars v1.2.0
+# Estado da Orquestração
 
 ## Status geral
-Em andamento
+Não iniciado
 
 ## Spec original
-`/Users/patrickchaves/projetos/pessoal/rune-wars/v1.2.0.md`
+v1.3.0.md — duas features:
+1. Seleção/Criação de Personagem antes do Hub
+2. Melhorias de Controles e UX Mobile na BattleScene
 
 ## Objetivo geral
-Melhorias de gameplay PvP: mapas 300×80 com 12 spawns aleatórios, movimentação por orçamento de agilidade, colisão horizontal + step climbing, morte por queda, facing + sprite flip, câmera com scroll, renderização RenderTexture estilo DDTank.
+Implementar fluxo de identidade do jogador (character select/create) e melhorias de UX na BattleScene (map drag, mobile controls, power bar ruler, weapon angle limits).
 
 ## Última ação concluída
-Plano de orquestração criado. Nenhum agente executado ainda.
+Plano de orquestração criado (2026-06-08)
 
 ## Próxima ação recomendada
-Executar **Agent 001 — Engine Foundation**
-Arquivo: `.ai-orchestration/agents/001-engine-foundation.md`
+Executar agentes **001** e **003** em paralelo (Fase 1 — Fundação)
 
 ## Fase atual
-Fase 1 — Fundação
+Fase 0 — Planejamento concluído, aguardando início da execução
 
 ## Agente atual
-Nenhum (aguardando início)
+Nenhum
 
 ## Agentes concluídos
-- (nenhum)
+- Nenhum
 
 ## Agentes pendentes
-- 001 — Engine Foundation
-- 002 — New Helper Files
-- 003 — Terrain Renderer Rewrite
-- 004 — Terrain Textures
-- 005 — PvP Maps JSON
-- 006 — Dungeon Maps JSON
-- 007 — BattleScene Integration
-- 008 — Debug Overlay Update
-- 009 — TypeScript QA
-- 010 — Cleanup & Commit
+- 001 — Backend: Character Entity + Migration
+- 002 — Backend: CharacterService + Controller DELETE
+- 003 — Frontend: Character Model + ActiveCharacterService
+- 004 — Frontend: characterGuard + Rotas
+- 005 — Frontend: CharacterSelectComponent
+- 006 — Frontend: Integrações de Serviço
+- 007 — BattleScene: Race do Personagem Ativo
+- 008 — BattleScene: Map Drag
+- 009 — BattleScene: Angle Controls Mobile
+- 010 — BattleScene: PowerBar Redesign
+- 011 — BattleScene: Weapon Angle Limits
+- 012 — TypeScript QA
+- 013 — Orquestrador Final
 
 ## Agentes bloqueados
-- 002, 003, 004, 005, 006 → aguardando 001
-- 007, 008 → aguardando 002, 003, 004, 005, 006
-- 009 → aguardando 007, 008
-- 010 → aguardando 009
+- 002 (aguarda 001)
+- 004 (aguarda 003)
+- 005 (aguarda 002 + 003 + 004)
+- 006 (aguarda 003)
+- 007 (aguarda 003)
+- 008 (pode iniciar em paralelo com 007)
+- 009 (aguarda 008)
+- 010 (aguarda 009)
+- 011 (aguarda 010)
+- 012 (aguarda todos 001-011)
+- 013 (aguarda 012)
 
 ## Dependências liberadas
-- (nenhuma)
+- Nenhuma ainda
 
 ## Bugs críticos
-- (nenhum)
+- Nenhum
 
 ## Decisões tomadas
-- GRID_COLS=300, GRID_ROWS=80, CELL_SIZE=20px mantido
-- CharacterFall retorna 'alive'|'dead'
-- Sprites: Rectangle → Image usando *_battle.png existentes
-- Tiles de terreno gerados proceduralmente via Phaser Graphics (sem PNGs externos)
-- Step climbing: max 12px (20% de 60px character height)
-- Movement budget: 120–2100px por turno (agilidade 0–500)
-- Spawn: Fisher-Yates shuffle a cada partida
+- Personagens: até 5 por conta
+- Nome: único globalmente
+- Raças: human, dwarf, elf
+- Persistência de personagem ativo: localStorage `rw_character_id`
+- Detecção mobile: `window.matchMedia('(pointer: coarse)')`
+- Botões de ângulo: visíveis apenas em mobile
+- Throttle teclado: 100ms
+- Hold-to-repeat: 400ms delay + 80ms interval
+- Agentes 007-011 tocam BattleScene — executar sequencialmente
 
 ## Decisões pendentes
-- (nenhuma)
+- Nenhuma
 
 ## Arquivos alterados até agora
-- (nenhum — plano apenas)
+- Nenhum (plano criado, implementação não iniciada)
 
 ## Como retomar
 Para continuar esta implementação, leia primeiro:
 
-1. `.ai-orchestration/ORCHESTRATION_STATE.md` (este arquivo)
+1. `.ai-orchestration/ORCHESTRATION_STATE.md`
 2. `.ai-orchestration/AGENTS_QUEUE.md`
 3. `.ai-orchestration/BUGS_AND_BLOCKERS.md`
 4. `.ai-orchestration/FILES_CHANGED.md`
-5. Os resumos em `.ai-orchestration/agents/` dos agentes já concluídos
+5. Os resumos em `.ai-orchestration/agents/`
 
 Depois continue exatamente da seção "Próxima ação recomendada".

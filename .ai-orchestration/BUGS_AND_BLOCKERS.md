@@ -1,16 +1,13 @@
 # Bugs e Bloqueios
 
 ## Críticos
-- (nenhum)
+- Nenhum
 
 ## Importantes
-- (nenhum)
+- **RISCO** (não confirmado): nomes duplicados podem já existir no banco antes da migration de UNIQUE. Agente 001 deve gerar query de diagnóstico antes de aplicar a constraint.
 
 ## Baixos
-- (nenhum)
+- Nenhum
 
 ## Resolvidos
-- (nenhum)
-
----
-*Atualizar após cada agente concluir.*
+- Nenhum
