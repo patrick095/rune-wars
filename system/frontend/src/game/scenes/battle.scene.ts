@@ -27,12 +27,12 @@ interface BattleLaunchData {
     vsAI?: boolean;
 }
 import {
-    GRID_COLS,
     TerrainEngine,
     MapMeta,
+    WORLD_WIDTH,
+    WORLD_HEIGHT,
 } from "../../app/shared/game-core/terrain-engine";
 import {
-    CELL_SIZE,
     TerrainMaterial,
 } from "../../app/shared/game-core/terrain-types";
 import { tryHorizontalMove } from "../terrain/terrain-collision";
@@ -91,7 +91,7 @@ import {
     runeWarsWeaponLayerKey,
 } from "../assets/rune-wars-assets";
 import mapPlains from "../../app/shared/game-core/maps/map-plains.json";
-import mapCastle from "../../app/shared/game-core/maps/map-castle.json";
+import mapMysticCastle from "../../app/shared/game-core/maps/map-mystic-castle.json";
 import mapDeepMines from "../../app/shared/game-core/maps/map-deep-mines.json";
 import mapArcaneRuins from "../../app/shared/game-core/maps/map-arcane-ruins.json";
 import mapRunicForest from "../../app/shared/game-core/maps/map-runic-forest.json";
@@ -111,7 +111,7 @@ const WEAPON_COLORS: Record<string, number> = {
 export type BattleMode = "pvp" | "dungeon";
 export type MapName =
     | "plains"
-    | "castle"
+    | "mystic_castle"
     | "deep_mines"
     | "arcane_ruins"
     | "runic_forest"
@@ -123,54 +123,44 @@ export interface BattleMapOption {
     id: MapName;
     label: string;
     mode: BattleMode;
-    grid: number[][];
 }
 
 export const BATTLE_MAPS: BattleMapOption[] = [
-    { id: "plains", label: "Planícies", mode: "pvp", grid: mapPlains.grid },
-    { id: "castle", label: "Castelo", mode: "pvp", grid: mapCastle.grid },
-    {
-        id: "deep_mines",
-        label: "Minas Profundas",
-        mode: "pvp",
-        grid: mapDeepMines.grid,
-    },
-    {
-        id: "arcane_ruins",
-        label: "Ruínas Arcanas",
-        mode: "pvp",
-        grid: mapArcaneRuins.grid,
-    },
-    {
-        id: "runic_forest",
-        label: "Floresta Rúnica",
-        mode: "pvp",
-        grid: mapRunicForest.grid,
-    },
+    { id: "plains", label: "Planícies", mode: "pvp" },
+    { id: "mystic_castle", label: "Castelo Místico", mode: "pvp" },
+    { id: "deep_mines", label: "Minas Profundas", mode: "pvp" },
+    { id: "arcane_ruins", label: "Ruínas Arcanas", mode: "pvp" },
+    { id: "runic_forest", label: "Floresta Rúnica", mode: "pvp" },
     {
         id: "dungeon_cave_entrance",
         label: "Dungeon: Entrada da Caverna",
         mode: "dungeon",
-        grid: mapDungeonCaveEntrance.grid,
     },
     {
         id: "dungeon_cave_hall",
         label: "Dungeon: Salão da Caverna",
         mode: "dungeon",
-        grid: mapDungeonCaveHall.grid,
     },
     {
         id: "dungeon_cave_boss",
         label: "Dungeon: Covil do Golem",
         mode: "dungeon",
-        grid: mapDungeonCaveBoss.grid,
     },
 ];
 
 const MAP_OPTIONS_BY_ID = new Map<MapName, BattleMapOption>(
     BATTLE_MAPS.map((map) => [map.id, map]),
 );
-const MAP_WORLD_WIDTH = GRID_COLS * CELL_SIZE;
+
+const MAP_ASSET_FOLDER: Record<string, string> = {
+    plains:        'plains',
+    mystic_castle: 'mystic-castle',
+    deep_mines:    'deep-mines',
+    arcane_ruins:  'arcane-ruins',
+    runic_forest:  'runic-forest',
+};
+
+const MAP_WORLD_WIDTH = WORLD_WIDTH;
 const MIN_SHOT_POWER = 5;
 const POWER_STEP = 2;
 const POWER_TICK_MS = 50;
@@ -471,13 +461,19 @@ export class BattleScene extends Phaser.Scene {
     }
 
     private preloadCurrentMapBackground(): void {
-        const key = this.currentMap.startsWith("dungeon")
-            ? "terrain_dungeon_bg"
-            : `terrain_${this.currentMap}_bg`;
-        const file = this.currentMap.startsWith("dungeon")
-            ? "dungeon_bg"
-            : `${this.currentMap}_bg`;
-        this.load.image(key, `assets/terrain/${file}.png`);
+        if (this.currentMap.startsWith("dungeon")) {
+            this.load.image("terrain_dungeon_bg", "assets/terrain/dungeon_bg.png");
+            return;
+        }
+        const folder = MAP_ASSET_FOLDER[this.currentMap] ?? this.currentMap;
+        this.load.image(
+            `map_${this.currentMap}_bg`,
+            `assets/maps/${folder}/background.png`,
+        );
+        this.load.image(
+            `map_${this.currentMap}_terrain`,
+            `assets/maps/${folder}/terrain.png`,
+        );
     }
 
     private resetRuntimeState(): void {
@@ -562,30 +558,40 @@ export class BattleScene extends Phaser.Scene {
 
         const initialMap = this.getMapOption(this.currentMap);
         this.battleMode = initialMap.mode;
-        this.terrainEngine = new TerrainEngine(initialMap.grid);
+
+        if (this.currentMap.startsWith("dungeon")) {
+            this.terrainEngine = new TerrainEngine();
+        } else {
+            const terrainKey = `map_${this.currentMap}_terrain`;
+            const imgData = this.getTerrainImageData(terrainKey);
+            this.terrainEngine = TerrainEngine.fromImageData(imgData);
+        }
 
         // World-sized fallback behind the painted map background.
         this.add
             .rectangle(
-                this.terrainEngine.worldWidth / 2,
-                this.terrainEngine.worldHeight / 2,
-                this.terrainEngine.worldWidth,
-                this.terrainEngine.worldHeight,
+                WORLD_WIDTH / 2,
+                WORLD_HEIGHT / 2,
+                WORLD_WIDTH,
+                WORLD_HEIGHT,
                 0x1a1a2e,
             )
             .setDepth(-20);
 
-        this.terrainRenderer = new TerrainRenderer(
-            this,
-            this.terrainEngine,
-            this.currentMap,
-        );
-        this.terrainRenderer.renderFull();
+        if (this.currentMap.startsWith("dungeon")) {
+            this.terrainRenderer = new TerrainRenderer(
+                this,
+                "terrain_dungeon_bg",
+                "terrain_dungeon_bg",
+            );
+        } else {
+            const bgKey = `map_${this.currentMap}_bg`;
+            const terrainKey = `map_${this.currentMap}_terrain`;
+            this.terrainRenderer = new TerrainRenderer(this, bgKey, terrainKey);
+        }
 
         // Camera bounds
-        const worldW = this.terrainEngine.worldWidth;
-        const worldH = this.terrainEngine.worldHeight;
-        this.cameras.main.setBounds(0, 0, worldW, worldH);
+        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.applyCameraLayout();
 
         // Position characters using spawn points from map meta if available
@@ -598,12 +604,12 @@ export class BattleScene extends Phaser.Scene {
                 ? selectSpawns(rawSpawns, 2, this.terrainEngine)
                 : [];
 
-        const worldCenterY = worldH / 2;
-        const fallbackPlayerX = worldW * 0.1;
-        const fallbackAiX = worldW * 0.9;
+        const worldCenterY = WORLD_HEIGHT / 2;
+        const fallbackPlayerX = WORLD_WIDTH * 0.1;
+        const fallbackAiX = WORLD_WIDTH * 0.9;
 
         if (spawns[0]) {
-            const p = spawnToWorld(spawns[0], CELL_SIZE, charHeight);
+            const p = spawnToWorld(spawns[0], 1, charHeight);
             this.playerStats.x = p.x;
             this.playerStats.y = p.y;
         } else {
@@ -617,7 +623,7 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (spawns[1]) {
-            const a = spawnToWorld(spawns[1], CELL_SIZE, charHeight);
+            const a = spawnToWorld(spawns[1], 1, charHeight);
             this.aiStats.x = a.x;
             this.aiStats.y = a.y;
         } else {
@@ -1798,14 +1804,17 @@ export class BattleScene extends Phaser.Scene {
         playerId: "player" | "ai",
     ): void {
         if (!this.secondaryItemSystem.isRunicBuilderActive(playerId)) return;
+        const segment = path.slice(0, 18);
+        if (segment.length < 2) return;
+        const start = segment[0];
+        const end = segment[segment.length - 1];
         const created = this.terrainEngine.drawRunicLine(
-            path.slice(0, 18),
-            playerId,
+            start.x, start.y, end.x, end.y, playerId,
         );
         this.secondaryItemSystem.consumeRunicBuilder(playerId);
         this.constructedByPlayer =
             this.terrainEngine.getConstructedCount("player");
-        if (created > 0) this.terrainRenderer.renderFull();
+        // Terrain renderer uses bitmap approach; no full re-render needed after runic builder
     }
 
     private animateProjectile(
@@ -1943,8 +1952,10 @@ export class BattleScene extends Phaser.Scene {
                         resolvedImpact.y,
                         resolvedExcavationRadius,
                     );
-                    this.terrainRenderer.updateCells(
-                        explodeResult.cellsDestroyed,
+                    this.terrainRenderer.applyExplosion(
+                        explodeResult.center.x,
+                        explodeResult.center.y,
+                        explodeResult.radius,
                     );
                 }
 
@@ -2742,13 +2753,23 @@ export class BattleScene extends Phaser.Scene {
         const centerX = this.scale.width / 2;
         const centerY = this.scale.height / 2;
         const result = this.terrainEngine.explode(centerX, centerY, radius);
-        this.terrainRenderer.updateCells(result.cellsDestroyed);
+        this.terrainRenderer.applyExplosion(result.center.x, result.center.y, result.radius);
     }
 
     private getMapOption(mapName: MapName): BattleMapOption {
         return (
             MAP_OPTIONS_BY_ID.get(mapName) ?? MAP_OPTIONS_BY_ID.get("plains")!
         );
+    }
+
+    private getTerrainImageData(key: string): ImageData {
+        const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+        const canvas = document.createElement('canvas');
+        canvas.width = source.naturalWidth;
+        canvas.height = source.naturalHeight;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(source, 0, 0);
+        return ctx.getImageData(0, 0, canvas.width, canvas.height);
     }
 
     setBattleMode(mode: BattleMode): void {
@@ -2758,23 +2779,26 @@ export class BattleScene extends Phaser.Scene {
     }
 
     resetTerrain(): void {
-        const map = this.getMapOption(this.currentMap);
-        this.terrainEngine.loadMap(map.grid);
-        this.terrainRenderer.renderFull();
+        if (!this.currentMap.startsWith("dungeon")) {
+            const terrainKey = `map_${this.currentMap}_terrain`;
+            if (this.textures.exists(terrainKey)) {
+                const imgData = this.getTerrainImageData(terrainKey);
+                this.terrainEngine = TerrainEngine.fromImageData(imgData);
+            }
+        }
     }
 
     switchMap(mapName: MapName): void {
         this.currentMap = mapName;
         const map = this.getMapOption(mapName);
         this.battleMode = map.mode;
-        this.terrainEngine.loadMap(map.grid);
 
-        // Notify renderer of new map for texture palette
-        const renderer = this.terrainRenderer as TerrainRenderer & {
-            setMapName?(n: string): void;
-        };
-        renderer.setMapName?.(mapName);
-        this.terrainRenderer.renderFull();
+        if (mapName.startsWith("dungeon")) {
+            this.terrainEngine = new TerrainEngine();
+        } else if (this.textures.exists(`map_${mapName}_terrain`)) {
+            const imgData = this.getTerrainImageData(`map_${mapName}_terrain`);
+            this.terrainEngine = TerrainEngine.fromImageData(imgData);
+        }
 
         this.aiAvatar?.setTexture(
             this.battleMode === "dungeon" ? "dwarf_battle" : "elf_battle",
@@ -2806,12 +2830,7 @@ export class BattleScene extends Phaser.Scene {
         }
 
         // Camera bounds
-        this.cameras.main.setBounds(
-            0,
-            0,
-            this.terrainEngine.worldWidth,
-            this.terrainEngine.worldHeight,
-        );
+        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.applyCameraLayout();
 
         // Re-spawn using meta spawn points if available
@@ -2825,14 +2844,13 @@ export class BattleScene extends Phaser.Scene {
                 ? selectSpawns(rawSpawns, 2, this.terrainEngine)
                 : [];
 
-        const worldW = this.terrainEngine.worldWidth;
-        const worldCenterY = this.terrainEngine.worldHeight / 2;
+        const worldCenterY = WORLD_HEIGHT / 2;
 
         if (spawns[0]) {
-            const p = spawnToWorld(spawns[0], CELL_SIZE, charHeight);
+            const p = spawnToWorld(spawns[0], 1, charHeight);
             this.playerSprite.setPosition(p.x, p.y);
         } else {
-            const fallbackX = worldW * 0.1;
+            const fallbackX = WORLD_WIDTH * 0.1;
             const playerFloor = this.terrainEngine.getFloorBelow(
                 fallbackX,
                 worldCenterY,
@@ -2846,10 +2864,10 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (spawns[1]) {
-            const a = spawnToWorld(spawns[1], CELL_SIZE, charHeight);
+            const a = spawnToWorld(spawns[1], 1, charHeight);
             this.aiSprite.setPosition(a.x, a.y);
         } else {
-            const fallbackX = worldW * 0.9;
+            const fallbackX = WORLD_WIDTH * 0.9;
             const aiFloor = this.terrainEngine.getFloorBelow(
                 fallbackX,
                 worldCenterY,
@@ -2873,8 +2891,8 @@ export class BattleScene extends Phaser.Scene {
                     meta?: unknown;
                     grid: number[][];
                 };
-            case "castle":
-                return mapCastle as unknown as {
+            case "mystic_castle":
+                return mapMysticCastle as unknown as {
                     meta?: unknown;
                     grid: number[][];
                 };
@@ -2919,7 +2937,7 @@ export class BattleScene extends Phaser.Scene {
             worldY,
             material as TerrainMaterial,
         );
-        this.terrainRenderer.renderFull();
+        // Terrain renderer uses bitmap approach; visual update requires applyExplosion for erasure
     }
 
     // ──────────────────────────────────────────────────────────

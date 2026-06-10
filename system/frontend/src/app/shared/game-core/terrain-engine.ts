@@ -1,137 +1,147 @@
 import {
-    CELL_SIZE,
     ExplosionResult,
-    TerrainCell,
     TerrainMaterial,
+    WORLD_WIDTH,
+    WORLD_HEIGHT,
 } from "./terrain-types";
-
-export const GRID_COLS = 450;
-export const GRID_ROWS = 160;
 
 export interface MapMeta {
     name?: string;
+    width?: number;
+    height?: number;
+    /** @deprecated use {x, y} pixel coords instead of col/row */
     cols?: number;
+    /** @deprecated use {x, y} pixel coords instead of col/row */
     rows?: number;
-    spawnPoints?: Array<{ col: number; row: number }>;
+    spawnPoints?: Array<{ x: number; y: number }>;
 }
+
+/** @deprecated Grid dimensions are no longer relevant in pixel-perfect bitmap mode */
+export const GRID_COLS = WORLD_WIDTH;
+/** @deprecated Grid dimensions are no longer relevant in pixel-perfect bitmap mode */
+export const GRID_ROWS = WORLD_HEIGHT;
 
 const MAX_CONSTRUCTED_PER_PLAYER = 20;
 
 export class TerrainEngine {
-    private grid: TerrainMaterial[][];
+    private bitmap: Uint8Array;
+    private width: number;
+    private height: number;
     private _constructedByPlayer = new Map<string, number>();
 
-    constructor(gridData: number[][]) {
-        this.grid = this.buildGrid(gridData);
+    /**
+     * Legacy constructor: accepts a 2D number grid (number[][]) or creates an empty bitmap.
+     * For new code, prefer TerrainEngine.fromImageData() or TerrainEngine.empty().
+     */
+    constructor(gridData?: number[][], width = WORLD_WIDTH, height = WORLD_HEIGHT) {
+        this.width = width;
+        this.height = height;
+        this.bitmap = new Uint8Array(width * height);
+        if (gridData) {
+            this._loadGridData(gridData);
+        }
     }
 
-    private buildGrid(gridData: number[][]): TerrainMaterial[][] {
-        const result: TerrainMaterial[][] = [];
-        for (let row = 0; row < GRID_ROWS; row++) {
-            result[row] = [];
-            for (let col = 0; col < GRID_COLS; col++) {
+    private _loadGridData(gridData: number[][]): void {
+        for (let row = 0; row < this.height; row++) {
+            for (let col = 0; col < this.width; col++) {
                 const value = gridData[row]?.[col] ?? 0;
-                result[row][col] = value as TerrainMaterial;
+                this.bitmap[row * this.width + col] = value as TerrainMaterial;
             }
         }
-        return result;
     }
 
+    /** Load a new map from a 2D grid (legacy support). Resets constructed counts. */
     loadMap(gridData: number[][]): void {
-        this.grid = this.buildGrid(gridData);
+        this._constructedByPlayer.clear();
+        this._loadGridData(gridData);
     }
 
-    private worldToCell(
-        worldX: number,
-        worldY: number,
-    ): { col: number; row: number } {
-        return {
-            col: Math.floor(worldX / CELL_SIZE),
-            row: Math.floor(worldY / CELL_SIZE),
-        };
-    }
+    static fromImageData(data: ImageData): TerrainEngine {
+        const w = data.width;
+        const h = data.height;
+        const engine = new TerrainEngine(undefined, w, h);
 
-    private isInBounds(col: number, row: number): boolean {
-        return col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS;
-    }
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+                const r = data.data[idx];
+                const g = data.data[idx + 1];
+                const b = data.data[idx + 2];
+                const a = data.data[idx + 3];
 
-    getMaterialAt(worldX: number, worldY: number): TerrainMaterial {
-        const { col, row } = this.worldToCell(worldX, worldY);
-        if (!this.isInBounds(col, row)) return TerrainMaterial.EMPTY;
-        return this.grid[row][col];
-    }
-
-    setMaterialAt(
-        worldX: number,
-        worldY: number,
-        material: TerrainMaterial,
-    ): void {
-        const { col, row } = this.worldToCell(worldX, worldY);
-        if (!this.isInBounds(col, row)) return;
-        this.grid[row][col] = material;
-    }
-
-    explode(
-        centerWorldX: number,
-        centerWorldY: number,
-        radius: number,
-    ): ExplosionResult {
-        const cellsDestroyed: TerrainCell[] = [];
-
-        const centerCol = centerWorldX / CELL_SIZE;
-        const centerRow = centerWorldY / CELL_SIZE;
-
-        const radiusInCells = radius / CELL_SIZE;
-
-        const colMin = Math.max(0, Math.floor(centerCol - radiusInCells));
-        const colMax = Math.min(
-            GRID_COLS - 1,
-            Math.ceil(centerCol + radiusInCells),
-        );
-        const rowMin = Math.max(0, Math.floor(centerRow - radiusInCells));
-        const rowMax = Math.min(
-            GRID_ROWS - 1,
-            Math.ceil(centerRow + radiusInCells),
-        );
-
-        for (let row = rowMin; row <= rowMax; row++) {
-            for (let col = colMin; col <= colMax; col++) {
-                const cellMat = this.grid[row][col];
-                if (
-                    cellMat !== TerrainMaterial.DESTRUCTIBLE &&
-                    cellMat !== TerrainMaterial.CONSTRUCTED
-                )
-                    continue;
-
-                // Cell center in world coordinates
-                const cellCenterX = (col + 0.5) * CELL_SIZE;
-                const cellCenterY = (row + 0.5) * CELL_SIZE;
-
-                const dx = cellCenterX - centerWorldX;
-                const dy = cellCenterY - centerWorldY;
-
-                if (Math.sqrt(dx * dx + dy * dy) <= radius) {
-                    cellsDestroyed.push({ x: col, y: row, material: cellMat });
-                    this.grid[row][col] = TerrainMaterial.EMPTY;
+                if (a < 128) {
+                    engine.bitmap[y * w + x] = TerrainMaterial.EMPTY;
+                } else if (r > 200 && g > 200 && b > 200) {
+                    // Near white => indestructible
+                    engine.bitmap[y * w + x] = TerrainMaterial.INDESTRUCTIBLE;
+                } else {
+                    // Any other opaque pixel => destructible solid
+                    engine.bitmap[y * w + x] = TerrainMaterial.DESTRUCTIBLE;
                 }
             }
         }
 
-        return {
-            cellsDestroyed,
-            center: { x: centerWorldX, y: centerWorldY },
-            radius,
-        };
+        return engine;
     }
 
-    getFloorBelow(worldX: number, worldY: number): number | null {
-        const { col, row: startRow } = this.worldToCell(worldX, worldY);
-        if (col < 0 || col >= GRID_COLS) return null;
+    static empty(width: number, height: number): TerrainEngine {
+        return new TerrainEngine(undefined, width, height);
+    }
 
-        for (let row = startRow; row < GRID_ROWS; row++) {
-            if (this.grid[row][col] !== TerrainMaterial.EMPTY) {
-                // Return the world Y coordinate of the top of this cell
-                return row * CELL_SIZE;
+    // -----------------------------------------------------------------------
+    // Public API
+    // -----------------------------------------------------------------------
+
+    getMaterialAt(wx: number, wy: number): TerrainMaterial {
+        const px = Math.floor(wx);
+        const py = Math.floor(wy);
+        if (px < 0 || px >= this.width || py < 0 || py >= this.height) {
+            return TerrainMaterial.EMPTY;
+        }
+        return this.bitmap[py * this.width + px] as TerrainMaterial;
+    }
+
+    setMaterialAt(wx: number, wy: number, material: TerrainMaterial): void {
+        const px = Math.floor(wx);
+        const py = Math.floor(wy);
+        if (px < 0 || px >= this.width || py < 0 || py >= this.height) return;
+        this.bitmap[py * this.width + px] = material;
+    }
+
+    explode(cx: number, cy: number, radius: number): ExplosionResult {
+        const r2 = radius * radius;
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                if (dx * dx + dy * dy <= r2) {
+                    const px = Math.floor(cx + dx);
+                    const py = Math.floor(cy + dy);
+                    if (px >= 0 && px < this.width && py >= 0 && py < this.height) {
+                        const idx = py * this.width + px;
+                        const mat = this.bitmap[idx] as TerrainMaterial;
+                        // Only destroy destructible and constructed pixels
+                        if (
+                            mat === TerrainMaterial.DESTRUCTIBLE ||
+                            mat === TerrainMaterial.CONSTRUCTED
+                        ) {
+                            this.bitmap[idx] = TerrainMaterial.EMPTY;
+                        }
+                    }
+                }
+            }
+        }
+        return { center: { x: cx, y: cy }, radius };
+    }
+
+    getFloorBelow(wx: number, wy: number): number | null {
+        const px = Math.floor(wx);
+        const startY = Math.floor(wy);
+
+        if (px < 0 || px >= this.width) return null;
+
+        for (let py = startY; py < this.height; py++) {
+            if (this.bitmap[py * this.width + px] !== TerrainMaterial.EMPTY) {
+                return py;
             }
         }
 
@@ -139,60 +149,78 @@ export class TerrainEngine {
     }
 
     drawRunicLine(
-        path: Array<{ x: number; y: number }>,
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
         playerId: string,
     ): number {
         let created = 0;
-        const visited = new Set<string>();
+        const visited = new Set<number>();
 
-        for (const point of path) {
-            const col = Math.floor(point.x / CELL_SIZE);
-            const row = Math.floor(point.y / CELL_SIZE);
-            const key = `${col},${row}`;
+        // Bresenham line algorithm in pixel space
+        let px0 = Math.floor(x1);
+        let py0 = Math.floor(y1);
+        const px1 = Math.floor(x2);
+        const py1 = Math.floor(y2);
 
-            if (visited.has(key)) continue;
-            visited.add(key);
+        const dx = Math.abs(px1 - px0);
+        const dy = Math.abs(py1 - py0);
+        const sx = px0 < px1 ? 1 : -1;
+        const sy = py0 < py1 ? 1 : -1;
+        let err = dx - dy;
 
-            if (!this.isInBounds(col, row)) continue;
-            if (this.grid[row][col] !== TerrainMaterial.EMPTY) continue;
+        while (true) {
+            const key = py0 * this.width + px0;
 
-            const current = this._constructedByPlayer.get(playerId) ?? 0;
-            if (current >= MAX_CONSTRUCTED_PER_PLAYER) break;
+            if (!visited.has(key)) {
+                visited.add(key);
 
-            this.grid[row][col] = TerrainMaterial.CONSTRUCTED;
-            this._constructedByPlayer.set(playerId, current + 1);
-            created++;
+                if (px0 >= 0 && px0 < this.width && py0 >= 0 && py0 < this.height) {
+                    if (this.bitmap[key] === TerrainMaterial.EMPTY) {
+                        const current = this._constructedByPlayer.get(playerId) ?? 0;
+                        if (current >= MAX_CONSTRUCTED_PER_PLAYER) break;
+
+                        this.bitmap[key] = TerrainMaterial.CONSTRUCTED;
+                        this._constructedByPlayer.set(playerId, current + 1);
+                        created++;
+                    }
+                }
+            }
+
+            if (px0 === px1 && py0 === py1) break;
+
+            const e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                px0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                py0 += sy;
+            }
         }
 
         return created;
     }
 
-    placeRunicBlock(
-        cx: number,
-        cy: number,
-        size: number,
-        playerId: string,
-    ): number {
-        const centerCol = Math.floor(cx / CELL_SIZE);
-        const centerRow = Math.floor(cy / CELL_SIZE);
-        const half = Math.floor(size / 2);
-        let created = 0;
+    placeRunicBlock(wx: number, wy: number, playerId: string): boolean {
+        const px = Math.floor(wx);
+        const py = Math.floor(wy);
 
-        for (let row = centerRow - half; row <= centerRow + half; row++) {
-            for (let col = centerCol - half; col <= centerCol + half; col++) {
-                if (!this.isInBounds(col, row)) continue;
-                if (this.grid[row][col] !== TerrainMaterial.EMPTY) continue;
-
-                const current = this._constructedByPlayer.get(playerId) ?? 0;
-                if (current >= MAX_CONSTRUCTED_PER_PLAYER) return created;
-
-                this.grid[row][col] = TerrainMaterial.CONSTRUCTED;
-                this._constructedByPlayer.set(playerId, current + 1);
-                created++;
-            }
+        if (px < 0 || px >= this.width || py < 0 || py >= this.height) {
+            return false;
         }
 
-        return created;
+        const idx = py * this.width + px;
+        if (this.bitmap[idx] !== TerrainMaterial.EMPTY) return false;
+
+        const current = this._constructedByPlayer.get(playerId) ?? 0;
+        if (current >= MAX_CONSTRUCTED_PER_PLAYER) return false;
+
+        this.bitmap[idx] = TerrainMaterial.CONSTRUCTED;
+        this._constructedByPlayer.set(playerId, current + 1);
+        return true;
     }
 
     getConstructedCount(playerId: string): number {
@@ -203,20 +231,26 @@ export class TerrainEngine {
         this._constructedByPlayer.delete(playerId);
     }
 
-    get worldWidth(): number {
-        return GRID_COLS * CELL_SIZE;
-    }
-    get worldHeight(): number {
-        return GRID_ROWS * CELL_SIZE;
-    }
-
-    getSpawnPoints(meta?: {
-        spawnPoints?: Array<{ col: number; row: number }>;
-    }): Array<{ col: number; row: number }> {
+    getSpawnPoints(meta?: MapMeta): Array<{ x: number; y: number }> {
         return meta?.spawnPoints ?? [];
     }
 
-    getGrid(): TerrainMaterial[][] {
-        return this.grid.map((row) => [...row]);
+    get worldWidth(): number {
+        return this.width;
+    }
+
+    get worldHeight(): number {
+        return this.height;
+    }
+
+    getBitmap(): Uint8Array {
+        return this.bitmap;
+    }
+
+    getBitmapDimensions(): { width: number; height: number } {
+        return { width: this.width, height: this.height };
     }
 }
+
+// Re-export world dimensions for convenience
+export { WORLD_WIDTH, WORLD_HEIGHT };

@@ -1,24 +1,12 @@
 export enum TerrainMaterial { EMPTY = 0, DESTRUCTIBLE = 1, INDESTRUCTIBLE = 2, CONSTRUCTED = 3 }
 
-export interface TerrainCell { x: number; y: number; material: TerrainMaterial; }
-
 export interface ExplosionResult {
-  cellsDestroyed: TerrainCell[];
   center: { x: number; y: number };
   radius: number;
 }
 
-export interface TerrainMaterialConfig {
-  type: TerrainMaterial;
-  color: number;
-  destructible: boolean;
-}
+export const WORLD_WIDTH = 1672;
+export const WORLD_HEIGHT = 941;
 
-export const TERRAIN_MATERIAL_CONFIGS: Record<TerrainMaterial, TerrainMaterialConfig> = {
-  [TerrainMaterial.EMPTY]:          { type: TerrainMaterial.EMPTY,          color: 0x000000, destructible: false },
-  [TerrainMaterial.DESTRUCTIBLE]:   { type: TerrainMaterial.DESTRUCTIBLE,   color: 0x8B4513, destructible: true  },
-  [TerrainMaterial.INDESTRUCTIBLE]: { type: TerrainMaterial.INDESTRUCTIBLE, color: 0x444444, destructible: false },
-  [TerrainMaterial.CONSTRUCTED]:   { type: TerrainMaterial.CONSTRUCTED,   color: 0x44AA44, destructible: true  },
-};
-
-export const CELL_SIZE = 8; // pixels por célula
+/** @deprecated alias mantido para compatibilidade; valor agora é 1 (bitmap pixel-based) */
+export const CELL_SIZE = 1; // pixels por célula (deprecado)

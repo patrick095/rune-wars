@@ -79,8 +79,7 @@ export class DungeonScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.add.rectangle(width / 2, height / 2, width, height, 0x141725);
     this.terrainEngine = new TerrainEngine(MAPS[this.phase.map].grid);
-    this.terrainRenderer = new TerrainRenderer(this, this.terrainEngine, this.phase.map);
-    this.terrainRenderer.renderFull();
+    this.terrainRenderer = new TerrainRenderer(this, 'terrain_dungeon_bg', `map_${this.phase.map}_terrain`);
     this.enemyRenderer = new EnemyRenderer(this);
 
     this.placeActors();
@@ -368,7 +367,6 @@ export class DungeonScene extends Phaser.Scene {
       if (enemy.type === 'GOLEM_MINOR') {
         const message = this.golem.applyPhaseAction(this.terrainEngine, this.player.x, this.player.y, enemy.hp, enemy.maxHp);
         this.infoText.setText(`${this.phase.name}\n${message}`);
-        this.terrainRenderer.renderFull();
       }
       this.engine.applyEnemyTurn(enemy);
     }

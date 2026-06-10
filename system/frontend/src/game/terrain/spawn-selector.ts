@@ -1,9 +1,8 @@
 import { TerrainEngine } from '../../app/shared/game-core/terrain-engine';
-import { CELL_SIZE } from '../../app/shared/game-core/terrain-types';
 
 export interface SpawnPoint {
-  col: number;
-  row: number;
+  x: number;
+  y: number;
 }
 
 export function selectSpawns(spawnPoints: SpawnPoint[], count: number, engine?: TerrainEngine): SpawnPoint[] {
@@ -11,11 +10,9 @@ export function selectSpawns(spawnPoints: SpawnPoint[], count: number, engine?: 
 
   if (engine) {
     candidates = spawnPoints.filter(spawn => {
-      const worldX = (spawn.col + 0.5) * CELL_SIZE;
-      const worldY = spawn.row * CELL_SIZE + 3 * CELL_SIZE;
-      const floor = engine.getFloorBelow(worldX, worldY);
+      const floor = engine.getFloorBelow(spawn.x, spawn.y);
       if (floor === null) {
-        console.warn(`[Spawn] Ponto (${spawn.col}, ${spawn.row}) descartado: sem chão próximo`);
+        console.warn(`[Spawn] Ponto (${spawn.x}, ${spawn.y}) descartado: sem chão próximo`);
         return false;
       }
       return true;
@@ -36,12 +33,12 @@ export function selectSpawns(spawnPoints: SpawnPoint[], count: number, engine?: 
 
 export function spawnToWorld(
   spawn: SpawnPoint,
-  cellSize: number,
+  _cellSize: number,
   charHeight: number
 ): { x: number; y: number } {
   return {
-    x: (spawn.col + 0.5) * cellSize,
-    y: spawn.row * cellSize - charHeight / 2,
+    x: spawn.x,
+    y: spawn.y - charHeight / 2,
   };
 }
 
