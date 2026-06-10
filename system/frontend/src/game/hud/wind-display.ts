@@ -1,196 +1,138 @@
 import Phaser from 'phaser';
 
-const BOX_W = 200;
-const BOX_H = 40;
-const BAR_W = 180;
-const BAR_H = 10;
-const DEPTH = 20;
+const DEPTH = 36;
+// Timer cy=49, outer r=52 → bottom at y=101. Wind must start well below that.
+const WIND_Y = 160;
 
 export class WindDisplay {
   private container!: Phaser.GameObjects.Container;
   private bg!: Phaser.GameObjects.Graphics;
-  private barBg!: Phaser.GameObjects.Graphics;
-  private barFill!: Phaser.GameObjects.Graphics;
-  private arrowText!: Phaser.GameObjects.Text;
-  private valueText!: Phaser.GameObjects.Text;
-  private labelText!: Phaser.GameObjects.Text;
-  private lastShotText!: Phaser.GameObjects.Text;
-  private arrowTween?: Phaser.Tweens.Tween;
+  private label!: Phaser.GameObjects.Text;
+  private arrow!: Phaser.GameObjects.Text;
+  private value!: Phaser.GameObjects.Text;
+  private lastShot!: Phaser.GameObjects.Text;
+  private tween?: Phaser.Tweens.Tween;
 
   create(scene: Phaser.Scene): void {
-    const cx = scene.scale.width / 2;
-    const cy = 8;
+    this.container = scene.add.container(scene.scale.width / 2, WIND_Y)
+      .setDepth(DEPTH)
+      .setScrollFactor(0);
 
-    this.container = scene.add.container(cx, cy);
-    this.container.setDepth(DEPTH).setScrollFactor(0);
-
-    // Label "VENTO" acima da caixa
-    this.labelText = scene.add.text(0, -14, 'VENTO', {
-      fontSize: '10px',
-      color: '#aaaaaa',
-      fontFamily: 'monospace',
-    }).setOrigin(0.5, 1);
-
-    // Fundo semitransparente
     this.bg = scene.add.graphics();
-    this.bg.fillStyle(0x000000, 0.6);
-    this.bg.fillRoundedRect(-BOX_W / 2, 0, BOX_W, BOX_H, 6);
-    this.bg.lineStyle(1, 0x444444, 0.8);
-    this.bg.strokeRoundedRect(-BOX_W / 2, 0, BOX_W, BOX_H, 6);
 
-    // Fundo da barra
-    this.barBg = scene.add.graphics();
-    this.barBg.fillStyle(0x222222, 1);
-    this.barBg.fillRect(-BAR_W / 2, 6, BAR_W, BAR_H);
-
-    // Preenchimento da barra (será redesenhado no update)
-    this.barFill = scene.add.graphics();
-
-    // Linha central da barra
-    const centerMark = scene.add.graphics();
-    centerMark.lineStyle(2, 0xffffff, 0.5);
-    centerMark.lineBetween(0, 5, 0, 17);
-
-    // Seta de direção (texto animado)
-    this.arrowText = scene.add.text(0, 18, '→', {
+    this.label = scene.add.text(-16, -13, 'VENTO', {
       fontSize: '14px',
-      color: '#ffffff',
+      color: '#d8c898',
       fontFamily: 'monospace',
+      fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5, 0);
+      strokeThickness: 3,
+    }).setOrigin(1, 0.5);
 
-    // Valor numérico (ex: "→ 42")
-    this.valueText = scene.add.text(0, 22, '', {
-      fontSize: '11px',
-      color: '#ffffff',
+    this.arrow = scene.add.text(4, 8, '→', {
+      fontSize: '32px',
+      color: '#55d934',
       fontFamily: 'monospace',
+      fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5, 0);
+      strokeThickness: 4,
+    }).setOrigin(0.5);
 
-    // Último tiro (abaixo da caixa)
-    this.lastShotText = scene.add.text(0, BOX_H + 4, '', {
-      fontSize: '10px',
-      color: '#aaaaaa',
+    this.value = scene.add.text(42, 7, '0.0', {
+      fontSize: '28px',
+      color: '#2eff72',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      stroke: '#001800',
+      strokeThickness: 4,
+    }).setOrigin(0, 0.5);
+
+    this.lastShot = scene.add.text(0, 32, '', {
+      fontSize: '12px',
+      color: '#c8b890',
       fontFamily: 'monospace',
       stroke: '#000000',
       strokeThickness: 2,
     }).setOrigin(0.5, 0).setVisible(false);
 
-    this.container.add([
-      this.labelText,
-      this.bg,
-      this.barBg,
-      this.barFill,
-      centerMark,
-      this.arrowText,
-      this.valueText,
-      this.lastShotText,
-    ]);
-
-    // Renderização inicial com vento zero
-    this._renderBar(0);
-    this._updateArrow(scene, 0);
+    this.container.add([this.bg, this.label, this.arrow, this.value, this.lastShot]);
+    this.drawBg();
+    scene.scale.on('resize', this.handleResize, this);
   }
 
   update(windX: number, _windY: number): void {
-    // windX: -1.0 (esquerda) a 1.0 (direita)
-    const clamped = Math.max(-1, Math.min(1, windX));
-    const intensity = Math.abs(clamped);
-    const intVal = Math.round(intensity * 100);
-    const dir = clamped >= 0 ? '→' : '←';
+    const displayWind = Phaser.Math.Clamp(windX, -10, 10);
+    const dir = displayWind >= 0 ? '→' : '←';
+    const abs = Math.abs(displayWind);
+    const color = abs < 3 ? '#41d9ff' : abs < 7 ? '#ffdf4d' : '#ff5d42';
 
-    this.valueText.setText(`${dir} ${intVal}`);
-
-    this._renderBar(clamped);
-    this._animateArrow(clamped);
+    this.arrow.setText(dir).setColor(color);
+    this.value.setText(abs.toFixed(1)).setColor(color);
+    this.animateArrow(displayWind);
   }
 
   setLastShot(force: number, angle: number): void {
-    this.lastShotText.setText(`Força: ${force} | Ângulo: ${angle.toFixed(1)}°`);
-    this.lastShotText.setVisible(true);
+    this.lastShot.setText(`ULTIMO ${Math.round(force)}% / ${Math.round(angle)}°`).setVisible(true);
   }
 
-  // ──────────────────────────────────────────────
-  // Internals
-  // ──────────────────────────────────────────────
-
-  private _renderBar(windX: number): void {
-    this.barFill.clear();
-
-    if (windX === 0) return;
-
-    const intensity = Math.abs(windX); // 0–1
-    const halfBar = (BAR_W / 2) * intensity;
-
-    // Cor baseada na intensidade
-    let color: number;
-    if (intensity < 0.3) {
-      color = 0x4488ff; // azul
-    } else if (intensity < 0.7) {
-      color = 0xffdd44; // amarelo
-    } else {
-      color = 0xff4444; // vermelho
-    }
-
-    this.barFill.fillStyle(color, 1);
-
-    if (windX > 0) {
-      // Vento para a direita: preenche do centro para a direita
-      this.barFill.fillRect(0, 6, halfBar, BAR_H);
-    } else {
-      // Vento para a esquerda: preenche do centro para a esquerda
-      this.barFill.fillRect(-halfBar, 6, halfBar, BAR_H);
-    }
+  reset(): void {
+    this.lastShot.setVisible(false);
   }
 
-  private _animateArrow(windX: number): void {
-    const scene = this.container.scene;
-    if (!scene) return;
+  destroy(): void {
+    this.container?.scene?.scale.off('resize', this.handleResize, this);
+    this.tween?.stop();
+    this.container?.destroy(true);
+  }
 
-    const intensity = Math.abs(windX);
-    const dir = windX >= 0 ? '→' : '←';
-    const maxOffset = 20 * intensity;
-    const targetX = windX >= 0 ? maxOffset : -maxOffset;
+  private drawBg(): void {
+    this.bg.clear();
 
-    this.arrowText.setText(dir);
+    const w = 220;
+    const h = 54;
+    const x = -w / 2;
+    const y = -h / 2;
 
-    if (this.arrowTween) {
-      this.arrowTween.stop();
-    }
+    // Shadow
+    this.bg.fillStyle(0x000000, 0.5);
+    this.bg.fillRoundedRect(x + 3, y + 3, w, h, 7);
 
-    this.arrowTween = scene.tweens.add({
-      targets: this.arrowText,
-      x: { from: -targetX, to: targetX },
-      duration: Math.max(300, 800 - intensity * 500),
-      ease: 'Sine.easeInOut',
+    // Main background
+    this.bg.fillStyle(0x0d0b07, 0.9);
+    this.bg.fillRoundedRect(x, y, w, h, 7);
+
+    // Subtle top highlight
+    this.bg.fillStyle(0xfff0a0, 0.06);
+    this.bg.fillRoundedRect(x + 4, y + 3, w - 8, h * 0.4, 6);
+
+    // Outer gold border
+    this.bg.lineStyle(2.5, 0x7a5530, 1);
+    this.bg.strokeRoundedRect(x + 1.5, y + 1.5, w - 3, h - 3, 7);
+
+    // Inner thin accent
+    this.bg.lineStyle(1, 0xd8a850, 0.4);
+    this.bg.strokeRoundedRect(x + 6, y + 6, w - 12, h - 12, 5);
+
+    // Vertical divider after label
+    this.bg.lineStyle(1, 0x8a6030, 0.6);
+    this.bg.lineBetween(-14, y + 8, -14, y + h - 8);
+  }
+
+  private animateArrow(windX: number): void {
+    this.tween?.stop();
+    const offset = Math.max(4, Math.abs(windX) * 20);
+    this.tween = this.container.scene.tweens.add({
+      targets: this.arrow,
+      x: { from: windX >= 0 ? 4 - offset * 0.4 : 4 + offset * 0.4, to: windX >= 0 ? 4 + offset * 0.4 : 4 - offset * 0.4 },
+      duration: 650,
       yoyo: true,
       repeat: -1,
+      ease: 'Sine.easeInOut',
     });
   }
 
-  private _updateArrow(scene: Phaser.Scene, windX: number): void {
-    this.arrowText.setText(windX >= 0 ? '→' : '←');
-    this.arrowText.setX(0);
-
-    if (this.arrowTween) {
-      this.arrowTween.stop();
-    }
-
-    if (windX === 0) return;
-
-    const intensity = Math.abs(windX);
-    const maxOffset = 20 * intensity;
-    const targetX = windX >= 0 ? maxOffset : -maxOffset;
-
-    this.arrowTween = scene.tweens.add({
-      targets: this.arrowText,
-      x: { from: -targetX, to: targetX },
-      duration: Math.max(300, 800 - intensity * 500),
-      ease: 'Sine.easeInOut',
-      yoyo: true,
-      repeat: -1,
-    });
+  private handleResize(): void {
+    this.container.setPosition(this.container.scene.scale.width / 2, WIND_Y);
+    this.drawBg();
   }
 }

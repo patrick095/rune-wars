@@ -1,221 +1,259 @@
-import Phaser from 'phaser';
+import Phaser from "phaser";
 
-const TURN_DURATION = 20; // seconds
-const RING_RADIUS = 28;
-const RING_THICKNESS = 5;
-const DEPTH = 20;
+const TURN_DURATION = 20;
+const DEPTH = 38;
 
-type TimerState = 'idle' | 'running' | 'charging' | 'done';
+type TimerState = "idle" | "running" | "charging" | "done";
 
 export class TurnTimer {
-  private scene: Phaser.Scene | null = null;
-  private graphics: Phaser.GameObjects.Graphics | null = null;
-  private label: Phaser.GameObjects.Text | null = null;
-  private timerEvent: Phaser.Time.TimerEvent | null = null;
-  private pulseTween: Phaser.Tweens.Tween | null = null;
+    private scene: Phaser.Scene | null = null;
+    private graphics: Phaser.GameObjects.Graphics | null = null;
+    private label: Phaser.GameObjects.Text | null = null;
+    private caption: Phaser.GameObjects.Text | null = null;
+    private timerEvent: Phaser.Time.TimerEvent | null = null;
+    private pulseTween: Phaser.Tweens.Tween | null = null;
+    private elapsed = 0;
+    private state: TimerState = "idle";
+    private cx = 0;
+    private cy = 0;
 
-  private elapsed = 0; // seconds elapsed
-  private state: TimerState = 'idle';
-  private cx = 0;
-  private cy = 0;
+    start(scene: Phaser.Scene): void {
+        this.stop();
+        this.scene = scene;
+        this.elapsed = 0;
+        this.state = "running";
+        this.cx = scene.scale.width / 2;
+        this.cy = 70;
 
-  // ─────────────────────────────────────────────────────────
-  // Public API
-  // ─────────────────────────────────────────────────────────
+        this.graphics = scene.add.graphics().setDepth(DEPTH).setScrollFactor(0);
+        this.label = scene.add
+            .text(this.cx, this.cy - 4, String(TURN_DURATION), {
+                fontSize: "40px",
+                color: "#ffd485",
+                fontFamily: "Georgia, serif",
+                fontStyle: "bold",
+                stroke: "#160b03",
+                strokeThickness: 6,
+            })
+            .setOrigin(0.5)
+            .setDepth(DEPTH + 1)
+            .setScrollFactor(0);
+        this.caption = scene.add
+            .text(this.cx, this.cy + 26, "TURNO", {
+                fontSize: "13px",
+                color: "#ffe6ad",
+                fontFamily: "monospace",
+                fontStyle: "bold",
+                stroke: "#000000",
+                strokeThickness: 3,
+            })
+            .setOrigin(0.5)
+            .setDepth(DEPTH + 1)
+            .setScrollFactor(0);
 
-  /** Initialise and start the 20-second countdown. */
-  start(scene: Phaser.Scene): void {
-    this.stop(); // clean up any previous run
-
-    this.scene = scene;
-    this.elapsed = 0;
-    this.state = 'running';
-
-    this.cx = scene.scale.width / 2;
-    this.cy = 54; // centre-top, above WindDisplay
-
-    this.graphics = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH);
-    this.label = scene.add
-      .text(this.cx, this.cy, '', {
-        fontSize: '14px',
-        color: '#ffffff',
-        fontFamily: 'monospace',
-        stroke: '#000000',
-        strokeThickness: 3,
-      })
-      .setScrollFactor(0)
-      .setOrigin(0.5, 0.5)
-      .setDepth(DEPTH + 1);
-
-    // Tick every 100 ms for smooth ring redraw
-    this.timerEvent = scene.time.addEvent({
-      delay: 100,
-      loop: true,
-      callback: this.onTick,
-      callbackScope: this,
-    });
-
-    this.redraw();
-  }
-
-  /** Freeze the ring in blue while the player is charging a shot. */
-  pauseForCharge(): void {
-    if (!this.scene || this.state === 'idle' || this.state === 'done') return;
-    this.state = 'charging';
-    this.stopPulseTween();
-    this.redraw();
-  }
-
-  /** Resume countdown after charge is cancelled / released. */
-  resumeFromCharge(): void {
-    if (!this.scene || this.state !== 'charging') return;
-    this.state = 'running';
-    this.redraw();
-  }
-
-  /** Called when the player's shot reaches 100% power → emit auto-fire. */
-  onPowerMax(): void {
-    if (!this.scene) return;
-    this.scene.events.emit('charge:autofire');
-    this.stopTimer();
-  }
-
-  /** Remove all game objects and cancel events. */
-  stop(): void {
-    this.stopTimer();
-    this.stopPulseTween();
-    this.graphics?.destroy();
-    this.label?.destroy();
-    this.graphics = null;
-    this.label = null;
-    this.scene = null;
-    this.state = 'idle';
-    this.elapsed = 0;
-  }
-
-  // ─────────────────────────────────────────────────────────
-  // Internal helpers
-  // ─────────────────────────────────────────────────────────
-
-  private onTick(): void {
-    if (this.state !== 'running') return;
-
-    this.elapsed += 0.1; // 100 ms per tick
-
-    if (this.elapsed >= TURN_DURATION) {
-      this.elapsed = TURN_DURATION;
-      this.state = 'done';
-      this.redraw();
-      this.stopTimer();
-      this.scene?.events.emit('turn:expired');
-      return;
+        this.timerEvent = scene.time.addEvent({
+            delay: 100,
+            loop: true,
+            callback: this.onTick,
+            callbackScope: this,
+        });
+        scene.scale.on("resize", this.handleResize, this);
+        this.redraw();
     }
 
-    this.redraw();
-  }
-
-  private redraw(): void {
-    if (!this.graphics || !this.label || !this.scene) return;
-
-    const remaining = TURN_DURATION - this.elapsed;
-    const progress = this.elapsed / TURN_DURATION; // 0 → 1
-
-    this.graphics.clear();
-
-    if (this.state === 'done') {
-      this.label.setVisible(false);
-      return;
+    pauseForCharge(): void {
+        if (!this.scene || this.state === "idle" || this.state === "done")
+            return;
+        this.state = "charging";
+        this.redraw();
     }
 
-    // ── Determine colour & urgency based on state ──────────
-    let ringColor: number;
-    let urgency: 'none' | 'slow' | 'fast' = 'none';
-    let labelText = `${Math.ceil(remaining)}s`;
-
-    if (this.state === 'charging') {
-      ringColor = 0x4488ff;
-      urgency = 'none';
-      labelText = 'Carregando...';
-    } else if (remaining > 10) {
-      ringColor = 0xffffff;
-      urgency = 'none';
-    } else if (remaining > 5) {
-      ringColor = 0xffdd00;
-      urgency = 'slow';
-    } else {
-      ringColor = 0xff3333;
-      urgency = 'fast';
+    resumeFromCharge(): void {
+        if (!this.scene || this.state !== "charging") return;
+        this.state = "running";
+        this.redraw();
     }
 
-    // ── Draw background track ──────────────────────────────
-    this.graphics.lineStyle(RING_THICKNESS, 0x333333, 0.5);
-    this.graphics.beginPath();
-    this.graphics.arc(this.cx, this.cy, RING_RADIUS, 0, Math.PI * 2, false);
-    this.graphics.strokePath();
-
-    // ── Draw foreground arc (counter-clockwise depletion) ──
-    const startAngle = -Math.PI / 2; // 12 o'clock
-    const endAngle = startAngle + (1 - progress) * Math.PI * 2;
-
-    this.graphics.lineStyle(RING_THICKNESS, ringColor, 1);
-    this.graphics.beginPath();
-    this.graphics.arc(this.cx, this.cy, RING_RADIUS, startAngle, endAngle, false);
-    this.graphics.strokePath();
-
-    // ── Label ──────────────────────────────────────────────
-    this.label.setText(labelText);
-    this.label.setPosition(this.cx, this.cy);
-    const hexStr = '#' + ringColor.toString(16).padStart(6, '0');
-    this.label.setColor(hexStr);
-    this.label.setVisible(true);
-
-    // ── Pulse tweens ───────────────────────────────────────
-    this.updatePulseTween(urgency);
-  }
-
-  private currentUrgency: 'none' | 'slow' | 'fast' = 'none';
-
-  private updatePulseTween(urgency: 'none' | 'slow' | 'fast'): void {
-    if (urgency === this.currentUrgency) return;
-    this.currentUrgency = urgency;
-    this.stopPulseTween();
-
-    if (!this.scene || !this.label) return;
-
-    if (urgency === 'none') {
-      this.label.setScale(1).setAlpha(1);
-      return;
+    reset(): void {
+        if (!this.scene) return;
+        this.elapsed = 0;
+        this.state = "running";
+        this.stopPulse();
+        if (!this.timerEvent) {
+            this.timerEvent = this.scene.time.addEvent({
+                delay: 100,
+                loop: true,
+                callback: this.onTick,
+                callbackScope: this,
+            });
+        }
+        this.redraw();
     }
 
-    const duration = urgency === 'slow' ? 600 : 250;
-
-    this.pulseTween = this.scene.tweens.add({
-      targets: this.label,
-      scaleX: 1.25,
-      scaleY: 1.25,
-      alpha: { from: 1, to: 0.6 },
-      duration,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-  }
-
-  private stopPulseTween(): void {
-    if (this.pulseTween) {
-      this.pulseTween.stop();
-      this.pulseTween = null;
-      this.currentUrgency = 'none';
-      if (this.label) {
-        this.label.setScale(1).setAlpha(1);
-      }
+    onPowerMax(): void {
+        this.scene?.events.emit("charge:autofire");
+        this.stopTimer();
     }
-  }
 
-  private stopTimer(): void {
-    if (this.timerEvent) {
-      this.timerEvent.remove(false);
-      this.timerEvent = null;
+    stop(): void {
+        this.stopTimer();
+        this.stopPulse();
+        this.scene?.scale.off("resize", this.handleResize, this);
+        this.graphics?.destroy();
+        this.label?.destroy();
+        this.caption?.destroy();
+        this.graphics = null;
+        this.label = null;
+        this.caption = null;
+        this.scene = null;
+        this.state = "idle";
+        this.elapsed = 0;
     }
-  }
+
+    private onTick(): void {
+        if (this.state !== "running") return;
+        this.elapsed += 0.1;
+        if (this.elapsed >= TURN_DURATION) {
+            this.elapsed = TURN_DURATION;
+            this.state = "done";
+            this.redraw();
+            this.stopTimer();
+            this.scene?.events.emit("turn:expired");
+            return;
+        }
+        this.redraw();
+    }
+
+    private redraw(): void {
+        if (!this.graphics || !this.label || !this.caption || !this.scene)
+            return;
+        const remaining = Math.max(0, TURN_DURATION - this.elapsed);
+        const pct = remaining / TURN_DURATION;
+        const urgent = remaining <= 5;
+        const charging = this.state === "charging";
+
+        const arcColor = urgent ? 0xff503c : charging ? 0x41c8ff : 0xc89a45;
+
+        this.graphics.clear();
+
+        // ── Outer decorative ring ─────────────────────────────────────────────
+        // Shadow
+        this.graphics.fillStyle(0x000000, 0.5);
+        this.graphics.fillCircle(this.cx + 3, this.cy + 3, 52);
+
+        // Outermost dark ring
+        this.graphics.fillStyle(0x0c0a06, 1);
+        this.graphics.fillCircle(this.cx, this.cy, 52);
+
+        // Outer gold decorative ring stroke
+        this.graphics.lineStyle(3, 0x8a6530, 0.85);
+        this.graphics.strokeCircle(this.cx, this.cy, 52);
+
+        // Thin gold inner ring on outermost
+        this.graphics.lineStyle(1, 0xd8a850, 0.4);
+        this.graphics.strokeCircle(this.cx, this.cy, 48);
+
+        // ── Inner body ────────────────────────────────────────────────────────
+        this.graphics.fillStyle(0x20170e, 1);
+        this.graphics.fillCircle(this.cx, this.cy, 44);
+
+        // Thick outer ring of inner body
+        this.graphics.lineStyle(7, 0x2e2018, 1);
+        this.graphics.strokeCircle(this.cx, this.cy, 44);
+
+        // ── Progress arc ──────────────────────────────────────────────────────
+        // Arc background (full circle, dark)
+        this.graphics.lineStyle(5, 0x1a1208, 0.9);
+        this.graphics.beginPath();
+        this.graphics.arc(this.cx, this.cy, 39, 0, Math.PI * 2);
+        this.graphics.strokePath();
+
+        // Arc fill (progress)
+        this.graphics.lineStyle(5, arcColor, 1);
+        this.graphics.beginPath();
+        this.graphics.arc(
+            this.cx,
+            this.cy,
+            39,
+            -Math.PI / 2,
+            -Math.PI / 2 + pct * Math.PI * 2,
+            false,
+        );
+        this.graphics.strokePath();
+
+        // ── Inner face ────────────────────────────────────────────────────────
+        this.graphics.fillStyle(0x18110a, 1);
+        this.graphics.fillCircle(this.cx, this.cy, 33);
+
+        // Face ring
+        this.graphics.lineStyle(1.5, 0x6a4820, 0.7);
+        this.graphics.strokeCircle(this.cx, this.cy, 33);
+
+        // Center glow (charging = blue tint, urgent = red tint)
+        if (charging || urgent) {
+            const glowColor = charging ? 0x001840 : 0x300000;
+            this.graphics.fillStyle(glowColor, 0.5);
+            this.graphics.fillCircle(this.cx, this.cy, 30);
+        }
+
+        // ── Small tick marks ──────────────────────────────────────────────────
+        for (let i = 0; i < 20; i++) {
+            const a = (i / 20) * Math.PI * 2 - Math.PI / 2;
+            const major = i % 5 === 0;
+            const r1 = major ? 43 : 41;
+            const r2 = 45;
+            this.graphics.lineStyle(
+                major ? 2 : 1,
+                major ? 0xb08040 : 0x806030,
+                major ? 0.9 : 0.5,
+            );
+            this.graphics.lineBetween(
+                this.cx + Math.cos(a) * r1,
+                this.cy + Math.sin(a) * r1,
+                this.cx + Math.cos(a) * r2,
+                this.cy + Math.sin(a) * r2,
+            );
+        }
+
+        // Text update
+        this.label.setText(String(Math.ceil(remaining)));
+        this.label.setColor(
+            urgent ? "#ff5d42" : charging ? "#7bdcff" : "#ffd485",
+        );
+        this.caption.setText(charging ? "MIRA" : "TURNO");
+
+        if (urgent && !this.pulseTween) {
+            this.pulseTween = this.scene.tweens.add({
+                targets: [this.label, this.caption],
+                scaleX: 1.14,
+                scaleY: 1.14,
+                duration: 260,
+                yoyo: true,
+                repeat: -1,
+            });
+        } else if (!urgent) {
+            this.stopPulse();
+        }
+    }
+
+    private handleResize(): void {
+        if (!this.scene) return;
+        this.cx = this.scene.scale.width / 2;
+        this.cy = 49;
+        this.label?.setPosition(this.cx, this.cy - 4);
+        this.caption?.setPosition(this.cx, this.cy + 26);
+        this.redraw();
+    }
+
+    private stopTimer(): void {
+        this.timerEvent?.remove(false);
+        this.timerEvent = null;
+    }
+
+    private stopPulse(): void {
+        this.pulseTween?.stop();
+        this.pulseTween = null;
+        this.label?.setScale(1);
+        this.caption?.setScale(1);
+    }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, effect, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, effect, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { GameEventBusService, GameScreenEvent } from './shared/services/game-event-bus.service';
@@ -56,11 +56,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   /** Controls the opacity transition class */
   screenActive = signal(false);
-
-  /** True for modal-type screens that should show the backdrop */
-  isModalScreen = computed(() =>
-    ['character', 'craft', 'upgrade', 'market', 'guild', 'rankings', 'academy'].includes(this.navigator.screen())
-  );
 
   private subs = new Subscription();
 

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "itemId": "bracelet_strength",
+  "name": "Bracelete da Forca",
+  "slot": "gloves",
+  "legacySlot": "bracelet",
+  "icon": "icon.png",
+  "iconSize": {
+    "width": 144,
+    "height": 144
+  },
+  "animationStates": {},
+  "sourceMode": "icon-only",
+  "notes": [
+    "This item is currently icon-only and does not render as a character layer."
+  ]
+}

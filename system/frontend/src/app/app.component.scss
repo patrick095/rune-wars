@@ -40,14 +40,6 @@
     min-height: 0;
 }
 
-.modal-backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: 199;
-    background: rgba(0, 0, 0, 0.6);
-    cursor: pointer;
-}
-
 .game-overlay {
     position: absolute;
     top: 0;

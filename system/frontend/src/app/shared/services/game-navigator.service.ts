@@ -18,6 +18,9 @@ export type GameScreen =
 export interface BattleConfig {
   mapName: string;
   vsAI: boolean;
+  roomName?: string;
+  playerName?: string;
+  opponentName?: string;
 }
 
 @Injectable({ providedIn: 'root' })

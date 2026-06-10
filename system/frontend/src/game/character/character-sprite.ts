@@ -1,112 +1,53 @@
 import Phaser from 'phaser';
+import {
+  RUNE_WARS_RENDER_ORDER,
+  RuneWarsAnimationState,
+  RuneWarsCharacterId,
+  RuneWarsCharacterLayer,
+  runeWarsCharacterLayerKey,
+} from '../assets/rune-wars-assets';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+export type Race = RuneWarsCharacterId;
+export type CharacterLayer = RuneWarsCharacterLayer;
 
-export type Race = 'human' | 'dwarf' | 'elf';
-
-export type EquipmentSlot =
-  | 'base'
-  | 'boots'
-  | 'armor'
-  | 'offhand'
-  | 'weapon'
-  | 'helmet'
-  | 'necklace'
-  | 'earring'
-  | 'ring';
-
-export interface SlotConfig {
+export interface LayerConfig {
   depth: number;
   offsetX: number;
   offsetY: number;
+  displayWidth: number;
+  displayHeight: number;
 }
 
-// ─── Slot depth order ─────────────────────────────────────────────────────────
-// base (0) → boots (1) → armor (2) → offhand (3) → weapon (4)
-//   → helmet (5) → necklace (6) → earring (7) → ring (8)
+const CHARACTER_W = 58;
+const CHARACTER_H = 72;
+const ITEM_W = 34;
+const ITEM_H = 34;
 
-const SLOT_DEPTH: Record<EquipmentSlot, number> = {
-  base:     0,
-  boots:    1,
-  armor:    2,
-  offhand:  3,
-  weapon:   4,
-  helmet:   5,
-  necklace: 6,
-  earring:  7,
-  ring:     8,
+const LAYER_CONFIGS: Record<CharacterLayer, LayerConfig> = {
+  back:   { depth: 0, offsetX: -28, offsetY: 2, displayWidth: ITEM_W, displayHeight: ITEM_H },
+  base:   { depth: 1, offsetX: 0, offsetY: 0, displayWidth: CHARACTER_W, displayHeight: CHARACTER_H },
+  armor:  { depth: 2, offsetX: 0, offsetY: 0, displayWidth: CHARACTER_W, displayHeight: CHARACTER_H },
+  face:   { depth: 3, offsetX: 0, offsetY: 0, displayWidth: CHARACTER_W, displayHeight: CHARACTER_H },
+  hair:   { depth: 4, offsetX: 0, offsetY: 0, displayWidth: CHARACTER_W, displayHeight: CHARACTER_H },
+  helmet: { depth: 5, offsetX: 0, offsetY: 0, displayWidth: CHARACTER_W, displayHeight: CHARACTER_H },
+  weapon: { depth: 6, offsetX: 32, offsetY: 2, displayWidth: ITEM_W, displayHeight: ITEM_H },
+  effect: { depth: 7, offsetX: 0, offsetY: 0, displayWidth: CHARACTER_W, displayHeight: CHARACTER_H },
 };
 
-// ─── SLOT_CONFIGS ─────────────────────────────────────────────────────────────
-// Placeholder offsets per race per slot.
-// Values are relative to the container origin (centre of character).
+const OPTIONAL_LAYER_ALPHA = 1;
 
-export const SLOT_CONFIGS: Record<Race, Record<EquipmentSlot, SlotConfig>> = {
-  human: {
-    base:     { depth: SLOT_DEPTH.base,     offsetX:   0, offsetY:   0 },
-    boots:    { depth: SLOT_DEPTH.boots,    offsetX:   0, offsetY:  20 },
-    armor:    { depth: SLOT_DEPTH.armor,    offsetX:   0, offsetY:   0 },
-    offhand:  { depth: SLOT_DEPTH.offhand,  offsetX: -16, offsetY:   4 },
-    weapon:   { depth: SLOT_DEPTH.weapon,   offsetX:  16, offsetY:   4 },
-    helmet:   { depth: SLOT_DEPTH.helmet,   offsetX:   0, offsetY: -22 },
-    necklace: { depth: SLOT_DEPTH.necklace, offsetX:   0, offsetY:  -6 },
-    earring:  { depth: SLOT_DEPTH.earring,  offsetX:  10, offsetY: -14 },
-    ring:     { depth: SLOT_DEPTH.ring,     offsetX:  14, offsetY:  10 },
-  },
-  dwarf: {
-    base:     { depth: SLOT_DEPTH.base,     offsetX:   0, offsetY:   0 },
-    boots:    { depth: SLOT_DEPTH.boots,    offsetX:   0, offsetY:  16 },
-    armor:    { depth: SLOT_DEPTH.armor,    offsetX:   0, offsetY:   0 },
-    offhand:  { depth: SLOT_DEPTH.offhand,  offsetX: -14, offsetY:   6 },
-    weapon:   { depth: SLOT_DEPTH.weapon,   offsetX:  14, offsetY:   6 },
-    helmet:   { depth: SLOT_DEPTH.helmet,   offsetX:   0, offsetY: -18 },
-    necklace: { depth: SLOT_DEPTH.necklace, offsetX:   0, offsetY:  -4 },
-    earring:  { depth: SLOT_DEPTH.earring,  offsetX:   8, offsetY: -12 },
-    ring:     { depth: SLOT_DEPTH.ring,     offsetX:  12, offsetY:   8 },
-  },
-  elf: {
-    base:     { depth: SLOT_DEPTH.base,     offsetX:   0, offsetY:   0 },
-    boots:    { depth: SLOT_DEPTH.boots,    offsetX:   0, offsetY:  22 },
-    armor:    { depth: SLOT_DEPTH.armor,    offsetX:   0, offsetY:   0 },
-    offhand:  { depth: SLOT_DEPTH.offhand,  offsetX: -18, offsetY:   4 },
-    weapon:   { depth: SLOT_DEPTH.weapon,   offsetX:  18, offsetY:   4 },
-    helmet:   { depth: SLOT_DEPTH.helmet,   offsetX:   0, offsetY: -26 },
-    necklace: { depth: SLOT_DEPTH.necklace, offsetX:   0, offsetY:  -8 },
-    earring:  { depth: SLOT_DEPTH.earring,  offsetX:  12, offsetY: -16 },
-    ring:     { depth: SLOT_DEPTH.ring,     offsetX:  16, offsetY:  12 },
-  },
-};
-
-// ─── Placeholder dimensions ───────────────────────────────────────────────────
-
-const PLACEHOLDER_W = 40;
-const PLACEHOLDER_H = 60;
-const PLACEHOLDER_COLOR = 0x4488ff;
-
-// ─── CharacterSprite ──────────────────────────────────────────────────────────
-
-/**
- * Manages a layered character made of one Phaser.GameObjects.Container with
- * one child per equipment slot.  Each child is either a Sprite (when the atlas
- * is available) or a Rectangle placeholder.
- */
 export class CharacterSprite {
-  /** The root container positioned in the scene. */
   readonly container: Phaser.GameObjects.Container;
 
-  /** Reference to the base layer sprite/placeholder (used by CharacterAnimator). */
-  get base(): Phaser.GameObjects.Sprite | Phaser.GameObjects.Rectangle | undefined {
+  get base(): Phaser.GameObjects.Sprite | undefined {
     return this._layers.get('base');
   }
 
   private readonly _scene: Phaser.Scene;
   private readonly _race: Race;
-  private readonly _layers = new Map<
-    EquipmentSlot,
-    Phaser.GameObjects.Sprite | Phaser.GameObjects.Rectangle
-  >();
-
-  // ── Constructor ────────────────────────────────────────────────────────────
+  private readonly _layers = new Map<CharacterLayer, Phaser.GameObjects.Sprite>();
+  private _state: RuneWarsAnimationState = 'battle';
+  private _flipX = false;
 
   private constructor(scene: Phaser.Scene, race: Race, x: number, y: number) {
     this._scene = scene;
@@ -114,100 +55,92 @@ export class CharacterSprite {
     this.container = scene.add.container(x, y);
   }
 
-  // ── Static factory ─────────────────────────────────────────────────────────
-
-  /**
-   * Creates and initialises a CharacterSprite.  The `base` slot is
-   * always rendered (using a placeholder Rectangle when the atlas is absent).
-   */
   static create(scene: Phaser.Scene, race: Race, x: number, y: number): CharacterSprite {
-    const cs = new CharacterSprite(scene, race, x, y);
-    cs._initBase();
-    return cs;
+    const character = new CharacterSprite(scene, race, x, y);
+    character.createCharacterLayers('battle');
+    return character;
   }
 
-  // ── Public API ─────────────────────────────────────────────────────────────
-
-  /**
-   * Equip a slot with the given texture key.
-   * If the texture is not loaded, a Rectangle placeholder is used instead.
-   */
-  equip(slot: EquipmentSlot, textureKey: string): void {
-    // Remove existing layer for this slot first
-    this._removeLayer(slot);
-
-    const cfg = SLOT_CONFIGS[this._race][slot];
-    const layer = this._buildLayer(slot, textureKey, cfg);
-    this._layers.set(slot, layer);
-    this.container.add(layer);
+  setState(state: RuneWarsAnimationState): void {
+    this._state = state;
+    for (const layer of RUNE_WARS_RENDER_ORDER) {
+      const sprite = this._layers.get(layer);
+      const nextKey = runeWarsCharacterLayerKey(this._race, layer, state);
+      if (sprite && this._scene.textures.exists(nextKey)) {
+        sprite.setTexture(nextKey);
+      }
+    }
   }
 
-  /**
-   * Unequip a slot – removes the layer from the container entirely.
-   * The `base` slot is never removed.
-   */
-  unequip(slot: EquipmentSlot): void {
-    if (slot === 'base') return; // base is always present
-    this._removeLayer(slot);
+  equip(layer: CharacterLayer, textureKey: string): void {
+    this.setLayerTexture(layer, textureKey, OPTIONAL_LAYER_ALPHA);
   }
 
-  /** Move the container (and all layers) to world coordinates. */
+  unequip(layer: CharacterLayer): void {
+    if (layer === 'base') return;
+    const fallback = runeWarsCharacterLayerKey(this._race, layer, this._state);
+    this.setLayerTexture(layer, fallback, OPTIONAL_LAYER_ALPHA);
+  }
+
   setPosition(x: number, y: number): void {
     this.container.setPosition(x, y);
   }
 
-  /** Destroy the container and all its children. */
+  setAlpha(alpha: number): void {
+    this.container.setAlpha(alpha);
+  }
+
+  setFlipX(flipX: boolean): void {
+    this._flipX = flipX;
+    this.container.setScale(flipX ? -1 : 1, 1);
+  }
+
   destroy(): void {
     this.container.destroy(true);
     this._layers.clear();
   }
 
-  // ── Private helpers ────────────────────────────────────────────────────────
-
-  private _initBase(): void {
-    const cfg = SLOT_CONFIGS[this._race].base;
-    const atlasKey = `characters_${this._race}`;
-    const layer = this._buildLayer('base', atlasKey, cfg);
-    this._layers.set('base', layer);
-    this.container.add(layer);
+  private createCharacterLayers(state: RuneWarsAnimationState): void {
+    this._state = state;
+    for (const layer of RUNE_WARS_RENDER_ORDER) {
+      const textureKey = runeWarsCharacterLayerKey(this._race, layer, state);
+      this.createLayer(layer, textureKey);
+    }
+    this.setFlipX(this._flipX);
   }
 
-  private _buildLayer(
-    slot: EquipmentSlot,
-    textureKey: string,
-    cfg: SlotConfig
-  ): Phaser.GameObjects.Sprite | Phaser.GameObjects.Rectangle {
-    const textureExists = this._scene.textures.exists(textureKey);
+  private createLayer(layer: CharacterLayer, textureKey: string): void {
+    const cfg = LAYER_CONFIGS[layer];
+    const sprite = this._scene.add.sprite(cfg.offsetX, cfg.offsetY, textureKey);
+    sprite
+      .setDisplaySize(cfg.displayWidth, cfg.displayHeight)
+      .setDepth(cfg.depth)
+      .setAlpha(layer === 'base' ? 1 : OPTIONAL_LAYER_ALPHA);
 
-    if (textureExists) {
-      // Try to use first frame of the atlas; fall back to placeholder on error
-      try {
-        const sprite = this._scene.add.sprite(cfg.offsetX, cfg.offsetY, textureKey);
-        sprite.setDepth(cfg.depth);
-        return sprite;
-      } catch {
-        console.warn(`[CharacterSprite] Failed to create sprite for slot "${slot}" with key "${textureKey}". Using placeholder.`);
-      }
-    }
-
-    // Fallback placeholder
-    const rect = this._scene.add.rectangle(
-      cfg.offsetX,
-      cfg.offsetY,
-      PLACEHOLDER_W,
-      PLACEHOLDER_H,
-      PLACEHOLDER_COLOR,
-      slot === 'base' ? 1 : 0.5
-    );
-    rect.setDepth(cfg.depth);
-    return rect;
+    this._layers.set(layer, sprite);
+    this.container.add(sprite);
   }
 
-  private _removeLayer(slot: EquipmentSlot): void {
-    const existing = this._layers.get(slot);
-    if (existing) {
-      this.container.remove(existing, true);
-      this._layers.delete(slot);
+  private setLayerTexture(layer: CharacterLayer, textureKey: string, alpha: number): void {
+    if (!this._scene.textures.exists(textureKey)) {
+      const sprite = this._layers.get(layer);
+      if (sprite && layer !== 'base') sprite.setVisible(false);
+      return;
     }
+
+    let sprite = this._layers.get(layer);
+    if (!sprite) {
+      this.createLayer(layer, textureKey);
+      sprite = this._layers.get(layer);
+    } else {
+      sprite.setTexture(textureKey).setVisible(true);
+    }
+
+    const cfg = LAYER_CONFIGS[layer];
+    sprite
+      ?.setPosition(cfg.offsetX, cfg.offsetY)
+      .setDisplaySize(cfg.displayWidth, cfg.displayHeight)
+      .setAlpha(alpha)
+      .setDepth(cfg.depth);
   }
 }

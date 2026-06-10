@@ -110,12 +110,24 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
 
   vsAI(): void {
     this.skipLeaveOnDestroy = true;
-    this.navigator.launchBattle({ mapName: this.selectedMap, vsAI: true });
+    this.navigator.launchBattle({
+      mapName: this.selectedMap,
+      vsAI: true,
+      roomName: this.room?.name,
+      playerName: this.playerName,
+      opponentName: 'Inimigo',
+    });
   }
 
   waitForPlayer(): void {
     this.skipLeaveOnDestroy = true;
-    this.navigator.launchBattle({ mapName: this.selectedMap, vsAI: false });
+    this.navigator.launchBattle({
+      mapName: this.selectedMap,
+      vsAI: false,
+      roomName: this.room?.name,
+      playerName: this.playerName,
+      opponentName: this.secondSlotLabel !== 'Aguardando...' ? this.secondSlotLabel : 'Oponente',
+    });
   }
 
   goLobby(): void {

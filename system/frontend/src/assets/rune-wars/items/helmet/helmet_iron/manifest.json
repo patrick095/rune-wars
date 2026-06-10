@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "itemId": "helmet_iron",
+  "name": "Elmo de Ferro",
+  "slot": "helmet",
+  "visualLayer": "helmet",
+  "icon": "icon.png",
+  "iconSize": {
+    "width": 144,
+    "height": 144
+  },
+  "animationStates": {
+    "idle": [
+      "idle_0.png"
+    ]
+  },
+  "sourceMode": "icon-as-initial-layer-placeholder",
+  "notes": [
+    "Layer frame is a 3x upscale of the current icon and should be replaced by aligned character equipment art."
+  ]
+}

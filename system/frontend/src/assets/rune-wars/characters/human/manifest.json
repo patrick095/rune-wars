@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "characterId": "human",
+  "name": "Humano",
+  "race": "human",
+  "sourceMode": "composite-base-with-empty-layer-fallbacks",
+  "scale": 3,
+  "frameSize": {
+    "width": 192,
+    "height": 192
+  },
+  "availableStates": [
+    "idle",
+    "battle"
+  ],
+  "states": {
+    "idle": {
+      "fps": 1,
+      "frames": 1
+    },
+    "battle": {
+      "fps": 1,
+      "frames": 1
+    }
+  },
+  "layers": [
+    "back",
+    "base",
+    "armor",
+    "face",
+    "hair",
+    "helmet",
+    "weapon",
+    "effect"
+  ],
+  "renderOrder": [
+    "back",
+    "base",
+    "armor",
+    "face",
+    "hair",
+    "helmet",
+    "weapon",
+    "effect"
+  ],
+  "frames": {
+    "idle": {
+      "back": [
+        "back/idle_0.png"
+      ],
+      "base": [
+        "base/idle_0.png"
+      ],
+      "armor": [
+        "armor/idle_0.png"
+      ],
+      "face": [
+        "face/idle_0.png"
+      ],
+      "hair": [
+        "hair/idle_0.png"
+      ],
+      "helmet": [
+        "helmet/idle_0.png"
+      ],
+      "weapon": [
+        "weapon/idle_0.png"
+      ],
+      "effect": [
+        "effect/idle_0.png"
+      ]
+    },
+    "battle": {
+      "back": [
+        "back/battle_0.png"
+      ],
+      "base": [
+        "base/battle_0.png"
+      ],
+      "armor": [
+        "armor/battle_0.png"
+      ],
+      "face": [
+        "face/battle_0.png"
+      ],
+      "hair": [
+        "hair/battle_0.png"
+      ],
+      "helmet": [
+        "helmet/battle_0.png"
+      ],
+      "weapon": [
+        "weapon/battle_0.png"
+      ],
+      "effect": [
+        "effect/battle_0.png"
+      ]
+    }
+  },
+  "notes": [
+    "Base layer is a 3x upscale of the current composed sprite.",
+    "Non-base layers are transparent placeholders so future equipment art can replace them without changing paths."
+  ]
+}

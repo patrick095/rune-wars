@@ -56,11 +56,6 @@
       </div>
     }
 
-    <!-- Modal backdrop: blocks Phaser canvas clicks for modal-type screens -->
-    @if (isModalScreen()) {
-      <div class="modal-backdrop" (click)="navigator.goTo('hub')"></div>
-    }
-
     <!-- Overlay angular sobre o canvas -->
     <div class="game-overlay" *ngIf="activeScreen" (click)="$event.stopPropagation()">
       <div class="overlay-backdrop" (click)="closeOverlay()"></div>

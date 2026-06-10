@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "itemId": "longbow",
+  "name": "Arco Longo Elfico",
+  "slot": "weapon",
+  "visualLayer": "weapon",
+  "icon": "icon.png",
+  "iconSize": {
+    "width": 144,
+    "height": 144
+  },
+  "animationStates": {
+    "idle": [
+      "idle_0.png"
+    ],
+    "aim": [
+      "aim_0.png"
+    ],
+    "shoot": [
+      "aim_0.png"
+    ]
+  },
+  "sourceMode": "battle-weapon-icon-and-sprite-upscale",
+  "notes": [
+    "Icon is a 3x upscale of the current weapon icon.",
+    "Aim/shoot layer starts from the current weapon sprite and should be replaced by hand-aligned equipment frames."
+  ]
+}

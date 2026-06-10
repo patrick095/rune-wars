@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "itemId": "steel_bar",
+  "name": "Barra de Aco",
+  "slot": "material",
+  "icon": "icon.png",
+  "iconSize": {
+    "width": 96,
+    "height": 96
+  },
+  "animationStates": {},
+  "sourceMode": "icon-only",
+  "notes": [
+    "This item is currently icon-only and does not render as a character layer."
+  ]
+}

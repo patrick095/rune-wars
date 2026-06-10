@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "weaponId": "longbow",
+  "projectileAsset": "projectile.png",
+  "trailAsset": "trail.png",
+  "impactAsset": "impact.png",
+  "frameSize": {
+    "width": 144,
+    "height": 144
+  },
+  "sourceMode": "projectile-upscale-with-generated-effects"
+}

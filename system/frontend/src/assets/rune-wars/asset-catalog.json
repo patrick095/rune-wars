@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 1,
+  "scale": 3,
+  "source": "system/frontend/src/assets",
+  "root": "assets/rune-wars",
+  "characterFrameSize": {
+    "width": 192,
+    "height": 192
+  },
+  "itemFrameSize": {
+    "width": 144,
+    "height": 144
+  },
+  "materialFrameSize": {
+    "width": 96,
+    "height": 96
+  },
+  "renderOrder": [
+    "back",
+    "base",
+    "armor",
+    "face",
+    "hair",
+    "helmet",
+    "weapon",
+    "effect"
+  ],
+  "characters": [
+    {
+      "id": "human",
+      "name": "Humano",
+      "manifest": "assets/rune-wars/characters/human/manifest.json",
+      "frameSize": {
+        "width": 192,
+        "height": 192
+      },
+      "layers": [
+        "back",
+        "base",
+        "armor",
+        "face",
+        "hair",
+        "helmet",
+        "weapon",
+        "effect"
+      ],
+      "availableStates": [
+        "idle",
+        "battle"
+      ]
+    },
+    {
+      "id": "dwarf",
+      "name": "Anao",
+      "manifest": "assets/rune-wars/characters/dwarf/manifest.json",
+      "frameSize": {
+        "width": 192,
+        "height": 192
+      },
+      "layers": [
+        "back",
+        "base",
+        "armor",
+        "face",
+        "hair",
+        "helmet",
+        "weapon",
+        "effect"
+      ],
+      "availableStates": [
+        "idle",
+        "battle"
+      ]
+    },
+    {
+      "id": "elf",
+      "name": "Elfo",
+      "manifest": "assets/rune-wars/characters/elf/manifest.json",
+      "frameSize": {
+        "width": 192,
+        "height": 192
+      },
+      "layers": [
+        "back",
+        "base",
+        "armor",
+        "face",
+        "hair",
+        "helmet",
+        "weapon",
+        "effect"
+      ],
+      "availableStates": [
+        "idle",
+        "battle"
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "cannon",
+      "name": "Canhao Runico",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/cannon/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/cannon/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "longbow",
+      "name": "Arco Longo Elfico",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/longbow/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/longbow/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "tnt",
+      "name": "TNT Alquimico",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/tnt/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/tnt/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "boomerang",
+      "name": "Bumerangue Arcano",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/boomerang/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/boomerang/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "ice-book",
+      "name": "Grimorio de Gelo",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/ice-book/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/ice-book/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "potion",
+      "name": "Pocao Explosiva",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/potion/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/potion/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "sword_iron",
+      "name": "Espada de Ferro",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/sword_iron/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/sword_iron/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "sword_steel",
+      "name": "Espada de Aco",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/sword_steel/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/sword_steel/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "bow_wood",
+      "name": "Arco de Madeira",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/bow_wood/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/bow_wood/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "staff_runic",
+      "name": "Cajado Runico",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/staff_runic/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/staff_runic/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
+      "id": "armor_leather",
+      "name": "Armadura de Couro",
+      "slot": "armor",
+      "manifest": "assets/rune-wars/items/armor/armor_leather/manifest.json",
+      "icon": "assets/rune-wars/items/armor/armor_leather/icon.png",
+      "visualLayer": "armor"
+    },
+    {
+      "id": "helmet_iron",
+      "name": "Elmo de Ferro",
+      "slot": "helmet",
+      "manifest": "assets/rune-wars/items/helmet/helmet_iron/manifest.json",
+      "icon": "assets/rune-wars/items/helmet/helmet_iron/icon.png",
+      "visualLayer": "helmet"
+    },
+    {
+      "id": "boots_swift",
+      "name": "Botas Velozes",
+      "slot": "boots",
+      "manifest": "assets/rune-wars/items/boots/boots_swift/manifest.json",
+      "icon": "assets/rune-wars/items/boots/boots_swift/icon.png"
+    },
+    {
+      "id": "ring_luck",
+      "name": "Anel da Sorte",
+      "slot": "ring",
+      "manifest": "assets/rune-wars/items/ring/ring_luck/manifest.json",
+      "icon": "assets/rune-wars/items/ring/ring_luck/icon.png"
+    },
+    {
+      "id": "necklace_vitality",
+      "name": "Colar da Vitalidade",
+      "slot": "necklace",
+      "manifest": "assets/rune-wars/items/necklace/necklace_vitality/manifest.json",
+      "icon": "assets/rune-wars/items/necklace/necklace_vitality/icon.png"
+    },
+    {
+      "id": "bracelet_strength",
+      "name": "Bracelete da Forca",
+      "slot": "gloves",
+      "legacySlot": "bracelet",
+      "manifest": "assets/rune-wars/items/gloves/bracelet_strength/manifest.json",
+      "icon": "assets/rune-wars/items/gloves/bracelet_strength/icon.png"
+    },
+    {
+      "id": "shield",
+      "name": "Escudo",
+      "slot": "secondary",
+      "manifest": "assets/rune-wars/items/secondary/shield/manifest.json",
+      "icon": "assets/rune-wars/items/secondary/shield/icon.png",
+      "visualLayer": "back"
+    },
+    {
+      "id": "healing-book",
+      "name": "Livro de Cura",
+      "slot": "secondary",
+      "manifest": "assets/rune-wars/items/secondary/healing-book/manifest.json",
+      "icon": "assets/rune-wars/items/secondary/healing-book/icon.png"
+    },
+    {
+      "id": "camouflage-orb",
+      "name": "Orbe de Camuflagem",
+      "slot": "secondary",
+      "manifest": "assets/rune-wars/items/secondary/camouflage-orb/manifest.json",
+      "icon": "assets/rune-wars/items/secondary/camouflage-orb/icon.png"
+    },
+    {
+      "id": "protection-totem",
+      "name": "Totem de Protecao",
+      "slot": "secondary",
+      "manifest": "assets/rune-wars/items/secondary/protection-totem/manifest.json",
+      "icon": "assets/rune-wars/items/secondary/protection-totem/icon.png"
+    },
+    {
+      "id": "runic-builder",
+      "name": "Construtor Runico",
+      "slot": "secondary",
+      "manifest": "assets/rune-wars/items/secondary/runic-builder/manifest.json",
+      "icon": "assets/rune-wars/items/secondary/runic-builder/icon.png"
+    },
+    {
+      "id": "teleport",
+      "name": "Teleporte",
+      "slot": "consumable",
+      "manifest": "assets/rune-wars/items/consumable/teleport/manifest.json",
+      "icon": "assets/rune-wars/items/consumable/teleport/icon.png"
+    },
+    {
+      "id": "heal",
+      "name": "Cura Rapida",
+      "slot": "consumable",
+      "manifest": "assets/rune-wars/items/consumable/heal/manifest.json",
+      "icon": "assets/rune-wars/items/consumable/heal/icon.png"
+    },
+    {
+      "id": "ice-throw",
+      "name": "Lancamento de Gelo",
+      "slot": "consumable",
+      "manifest": "assets/rune-wars/items/consumable/ice-throw/manifest.json",
+      "icon": "assets/rune-wars/items/consumable/ice-throw/icon.png"
+    },
+    {
+      "id": "invisibility",
+      "name": "Invisibilidade",
+      "slot": "consumable",
+      "manifest": "assets/rune-wars/items/consumable/invisibility/manifest.json",
+      "icon": "assets/rune-wars/items/consumable/invisibility/icon.png"
+    },
+    {
+      "id": "calibration-shot",
+      "name": "Tiro de Calibracao",
+      "slot": "consumable",
+      "manifest": "assets/rune-wars/items/consumable/calibration-shot/manifest.json",
+      "icon": "assets/rune-wars/items/consumable/calibration-shot/icon.png"
+    },
+    {
+      "id": "iron_ore",
+      "name": "Minerio de Ferro",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/iron_ore/manifest.json",
+      "icon": "assets/rune-wars/items/material/iron_ore/icon.png"
+    },
+    {
+      "id": "steel_bar",
+      "name": "Barra de Aco",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/steel_bar/manifest.json",
+      "icon": "assets/rune-wars/items/material/steel_bar/icon.png"
+    },
+    {
+      "id": "hardwood",
+      "name": "Madeira Nobre",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/hardwood/manifest.json",
+      "icon": "assets/rune-wars/items/material/hardwood/icon.png"
+    },
+    {
+      "id": "fiber",
+      "name": "Fibra",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/fiber/manifest.json",
+      "icon": "assets/rune-wars/items/material/fiber/icon.png"
+    },
+    {
+      "id": "rune_crystal",
+      "name": "Cristal Runico",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/rune_crystal/manifest.json",
+      "icon": "assets/rune-wars/items/material/rune_crystal/icon.png"
+    },
+    {
+      "id": "leather",
+      "name": "Couro",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/leather/manifest.json",
+      "icon": "assets/rune-wars/items/material/leather/icon.png"
+    },
+    {
+      "id": "agility_crystal",
+      "name": "Cristal de Agilidade",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/agility_crystal/manifest.json",
+      "icon": "assets/rune-wars/items/material/agility_crystal/icon.png"
+    },
+    {
+      "id": "gold_nugget",
+      "name": "Pepita de Ouro",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/gold_nugget/manifest.json",
+      "icon": "assets/rune-wars/items/material/gold_nugget/icon.png"
+    },
+    {
+      "id": "luck_gem",
+      "name": "Gema da Sorte",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/luck_gem/manifest.json",
+      "icon": "assets/rune-wars/items/material/luck_gem/icon.png"
+    },
+    {
+      "id": "life_crystal",
+      "name": "Cristal de Vida",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/life_crystal/manifest.json",
+      "icon": "assets/rune-wars/items/material/life_crystal/icon.png"
+    },
+    {
+      "id": "strength_gem",
+      "name": "Gema de Forca",
+      "slot": "material",
+      "manifest": "assets/rune-wars/items/material/strength_gem/manifest.json",
+      "icon": "assets/rune-wars/items/material/strength_gem/icon.png"
+    }
+  ],
+  "projectiles": [
+    {
+      "weaponId": "cannon",
+      "manifest": "assets/rune-wars/projectiles/cannon/manifest.json",
+      "projectileAsset": "assets/rune-wars/projectiles/cannon/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/cannon/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/cannon/impact.png"
+    },
+    {
+      "weaponId": "longbow",
+      "manifest": "assets/rune-wars/projectiles/longbow/manifest.json",
+      "projectileAsset": "assets/rune-wars/projectiles/longbow/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/longbow/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/longbow/impact.png"
+    },
+    {
+      "weaponId": "tnt",
+      "manifest": "assets/rune-wars/projectiles/tnt/manifest.json",
+      "projectileAsset": "assets/rune-wars/projectiles/tnt/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/tnt/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/tnt/impact.png"
+    },
+    {
+      "weaponId": "boomerang",
+      "manifest": "assets/rune-wars/projectiles/boomerang/manifest.json",
+      "projectileAsset": "assets/rune-wars/projectiles/boomerang/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/boomerang/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/boomerang/impact.png"
+    },
+    {
+      "weaponId": "ice-book",
+      "manifest": "assets/rune-wars/projectiles/ice-book/manifest.json",
+      "projectileAsset": "assets/rune-wars/projectiles/ice-book/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/ice-book/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/ice-book/impact.png"
+    },
+    {
+      "weaponId": "potion",
+      "manifest": "assets/rune-wars/projectiles/potion/manifest.json",
+      "projectileAsset": "assets/rune-wars/projectiles/potion/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/potion/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/potion/impact.png"
+    }
+  ]
+}
