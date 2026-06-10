@@ -20,6 +20,8 @@ export interface WeaponDefinition {
   excavationRadius: number;
   runeEffect?: string;
   requirements?: WeaponRequirements;
+  /** ms from launch until forced detonation — projectile bounces until then */
+  detonationDelay?: number;
 }
 
 export interface WeaponAngleLimits {
@@ -38,6 +40,7 @@ export const WEAPON_ANGLE_LIMITS: Record<string, WeaponAngleLimits> = {
   cannon: { minAngle: 45, maxAngle: 85 },
   longbow: { minAngle: 5, maxAngle: 30 },
   tnt: { minAngle: 30, maxAngle: 75 },
+  'magic-grenade': { minAngle: 30, maxAngle: 75 },
   boomerang: { minAngle: 10, maxAngle: 80 },
   'ice-book': { minAngle: 5, maxAngle: 45 },
   potion: { minAngle: 5, maxAngle: 85 },

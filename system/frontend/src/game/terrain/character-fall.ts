@@ -10,6 +10,17 @@ export class CharacterFall {
   isFalling = false;
   private fallDurationMs = 0;
 
+  /** Snap sprite immediately to ground and clear falling state. */
+  snapToGround(sprite: FallSprite, engine: TerrainEngine): void {
+    const feetY = sprite.y + sprite.height / 2;
+    const floorY = engine.getFloorBelow(sprite.x, feetY);
+    if (floorY !== null) {
+      sprite.setY(floorY - sprite.height / 2);
+    }
+    this.isFalling = false;
+    this.fallDurationMs = 0;
+  }
+
   update(sprite: FallSprite, engine: TerrainEngine, dt: number): 'alive' | 'dead' {
     if (sprite.y > engine.worldHeight * 1.05) {
       console.warn(`[Fall] Player cruzou death line em y=${sprite.y}`);

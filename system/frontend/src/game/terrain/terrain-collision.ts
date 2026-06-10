@@ -3,7 +3,7 @@ import { TerrainMaterial } from '../../app/shared/game-core/terrain-types';
 
 const CHAR_HALF_WIDTH = 20;
 const CHAR_HEIGHT = 60;
-const MAX_STEP_HEIGHT = 24;
+const MAX_STEP_HEIGHT = 60; // can step up to own character height
 const MAX_STEP_DOWN = 40;
 
 export interface MoveResult {
@@ -20,42 +20,31 @@ export function tryHorizontalMove(
 ): MoveResult {
   const direction = Math.sign(deltaX);
   const targetX = currentX + deltaX;
-
   const checkX = targetX + direction * CHAR_HALF_WIDTH;
-  const checkPoints = [
-    currentY - CHAR_HEIGHT / 2 + 4,
-    currentY,
-    currentY + CHAR_HEIGHT / 2 - 4,
-  ];
-
-  const hitWall = checkPoints.some(cy => {
-    const mat = engine.getMaterialAt(checkX, cy);
-    return mat !== TerrainMaterial.EMPTY;
-  });
-
-  if (hitWall) {
-    return { canMove: false, newX: currentX, newY: currentY };
-  }
-
   const currentFeetY = currentY + CHAR_HEIGHT / 2;
-  const nextFloorY = engine.getFloorBelow(targetX, currentFeetY);
 
-  if (nextFloorY === null) {
+  // Scan from MAX_STEP_HEIGHT above current feet so we can detect upward steps.
+  const nextFloorY = engine.getFloorBelow(checkX, currentFeetY - MAX_STEP_HEIGHT);
+
+  if (nextFloorY === null || nextFloorY - currentFeetY > MAX_STEP_DOWN) {
+    // Open air or big drop — allow horizontal move; gravity handles the fall.
     return { canMove: true, newX: targetX, newY: currentY };
   }
 
-  const currentFloorY = engine.getFloorBelow(currentX, currentFeetY) ?? currentFeetY;
-  const heightDiff = nextFloorY - currentFloorY;
-
-  if (heightDiff < -MAX_STEP_HEIGHT) {
+  const stepUp = currentFeetY - nextFloorY; // positive = stepping up
+  if (stepUp > MAX_STEP_HEIGHT) {
+    // Surface is above max step height — wall.
     return { canMove: false, newX: currentX, newY: currentY };
   }
 
-  if (heightDiff > MAX_STEP_DOWN) {
-    // Drop is too large for an instant step — let CharacterFall handle the descent
-    return { canMove: true, newX: targetX, newY: currentY };
+  // Verify the character body fits at the new position (no ceiling/overhang).
+  const newCenterY = nextFloorY - CHAR_HEIGHT / 2;
+  if (
+    engine.getMaterialAt(checkX, newCenterY - CHAR_HEIGHT / 2 + 4) !== TerrainMaterial.EMPTY ||
+    engine.getMaterialAt(checkX, newCenterY) !== TerrainMaterial.EMPTY
+  ) {
+    return { canMove: false, newX: currentX, newY: currentY };
   }
 
-  const newY = nextFloorY - CHAR_HEIGHT / 2;
-  return { canMove: true, newX: targetX, newY };
+  return { canMove: true, newX: targetX, newY: newCenterY };
 }

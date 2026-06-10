@@ -5,8 +5,8 @@ export interface ExplosionResult {
   radius: number;
 }
 
-export const WORLD_WIDTH = 1672;
-export const WORLD_HEIGHT = 941;
+export const WORLD_WIDTH = 3344;
+export const WORLD_HEIGHT = 1882;
 
 /** @deprecated alias mantido para compatibilidade; valor agora é 1 (bitmap pixel-based) */
 export const CELL_SIZE = 1; // pixels por célula (deprecado)

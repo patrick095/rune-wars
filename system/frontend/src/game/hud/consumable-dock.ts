@@ -88,6 +88,10 @@ export class ConsumableDock {
         this.setSlot(index, null);
     }
 
+    setVisible(visible: boolean): void {
+        this.root?.setVisible(visible);
+    }
+
     destroy(): void {
         this.scene?.scale.off("resize", this.handleResize, this);
         this.scene?.input.off("pointerdown", this.onPointerDown, this);

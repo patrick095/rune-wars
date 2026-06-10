@@ -95,6 +95,12 @@ export class TurnTimer {
         this.stopTimer();
     }
 
+    setVisible(visible: boolean): void {
+        this.graphics?.setVisible(visible);
+        this.label?.setVisible(visible);
+        this.caption?.setVisible(visible);
+    }
+
     stop(): void {
         this.stopTimer();
         this.stopPulse();

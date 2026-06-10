@@ -1,5 +1,13 @@
 export type ShotModifierType = 'shot_plus1' | 'shot_x3' | 'shot_damage_2x' | 'shot_dig_2x';
 
+// Fraction of total stamina budget consumed per modifier selection
+export const MODIFIER_STAMINA_COST: Record<ShotModifierType, number> = {
+  shot_plus1:     0.60,
+  shot_x3:        0.60,
+  shot_damage_2x: 0.40,
+  shot_dig_2x:    0.40,
+};
+
 export interface ShotConfig {
   angle: number;
   force: number;
@@ -9,28 +17,22 @@ export interface ShotConfig {
 }
 
 export class ShotModifierSystem {
-  private active: ShotModifierType | null = null;
+  private stack: ShotModifierType[] = [];
 
-  activate(id: ShotModifierType): void {
-    if (this.active === id) {
-      // Same id — deselect
-      this.active = null;
-    } else {
-      console.log(`[ShotMod] Aplicando ${id} ao tiro`);
-      this.active = id;
-    }
+  add(type: ShotModifierType): void {
+    this.stack.push(type);
   }
 
-  getActive(): ShotModifierType | null {
-    return this.active;
+  getStack(): ShotModifierType[] {
+    return [...this.stack];
   }
 
-  isActive(id: ShotModifierType): boolean {
-    return this.active === id;
+  countOf(type: ShotModifierType): number {
+    return this.stack.filter(m => m === type).length;
   }
 
   consumeAll(): void {
-    this.active = null;
+    this.stack = [];
   }
 
   resolve(
@@ -38,40 +40,52 @@ export class ShotModifierSystem {
     force: number,
     weapon: { baseDamage: number; excavationRadius: number }
   ): { shots: ShotConfig[]; delayedShots: ShotConfig[] } {
-    switch (this.active) {
-      case 'shot_x3':
-        return {
-          shots: [
-            { angle: angle - 5, force },
-            { angle, force },
-            { angle: angle + 5, force },
-          ],
-          delayedShots: [],
-        };
+    const shotPlus1Count = this.countOf('shot_plus1');
+    const shotX3Count    = this.countOf('shot_x3');
+    const damageCount    = this.countOf('shot_damage_2x');
+    const excavCount     = this.countOf('shot_dig_2x');
 
-      case 'shot_plus1':
-        return {
-          shots: [{ angle, force }],
-          delayedShots: [{ angle, force, delayMs: 700 }],
-        };
+    // Total projectile count
+    // Each shot_plus1 adds 1 delayed copy; each shot_x3 adds 2 fan copies
+    const totalShots = 1 + shotPlus1Count + 2 * shotX3Count;
 
-      case 'shot_damage_2x':
-        return {
-          shots: [{ angle, force, baseDamage: weapon.baseDamage * 2 }],
-          delayedShots: [],
-        };
+    // Damage per shot: 150% / n when shot-count modifiers are active, else 100%
+    const shotDamageMult = totalShots > 1 ? 1.5 / totalShots : 1.0;
+    // Each +dano stacks +50%
+    const damageMult = shotDamageMult * (1 + 0.5 * damageCount);
 
-      case 'shot_dig_2x':
-        return {
-          shots: [{ angle, force, excavationRadius: weapon.excavationRadius * 2 }],
-          delayedShots: [],
-        };
+    // Each +escavação adds +100% of base radius (additive)
+    const excavMult = 1 + excavCount;
 
-      default:
-        return {
-          shots: [{ angle, force }],
-          delayedShots: [],
-        };
+    const baseDamage       = Math.round(weapon.baseDamage * damageMult);
+    const excavationRadius = Math.round(weapon.excavationRadius * excavMult);
+
+    // Immediate shots: base at angle 0 + a ±spread pair per shot_x3
+    const immediateAngles: number[] = [angle];
+    for (let i = 0; i < shotX3Count; i++) {
+      const spread = 5 * (i + 1);
+      immediateAngles.push(angle - spread, angle + spread);
     }
+
+    const shots: ShotConfig[] = immediateAngles.map(a => ({
+      angle: a,
+      force,
+      baseDamage,
+      excavationRadius,
+    }));
+
+    // Delayed shots: one per shot_plus1, staggered 700 ms each
+    const delayedShots: ShotConfig[] = [];
+    for (let i = 0; i < shotPlus1Count; i++) {
+      delayedShots.push({
+        angle,
+        force,
+        baseDamage,
+        excavationRadius,
+        delayMs: 700 * (i + 1),
+      });
+    }
+
+    return { shots, delayedShots };
   }
 }

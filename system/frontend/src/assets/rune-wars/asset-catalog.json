@@ -146,6 +146,14 @@
       "visualLayer": "weapon"
     },
     {
+      "id": "magic-grenade",
+      "name": "Granada Magica",
+      "slot": "weapon",
+      "manifest": "assets/rune-wars/items/weapon/magic-grenade/manifest.json",
+      "icon": "assets/rune-wars/items/weapon/magic-grenade/icon.png",
+      "visualLayer": "weapon"
+    },
+    {
       "id": "sword_iron",
       "name": "Espada de Ferro",
       "slot": "weapon",
@@ -413,6 +421,13 @@
       "projectileAsset": "assets/rune-wars/projectiles/potion/projectile.png",
       "trailAsset": "assets/rune-wars/projectiles/potion/trail.png",
       "impactAsset": "assets/rune-wars/projectiles/potion/impact.png"
+    },
+    {
+      "weaponId": "magic-grenade",
+      "manifest": "assets/rune-wars/projectiles/magic-grenade/manifest.json",
+      "projectileAsset": "assets/rune-wars/projectiles/magic-grenade/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/magic-grenade/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/magic-grenade/impact.png"
     }
   ]
 }

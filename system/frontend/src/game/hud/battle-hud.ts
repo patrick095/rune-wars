@@ -35,6 +35,7 @@ export interface BattleHudState {
     angle: number;
     facing?: "left" | "right";
     angleLimits?: { minAngle: number; maxAngle: number };
+    isPlayerTurn?: boolean;
     isCharging: boolean;
     consumables: Array<{ iconKey: string; quantity?: number } | null>;
     modifiers: Array<{
@@ -194,6 +195,13 @@ export class BattleHud {
         this.redText.setText(
             `TIME VERMELHO\n${rightTeam.length}/${rightTeam.length}`,
         );
+
+        // Show/hide bottom HUD elements based on whose turn it is
+        const isPlayer = state.isPlayerTurn !== false;
+        this.powerBar.setVisible(isPlayer);
+        this.consumableDock.setVisible(isPlayer);
+        this.modifierDock.setVisible(isPlayer);
+        this.turnTimer.setVisible(isPlayer);
 
         // Power bar (angle + force + fire button)
         this.powerBar.update(

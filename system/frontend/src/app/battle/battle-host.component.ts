@@ -2,6 +2,7 @@ import {
     AfterViewInit,
     Component,
     ElementRef,
+    HostListener,
     OnDestroy,
     ViewChild,
     inject,
@@ -14,6 +15,7 @@ import {
 } from "../../game/scenes/battle.scene";
 import { ActiveCharacterService } from "../shared/services/active-character.service";
 import { GameNavigatorService } from "../shared/services/game-navigator.service";
+import { DebugOverlayComponent } from "../playground/debug-overlay/debug-overlay.component";
 
 class BattleLaunchScene extends Phaser.Scene {
     constructor() {
@@ -31,7 +33,11 @@ class BattleLaunchScene extends Phaser.Scene {
 @Component({
     selector: "app-battle-host",
     standalone: true,
-    template: '<div #gameContainer class="battle-host"></div>',
+    imports: [DebugOverlayComponent],
+    template: `
+        <div #gameContainer class="battle-host"></div>
+        <app-debug-overlay [game]="game" [visible]="debugVisible" />
+    `,
     styles: [
         `
             :host,
@@ -62,8 +68,15 @@ export class BattleHostComponent implements AfterViewInit, OnDestroy {
 
     private readonly activeCharacter = inject(ActiveCharacterService);
     private readonly navigator = inject(GameNavigatorService);
-    private game: Phaser.Game | null = null;
+    game: Phaser.Game | null = null;
+    debugVisible = false;
     private readonly onBattleExit = () => this.returnToPvpRoom();
+
+    @HostListener("window:keydown.o", ["$event"])
+    onDebugKey(e: Event): void {
+        if (((e as KeyboardEvent).target as HTMLElement).tagName === "INPUT") return;
+        this.debugVisible = !this.debugVisible;
+    }
 
     ngAfterViewInit(): void {
         window.addEventListener("rune-wars:battle-exit", this.onBattleExit);

@@ -15,7 +15,7 @@ export class WeaponSystem {
         boomerang: false,
       },
       impactRadius: 50,
-      excavationRadius: 60,
+      excavationRadius: 24,
       requirements: { minStrength: 20, minLevel: 5 },
     },
     {
@@ -31,7 +31,7 @@ export class WeaponSystem {
         boomerang: false,
       },
       impactRadius: 20,
-      excavationRadius: 10,
+      excavationRadius: 8,
       requirements: { minAgility: 15 },
     },
     {
@@ -47,8 +47,26 @@ export class WeaponSystem {
         boomerang: false,
       },
       impactRadius: 80,
-      excavationRadius: 100,
+      excavationRadius: 40,
+      detonationDelay: 3000,
       requirements: { minStrength: 15, minLevel: 3 },
+    },
+    {
+      id: 'magic-grenade',
+      name: 'Granada Mágica',
+      hands: 1,
+      damageType: 'magical',
+      baseDamage: 70,
+      physicsProfile: {
+        gravityScale: 1.8,
+        windInfluence: 0.25,
+        initialSpeed: 450,
+        boomerang: false,
+      },
+      impactRadius: 56,
+      excavationRadius: 28,
+      detonationDelay: 3000,
+      requirements: { minLevel: 5 },
     },
     {
       id: 'boomerang',
@@ -63,7 +81,7 @@ export class WeaponSystem {
         boomerang: true,
       },
       impactRadius: 15,
-      excavationRadius: 0,
+      excavationRadius: 8,
       requirements: { minAgility: 10 },
     },
     {
@@ -79,7 +97,7 @@ export class WeaponSystem {
         boomerang: false,
       },
       impactRadius: 30,
-      excavationRadius: 5,
+      excavationRadius: 8,
     },
     {
       id: 'potion',
@@ -94,7 +112,7 @@ export class WeaponSystem {
         boomerang: false,
       },
       impactRadius: 40,
-      excavationRadius: 0,
+      excavationRadius: 8,
     },
   ];
 

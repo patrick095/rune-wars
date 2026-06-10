@@ -58,27 +58,22 @@ export class TerrainEngine {
     }
 
     static fromImageData(data: ImageData): TerrainEngine {
-        const w = data.width;
-        const h = data.height;
+        // Scale the source image up to fill the full world dimensions (nearest-neighbor).
+        const w = WORLD_WIDTH;
+        const h = WORLD_HEIGHT;
         const engine = new TerrainEngine(undefined, w, h);
+        const scaleX = data.width / w;
+        const scaleY = data.height / h;
 
         for (let y = 0; y < h; y++) {
+            const srcY = Math.min(Math.floor(y * scaleY), data.height - 1);
             for (let x = 0; x < w; x++) {
-                const idx = (y * w + x) * 4;
-                const r = data.data[idx];
-                const g = data.data[idx + 1];
-                const b = data.data[idx + 2];
+                const srcX = Math.min(Math.floor(x * scaleX), data.width - 1);
+                const idx = (srcY * data.width + srcX) * 4;
                 const a = data.data[idx + 3];
 
-                if (a < 128) {
-                    engine.bitmap[y * w + x] = TerrainMaterial.EMPTY;
-                } else if (r > 200 && g > 200 && b > 200) {
-                    // Near white => indestructible
-                    engine.bitmap[y * w + x] = TerrainMaterial.INDESTRUCTIBLE;
-                } else {
-                    // Any other opaque pixel => destructible solid
-                    engine.bitmap[y * w + x] = TerrainMaterial.DESTRUCTIBLE;
-                }
+                engine.bitmap[y * w + x] =
+                    a < 128 ? TerrainMaterial.EMPTY : TerrainMaterial.DESTRUCTIBLE;
             }
         }
 

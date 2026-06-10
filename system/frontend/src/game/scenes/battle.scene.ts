@@ -32,9 +32,7 @@ import {
     WORLD_WIDTH,
     WORLD_HEIGHT,
 } from "../../app/shared/game-core/terrain-engine";
-import {
-    TerrainMaterial,
-} from "../../app/shared/game-core/terrain-types";
+import { TerrainMaterial } from "../../app/shared/game-core/terrain-types";
 import { tryHorizontalMove } from "../terrain/terrain-collision";
 import {
     selectSpawns,
@@ -61,8 +59,10 @@ import {
     SecondaryItemSystem,
 } from "../../app/shared/game-core/secondary-item-system";
 import {
+    MODIFIER_STAMINA_COST,
     ShotConfig,
     ShotModifierSystem,
+    ShotModifierType,
 } from "../../app/shared/game-core/shot-modifier-system";
 import {
     ProjectileObject,
@@ -106,6 +106,7 @@ const WEAPON_COLORS: Record<string, number> = {
     boomerang: 0xff88ff,
     "ice-book": 0x88ccff,
     potion: 0x00ffcc,
+    "magic-grenade": 0xaa44ff,
 };
 
 export type BattleMode = "pvp" | "dungeon";
@@ -153,11 +154,11 @@ const MAP_OPTIONS_BY_ID = new Map<MapName, BattleMapOption>(
 );
 
 const MAP_ASSET_FOLDER: Record<string, string> = {
-    plains:        'plains',
-    mystic_castle: 'mystic-castle',
-    deep_mines:    'deep-mines',
-    arcane_ruins:  'arcane-ruins',
-    runic_forest:  'runic-forest',
+    plains: "plains",
+    mystic_castle: "mystic-castle",
+    deep_mines: "deep-mines",
+    arcane_ruins: "arcane-ruins",
+    runic_forest: "runic-forest",
 };
 
 const MAP_WORLD_WIDTH = WORLD_WIDTH;
@@ -188,6 +189,8 @@ interface ProjectileAnimationOptions {
     explodeOnImpact?: boolean;
     turnToken?: number;
     onComplete?: (gameEnded: boolean) => void;
+    /** Skip pre-clipping; check terrain per-frame so concurrent shots see live terrain state. */
+    realtimeCollision?: boolean;
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -206,6 +209,9 @@ export class BattleScene extends Phaser.Scene {
     private teleportShotArmed = false;
     private usedConsumableIds = new Set<string>();
     private consumableUsedThisTurn = false;
+    private aiUsedConsumableIds = new Set<string>();
+    private aiShotModifierSystem = new ShotModifierSystem();
+    private battleEnded = false;
 
     // v1.4.0 last-shot info for HUD display
     private lastPlayerShot: { force: number; angle: number } | null = null;
@@ -286,6 +292,8 @@ export class BattleScene extends Phaser.Scene {
     private aiAvatar?: Phaser.GameObjects.Image;
     private playerWeaponIcon?: Phaser.GameObjects.Image;
     private aiWeaponIcon?: Phaser.GameObjects.Image;
+    private playerNameLabel?: Phaser.GameObjects.Text;
+    private aiNameLabel?: Phaser.GameObjects.Text;
 
     // HUD & UI helpers
     private battleHud!: BattleHud; // [v1.5.0]
@@ -307,9 +315,9 @@ export class BattleScene extends Phaser.Scene {
     // Modifier defs used for index→id mapping in dock events
     private readonly modifierDefs = [
         { id: "shot_plus1", label: "+1 Tiro" },
-        { id: "shot_x3", label: "x3 Tiros" },
-        { id: "shot_damage_2x", label: "Dano x2" },
-        { id: "shot_dig_2x", label: "Escav x2" },
+        { id: "shot_x3", label: "Triplo" },
+        { id: "shot_damage_2x", label: "+Dano" },
+        { id: "shot_dig_2x", label: "+Escav" },
     ] as const;
 
     // Power bar
@@ -331,7 +339,7 @@ export class BattleScene extends Phaser.Scene {
     private dragStartY = 0;
     private cameraStartScrollX = 0;
     private cameraStartScrollY = 0;
-    private wasFollowing = false;
+
 
     // Set to true when started from playground (BootScene) — disables ghost trace
     private isPlayground = false;
@@ -430,6 +438,10 @@ export class BattleScene extends Phaser.Scene {
         );
         this.load.image("weapon_icebook", "assets/items/weapons/ice-book.png");
         this.load.image("weapon_potion", "assets/items/weapons/potion.png");
+        this.load.image(
+            "weapon_magic-grenade",
+            "assets/items/weapons/magic-grenade.png",
+        );
 
         // Sprites de batalha de armas (64x64)
         this.load.image(
@@ -456,13 +468,20 @@ export class BattleScene extends Phaser.Scene {
             "weapon_potion_sprite",
             "assets/items/weapons/potion_sprite.png",
         );
+        this.load.image(
+            "weapon_magic-grenade_sprite",
+            "assets/items/weapons/magic-grenade_sprite.png",
+        );
 
         preloadRuneWarsAssets(this);
     }
 
     private preloadCurrentMapBackground(): void {
         if (this.currentMap.startsWith("dungeon")) {
-            this.load.image("terrain_dungeon_bg", "assets/terrain/dungeon_bg.png");
+            this.load.image(
+                "terrain_dungeon_bg",
+                "assets/terrain/dungeon_bg.png",
+            );
             return;
         }
         const folder = MAP_ASSET_FOLDER[this.currentMap] ?? this.currentMap;
@@ -541,6 +560,9 @@ export class BattleScene extends Phaser.Scene {
         this.activeVolleyId = 0;
         this.lastEndedTurnNumber = 0;
         this.clearScheduledTurnEvents();
+        this.aiUsedConsumableIds = new Set<string>();
+        this.aiShotModifierSystem = new ShotModifierSystem();
+        this.battleEnded = false;
     }
 
     create(): void {
@@ -661,7 +683,7 @@ export class BattleScene extends Phaser.Scene {
             .setDisplaySize(34, 34)
             .setDepth(4)
             .setVisible(false);
-        this.add
+        this.playerNameLabel = this.add
             .text(
                 this.playerStats.x,
                 this.playerStats.y + 40,
@@ -700,7 +722,7 @@ export class BattleScene extends Phaser.Scene {
             .setDisplaySize(34, 34)
             .setDepth(4)
             .setVisible(false);
-        this.add
+        this.aiNameLabel = this.add
             .text(this.aiStats.x, this.aiStats.y + 40, this.opponentName, {
                 fontSize: "11px",
                 color: "#ffffff",
@@ -811,7 +833,17 @@ export class BattleScene extends Phaser.Scene {
                 this.onModifierDockSelect(this.modifierDefs[index].id);
         });
 
+        // Auto-pass player's turn when the timer expires
+        this.events.on("turn:expired", () => {
+            if (this.turnManager.isPlayerTurn && !this.isAnimating && !this.isChargingPower) {
+                this.passTurn();
+            }
+        });
+
         this.createBattleMenu();
+
+        // Snap both characters to ground immediately — no fall animation on start
+        this.snapCharactersToGround();
 
         // Wind generate on scene start
         this.windSystem.generate();
@@ -924,6 +956,7 @@ export class BattleScene extends Phaser.Scene {
                 angle: this.currentAngle,
                 facing: this.playerStats.facing,
                 angleLimits,
+                isPlayerTurn: this.turnManager.isPlayerTurn,
                 isCharging: this.isChargingPower,
                 consumables: this.buildConsumableSlots(),
                 modifiers: this.buildModifierSlots(),
@@ -946,6 +979,16 @@ export class BattleScene extends Phaser.Scene {
         }
     }
 
+    private snapCharactersToGround(): void {
+        this.playerFall.snapToGround(this.playerSprite, this.terrainEngine);
+        this.aiFall.snapToGround(this.aiSprite, this.terrainEngine);
+        this.playerStats.x = this.playerSprite.x;
+        this.playerStats.y = this.playerSprite.y;
+        this.aiStats.x = this.aiSprite.x;
+        this.aiStats.y = this.aiSprite.y;
+        this.syncActorAssets();
+    }
+
     private syncActorAssets(): void {
         this.playerAvatar?.setPosition(
             this.playerSprite.x,
@@ -960,6 +1003,11 @@ export class BattleScene extends Phaser.Scene {
             this.aiSprite.x - 34,
             this.aiSprite.y + 2,
         );
+        this.playerNameLabel?.setPosition(
+            this.playerSprite.x,
+            this.playerSprite.y + 40,
+        );
+        this.aiNameLabel?.setPosition(this.aiSprite.x, this.aiSprite.y + 40);
         this.playerAvatar?.setAlpha(this.playerInvisibleTurns > 0 ? 0.38 : 1);
         this.playerCharacterSprite?.setAlpha(
             this.playerInvisibleTurns > 0 ? 0.38 : 1,
@@ -968,7 +1016,7 @@ export class BattleScene extends Phaser.Scene {
 
     private weaponSpriteKey(id: string): string {
         if (id === "ice-book") return "weapon_icebook_sprite";
-        return `weapon_${id}_sprite`;
+        return `weapon_${id}_sprite`; // handles "magic-grenade" → "weapon_magic-grenade_sprite"
     }
 
     private applyProjectileVisual(
@@ -1253,6 +1301,7 @@ export class BattleScene extends Phaser.Scene {
     private finishBattle(victory: boolean): void {
         this.toggleBattleMenu(false);
         this.isAnimating = true;
+        this.battleEnded = true;
         this.resultOverlay.show(this, victory, {
             showRestartButton: this.isPlayground,
             subtitle: this.isPlayground ? undefined : "Voltando para a sala...",
@@ -1343,11 +1392,15 @@ export class BattleScene extends Phaser.Scene {
         label?: string;
         active?: boolean;
     } | null> {
-        const activeId = this.shotModifierSystem.getActive();
-        return this.modifierDefs.map((m) => ({
-            label: m.label,
-            active: m.id === activeId,
-        }));
+        return this.modifierDefs.map((m) => {
+            const count = this.shotModifierSystem.countOf(
+                m.id as ShotModifierType,
+            );
+            return {
+                label: count > 0 ? `${m.label} ×${count}` : m.label,
+                active: count > 0,
+            };
+        });
     }
 
     private onConsumableDockSelect(id: string): void {
@@ -1371,53 +1424,82 @@ export class BattleScene extends Phaser.Scene {
     private onModifierDockSelect(id: string): void {
         if (!this.turnManager.isPlayerTurn || this.isAnimating) return;
         if (this.statusEffects.hasEffect("player", "ITEM_BLOCK")) return;
-        this.shotModifierSystem.activate(
-            id as import("../../app/shared/game-core/shot-modifier-system").ShotModifierType,
+
+        const modType = id as ShotModifierType;
+        const costFraction = MODIFIER_STAMINA_COST[modType] ?? 0.5;
+        const cost = costFraction * this.moveBudgetTotal;
+        const remaining = this.moveBudgetTotal - this.moveBudgetUsed;
+
+        if (remaining < cost) {
+            this.showItemFloatingText(
+                this.playerStats.x,
+                this.playerStats.y,
+                "Estamina insuficiente!",
+                "#ff8844",
+            );
+            return;
+        }
+
+        this.moveBudgetUsed += cost;
+        this.movementBudgetHUD?.update(
+            this.moveBudgetUsed,
+            this.moveBudgetTotal,
         );
-        // Modifier slots update automatically on next frame via buildModifierSlots()
+        this.shotModifierSystem.add(modType);
     }
 
     private setupMapDrag(): void {
         this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
             if (p.button === 0 || p.wasTouch) {
-                this.isDraggingMap = true;
+                this.isDraggingMap = false; // confirmed only after movement
                 this.dragStartX = p.x;
                 this.dragStartY = p.y;
                 this.cameraStartScrollX = this.cameras.main.scrollX;
                 this.cameraStartScrollY = this.cameras.main.scrollY;
-                // Suspender follow se estiver ativo
-                if ((this.cameras.main as any)._follow) {
-                    // eslint-disable-line @typescript-eslint/no-explicit-any
-                    this.wasFollowing = true;
-                    this.cameras.main.stopFollow();
-                }
             }
         });
         this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-            if (!this.isDraggingMap || !p.isDown) return;
+            if (!p.isDown) return;
             const dx = this.dragStartX - p.x;
             const dy = this.dragStartY - p.y;
+            if (!this.isDraggingMap && Math.sqrt(dx * dx + dy * dy) > 6) {
+                this.isDraggingMap = true;
+                // Stop follow only when user actually starts dragging
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if ((this.cameras.main as any)._follow) {
+                    this.cameras.main.stopFollow();
+                }
+            }
+            if (!this.isDraggingMap) return;
             this.cameras.main.setScroll(
                 this.cameraStartScrollX + dx,
                 this.cameraStartScrollY + dy,
             );
         });
         this.input.on("pointerup", () => {
-            if (this.isDraggingMap && this.wasFollowing) {
-                // Retomar follow no sprite correto baseado no turno atual
-                const followTarget = this.turnManager.isPlayerTurn
-                    ? this.playerSprite
-                    : this.aiSprite;
-                this.cameras.main.startFollow(followTarget, true, 0.08, 0.08);
-            }
+            // Camera stays where it was panned — no follow resume here.
+            // processEndTurn re-attaches follow on the next turn.
             this.isDraggingMap = false;
-            this.wasFollowing = false;
         });
     }
 
+    private setPlayerFacing(facing: "left" | "right"): void {
+        if (this.playerStats.facing === facing) return;
+        this.playerStats.facing = facing;
+        this.playerAvatar?.setFlipX(facing === "left");
+        this.playerCharacterSprite?.setFlipX(facing === "left");
+        this.updateAngleDisplay();
+    }
+
     private handleKeyboardInput(delta: number): void {
-        if (!this.cursors || !this.turnManager.isPlayerTurn || this.isAnimating)
-            return;
+        if (!this.cursors) return;
+
+        // Facing flips are always allowed, even off-turn.
+        if (this.cursors.left?.isDown) this.setPlayerFacing("left");
+        else if (this.cursors.right?.isDown) this.setPlayerFacing("right");
+
+        if (!this.turnManager.isPlayerTurn || this.isAnimating) return;
+
         const dt = delta / 1000;
         const speed = moveSpeed(this.playerAgility);
         let changed = false;
@@ -1488,13 +1570,7 @@ export class BattleScene extends Phaser.Scene {
 
         if (!result.canMove) return;
 
-        const newFacing: "left" | "right" = deltaX > 0 ? "right" : "left";
-        if (newFacing !== this.playerStats.facing) {
-            this.playerStats.facing = newFacing;
-            this.playerAvatar?.setFlipX(newFacing === "left");
-            this.playerCharacterSprite?.setFlipX(newFacing === "left");
-            this.updateAngleDisplay();
-        }
+        this.setPlayerFacing(deltaX > 0 ? "right" : "left");
 
         this.playerSprite.setPosition(result.newX, result.newY);
         this.moveBudgetUsed += Math.abs(cappedDelta);
@@ -1516,7 +1592,6 @@ export class BattleScene extends Phaser.Scene {
     }
 
     private startChargingPower(): void {
-        if (this.playerFall.isFalling) return;
         if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
         // FREEZE blocks power charging
         if (this.statusEffects.hasEffect("player", "FREEZE")) return;
@@ -1706,11 +1781,12 @@ export class BattleScene extends Phaser.Scene {
             windInfluence: profile.windInfluence,
             baseDamage: shotCfg.baseDamage ?? this.playerWeapon.baseDamage,
         };
-        const path = this.projectilePhysics.simulate(
+        const path = this.computeProjectilePath(
             this.playerStats.x,
             this.playerStats.y,
             config,
             wind,
+            this.playerWeapon,
         );
         this.maybeBuildRunicTerrain(path, "player");
 
@@ -1733,8 +1809,169 @@ export class BattleScene extends Phaser.Scene {
                 endTurnOnComplete: false,
                 turnToken,
                 onComplete: completeShot,
+                realtimeCollision: volleySize > 1,
             },
         );
+    }
+
+    /** Returns true if a turn-consuming item was used (turn will end itself). */
+    private aiDecideItemsBeforeTurn(turnToken: number): boolean {
+        // 20% chance to freeze the player (ice-throw uses the turn)
+        if (
+            !this.aiUsedConsumableIds.has("ice-throw") &&
+            !this.statusEffects.hasEffect("player", "FREEZE") &&
+            this.consumableSystem.getById("ice-throw") &&
+            Math.random() < 0.2
+        ) {
+            this.aiUsedConsumableIds.add("ice-throw");
+            this.useDebugConsumable("ai", "ice-throw");
+            return true;
+        }
+
+        // Heal when below 40% HP (heal does not consume the turn)
+        if (
+            !this.aiUsedConsumableIds.has("heal") &&
+            this.aiStats.hp < this.aiStats.maxHp * 0.4 &&
+            this.consumableSystem.getById("heal")
+        ) {
+            this.aiUsedConsumableIds.add("heal");
+            this.useDebugConsumable("ai", "heal");
+        }
+
+        void turnToken;
+        return false;
+    }
+
+    private aiDecideModifiers(): void {
+        const aiHpRatio = this.aiStats.hp / this.aiStats.maxHp;
+        const distance = Math.abs(this.aiStats.x - this.playerStats.x);
+
+        // Stamina costs mirror the player's system (fraction of 100-pt budget)
+        const COST: Record<ShotModifierType, number> = {
+            shot_x3: 60, shot_plus1: 60, shot_damage_2x: 40, shot_dig_2x: 40,
+        };
+        const BUDGET = 100;
+
+        interface Combo { mods: ShotModifierType[]; weight: number }
+        const combos: Combo[] = [
+            // no modifier — always affordable
+            { mods: [], weight: 1.0 },
+            // single damage
+            { mods: ["shot_damage_2x"], weight: 2.0 },
+            // double damage — favour when losing
+            { mods: ["shot_damage_2x", "shot_damage_2x"], weight: aiHpRatio < 0.5 ? 3.0 : 1.2 },
+            // +1 shot + damage
+            { mods: ["shot_plus1", "shot_damage_2x"], weight: 2.0 },
+            // triple + dig — good for terrain denial at range
+            { mods: ["shot_x3", "shot_dig_2x"], weight: distance > 300 ? 1.5 : 0.5 },
+            // triple spread
+            { mods: ["shot_x3"], weight: distance > 400 ? 1.8 : 0.7 },
+            // +1 shot only
+            { mods: ["shot_plus1"], weight: 0.8 },
+        ];
+
+        const affordable = combos.filter((c) => {
+            const cost = c.mods.reduce((sum, m) => sum + COST[m], 0);
+            return cost <= BUDGET;
+        });
+
+        let rand = Math.random() * affordable.reduce((s, c) => s + c.weight, 0);
+        let chosen = affordable[0];
+        for (const combo of affordable) {
+            rand -= combo.weight;
+            if (rand <= 0) { chosen = combo; break; }
+        }
+
+        for (const mod of chosen.mods) {
+            this.aiShotModifierSystem.add(mod);
+        }
+    }
+
+    private fireAiShotVolley(
+        shots: ShotConfig[],
+        profile: WeaponDefinition["physicsProfile"],
+        wind: ReturnType<WindSystem["getCurrent"]>,
+        turnToken: number,
+    ): void {
+        if (shots.length === 0) return;
+
+        const volleyId = ++this.activeVolleyId;
+        let pending = shots.length;
+        let gameEnded = false;
+
+        const completeShot = (ended: boolean): void => {
+            if (
+                volleyId !== this.activeVolleyId ||
+                this.turnManager.turnNumber !== turnToken
+            )
+                return;
+            gameEnded = gameEnded || ended;
+            pending -= 1;
+            if (pending > 0) {
+                this.isAnimating = true;
+                return;
+            }
+            if (gameEnded) return;
+            this.endTurn(false);
+        };
+
+        for (const shotCfg of shots) {
+            const launch = () => {
+                if (
+                    volleyId !== this.activeVolleyId ||
+                    this.turnManager.turnNumber !== turnToken ||
+                    this.turnManager.isPlayerTurn
+                ) {
+                    completeShot(true);
+                    return;
+                }
+                const config: ProjectileConfig = {
+                    angle: shotCfg.angle,
+                    force: shotCfg.force,
+                    gravityScale: profile.gravityScale,
+                    windInfluence: profile.windInfluence,
+                    baseDamage: shotCfg.baseDamage ?? this.aiWeapon.baseDamage,
+                };
+                const path = this.computeProjectilePath(
+                    this.aiStats.x,
+                    this.aiStats.y,
+                    config,
+                    wind,
+                    this.aiWeapon,
+                );
+                this.maybeBuildRunicTerrain(path, "ai");
+                const projectile =
+                    shots.length === 1
+                        ? this.projectileArc
+                        : this.projRenderer.createProjectile(
+                              WEAPON_COLORS[this.aiWeapon.id] ?? 0xffff00,
+                              runeWarsProjectileKey(
+                                  this.aiWeapon.id,
+                                  "projectile",
+                              ),
+                          );
+                this.animateProjectileWithOverrides(
+                    path,
+                    false,
+                    shotCfg.baseDamage,
+                    shotCfg.excavationRadius,
+                    {
+                        projectile,
+                        destroyProjectileOnComplete: shots.length > 1,
+                        endTurnOnComplete: false,
+                        turnToken,
+                        onComplete: completeShot,
+                        realtimeCollision: shots.length > 1,
+                    },
+                );
+            };
+
+            if (shotCfg.delayMs && shotCfg.delayMs > 0) {
+                this.scheduleTurnEvent(shotCfg.delayMs, launch);
+            } else {
+                launch();
+            }
+        }
     }
 
     private fireAiShot(turnToken = this.turnManager.turnNumber): void {
@@ -1743,6 +1980,9 @@ export class BattleScene extends Phaser.Scene {
             this.turnManager.turnNumber !== turnToken
         )
             return;
+
+        // Decide consumable items first (some may end the turn)
+        if (this.aiDecideItemsBeforeTurn(turnToken)) return;
 
         // [v1.5.0] CharacterAnimator: AI shoot animation
         this.aiCharacterAnimator?.transition("shoot");
@@ -1772,31 +2012,50 @@ export class BattleScene extends Phaser.Scene {
             return;
         }
 
+        // Decide shot modifiers and resolve into a volley
+        this.aiDecideModifiers();
         const profile = this.aiWeapon.physicsProfile;
-        const config: ProjectileConfig = {
-            angle: shot.angle,
-            force: shot.force,
-            gravityScale: profile.gravityScale,
-            windInfluence: profile.windInfluence,
-            baseDamage: this.aiWeapon.baseDamage,
-        };
-
         this.lastAiShot = { force: shot.force, angle: shot.angle };
 
-        const path = this.projectilePhysics.simulate(
-            this.aiStats.x,
-            this.aiStats.y,
-            config,
-            wind,
+        const { shots, delayedShots } = this.aiShotModifierSystem.resolve(
+            shot.angle,
+            shot.force,
+            this.aiWeapon,
         );
-        this.maybeBuildRunicTerrain(path, "ai");
-        this.animateProjectileResolved(
-            path,
-            false,
-            this.aiWeapon.baseDamage,
-            this.aiWeapon.excavationRadius,
-            { turnToken },
-        );
+        this.aiShotModifierSystem.consumeAll();
+
+        if (shots.length > 1 || delayedShots.length > 0) {
+            this.fireAiShotVolley(
+                [...shots, ...delayedShots],
+                profile,
+                wind,
+                turnToken,
+            );
+        } else {
+            // Single-shot path (no modifiers active)
+            const config: ProjectileConfig = {
+                angle: shot.angle,
+                force: shot.force,
+                gravityScale: profile.gravityScale,
+                windInfluence: profile.windInfluence,
+                baseDamage: this.aiWeapon.baseDamage,
+            };
+            const path = this.computeProjectilePath(
+                this.aiStats.x,
+                this.aiStats.y,
+                config,
+                wind,
+                this.aiWeapon,
+            );
+            this.maybeBuildRunicTerrain(path, "ai");
+            this.animateProjectileResolved(
+                path,
+                false,
+                this.aiWeapon.baseDamage,
+                this.aiWeapon.excavationRadius,
+                { turnToken },
+            );
+        }
     }
 
     private maybeBuildRunicTerrain(
@@ -1809,7 +2068,11 @@ export class BattleScene extends Phaser.Scene {
         const start = segment[0];
         const end = segment[segment.length - 1];
         const created = this.terrainEngine.drawRunicLine(
-            start.x, start.y, end.x, end.y, playerId,
+            start.x,
+            start.y,
+            end.x,
+            end.y,
+            playerId,
         );
         this.secondaryItemSystem.consumeRunicBuilder(playerId);
         this.constructedByPlayer =
@@ -1868,35 +2131,108 @@ export class BattleScene extends Phaser.Scene {
         const weapon = isPlayerShot ? this.playerWeapon : this.aiWeapon;
         const projectile = options.projectile ?? this.projectileArc;
         const turnToken = options.turnToken ?? this.turnManager.turnNumber;
-        const clipped = this.clipPathToFirstImpact(path, isPlayerShot);
-        const animationPath = clipped.path;
-        this.applyProjectileVisual(projectile, weapon.id);
-        this.showProjectileTrailFx(weapon.id, animationPath);
 
-        // [v1.5.0] MapModifier projectile state — mutable object threaded through animation
+        this.applyProjectileVisual(projectile, weapon.id);
+        // Camera follows projectile during flight
+        this.cameras.main.startFollow(projectile, true, 0.08, 0.08);
+
+        // Mutable state for map-modifier interactions (shared between both paths)
         const mapModProjState = {
             baseDamage,
             excavationRadius,
             isCritical: false,
             applyStatus: (_status: string, _duration: number) => {
-                /* status effects via map modifiers reserved for future integration */
+                /* reserved for future integration */
             },
         };
-
-        // [v1.5.0] checkImpact callback: detect map modifier collisions per-point
-        // Projectile passes through modifiers (returns false = no stop), but effect is applied
         const checkMapModifier = (x: number, y: number): boolean => {
             if (this.mapModifierManager) {
-                const mod = this.mapModifierManager.checkProjectileCollision(
-                    x,
-                    y,
-                );
-                if (mod) {
-                    this.mapModifierManager.applyEffect(mod, mapModProjState);
-                }
+                const mod = this.mapModifierManager.checkProjectileCollision(x, y);
+                if (mod) this.mapModifierManager.applyEffect(mod, mapModProjState);
             }
-            return false; // never stops projectile
+            return false;
         };
+
+        // ── Detonation-delay weapons (TNT, magic-grenade): bounce + timed explosion ──
+        if (weapon.detonationDelay && weapon.detonationDelay > 0) {
+            this.showProjectileTrailFx(weapon.id, path);
+
+            let detonated = false;
+            const animControl = this.projRenderer.animateAlongPath(
+                projectile,
+                path,
+                () => { /* path exhausted — projectile rests until timer */ },
+                (x, y) => { checkMapModifier(x, y); return false; },
+            );
+
+            this.scheduleTurnEvent(weapon.detonationDelay, () => {
+                if (detonated) return;
+                detonated = true;
+                animControl.cancel();
+
+                if (this.turnManager.turnNumber !== turnToken) {
+                    this.isAnimating = false;
+                    options.onComplete?.(true);
+                    return;
+                }
+
+                const detonX = projectile.x;
+                const detonY = projectile.y;
+                projectile.setVisible(false);
+                if (options.destroyProjectileOnComplete) projectile.destroy();
+
+                this.isAnimating = false;
+                this.showProjectileImpactFx(weapon.id, detonX, detonY);
+                if (isPlayerShot) this.ghostTrace?.recordShot(path);
+
+                const resolvedBaseDamage = mapModProjState.baseDamage;
+                const resolvedExcavationRadius = mapModProjState.excavationRadius;
+
+                const explodeResult = this.terrainEngine.explode(detonX, detonY, resolvedExcavationRadius);
+                this.terrainRenderer.applyExplosion(
+                    explodeResult.center.x, explodeResult.center.y, explodeResult.radius,
+                );
+
+                const impact = this.getProjectileImpact({ x: detonX, y: detonY }, isPlayerShot);
+                const tdx = detonX - impact.targetStats.x;
+                const tdy = detonY - impact.targetStats.y;
+                const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
+                const effectiveRadius = Math.max(resolvedExcavationRadius, 30);
+
+                let gameEnded = false;
+                if (distToTarget <= effectiveRadius) {
+                    gameEnded = this.onProjectileImpact(
+                        detonX, detonY, isPlayerShot,
+                        impact.targetStats, resolvedBaseDamage, effectiveRadius,
+                        options.endTurnOnComplete ?? true,
+                    );
+                } else if (options.endTurnOnComplete ?? true) {
+                    this.endTurn(isPlayerShot);
+                }
+                options.onComplete?.(gameEnded);
+            });
+            return;
+        }
+
+        // ── Normal weapons: immediate explosion on first terrain/target hit ──
+        const realtimeCollision = options.realtimeCollision ?? false;
+        const clipped = realtimeCollision
+            ? {
+                  path,
+                  impactPoint: null as { x: number; y: number } | null,
+                  impact: null as ReturnType<typeof this.getProjectileImpact> | null,
+              }
+            : this.clipPathToFirstImpact(path, isPlayerShot);
+        const animationPath = clipped.path;
+        this.showProjectileTrailFx(weapon.id, animationPath);
+
+        const checkImpactFn = realtimeCollision
+            ? (x: number, y: number): boolean => {
+                  checkMapModifier(x, y);
+                  const hit = this.getProjectileImpact({ x, y }, isPlayerShot);
+                  return hit.hitTerrain || hit.hitTarget;
+              }
+            : checkMapModifier;
 
         this.projRenderer.animateAlongPath(
             projectile,
@@ -1908,6 +2244,7 @@ export class BattleScene extends Phaser.Scene {
                 }
 
                 if (this.turnManager.turnNumber !== turnToken) {
+                    this.isAnimating = false;
                     options.onComplete?.(true);
                     return;
                 }
@@ -1919,11 +2256,7 @@ export class BattleScene extends Phaser.Scene {
                     impactPoint ??
                     animationPath[animationPath.length - 1];
                 const traveledPath = animationPath;
-                this.showProjectileImpactFx(
-                    weapon.id,
-                    resolvedImpact.x,
-                    resolvedImpact.y,
-                );
+                this.showProjectileImpactFx(weapon.id, resolvedImpact.x, resolvedImpact.y);
 
                 if (isPlayerShot) {
                     this.ghostTrace?.recordShot(traveledPath);
@@ -1932,21 +2265,14 @@ export class BattleScene extends Phaser.Scene {
                 const impact =
                     clipped.impact ??
                     this.getProjectileImpact(resolvedImpact, isPlayerShot);
-                const teleportUtilityShot =
-                    isPlayerShot && this.teleportShotArmed;
-                const explodeOnImpact =
-                    options.explodeOnImpact ?? !teleportUtilityShot;
+                const teleportUtilityShot = isPlayerShot && this.teleportShotArmed;
+                const explodeOnImpact = options.explodeOnImpact ?? !teleportUtilityShot;
                 const applyDamage = options.applyDamage ?? !teleportUtilityShot;
 
-                // [v1.5.0] Use mapModProjState values (may have been mutated by modifier collisions)
                 const resolvedBaseDamage = mapModProjState.baseDamage;
-                const resolvedExcavationRadius =
-                    mapModProjState.excavationRadius;
+                const resolvedExcavationRadius = mapModProjState.excavationRadius;
 
-                if (
-                    explodeOnImpact &&
-                    (impact.hitTerrain || impact.hitTarget)
-                ) {
+                if (explodeOnImpact && (impact.hitTerrain || impact.hitTarget)) {
                     const explodeResult = this.terrainEngine.explode(
                         resolvedImpact.x,
                         resolvedImpact.y,
@@ -1959,11 +2285,7 @@ export class BattleScene extends Phaser.Scene {
                     );
                 }
 
-                this.resolveTeleportShot(
-                    isPlayerShot,
-                    resolvedImpact,
-                    impact.hitTerrain,
-                );
+                this.resolveTeleportShot(isPlayerShot, resolvedImpact, impact.hitTerrain);
 
                 const tdx = resolvedImpact.x - impact.targetStats.x;
                 const tdy = resolvedImpact.y - impact.targetStats.y;
@@ -1988,8 +2310,27 @@ export class BattleScene extends Phaser.Scene {
 
                 options.onComplete?.(gameEnded);
             },
-            checkMapModifier,
-        ); // [v1.5.0] pass checkMapModifier to detect modifier collisions
+            checkImpactFn,
+        );
+    }
+
+    /** Simulate projectile path, using bounce physics for detonation-delay weapons. */
+    private computeProjectilePath(
+        startX: number,
+        startY: number,
+        config: { angle: number; force: number; gravityScale: number; windInfluence: number; baseDamage: number },
+        wind: ReturnType<WindSystem["getCurrent"]>,
+        weapon: WeaponDefinition,
+    ): Array<{ x: number; y: number; time: number }> {
+        if (weapon.detonationDelay && weapon.detonationDelay > 0) {
+            // Enough frames so animation fills the detonation window (8 ms/frame)
+            const maxPoints = Math.ceil(weapon.detonationDelay / 8);
+            return this.projectilePhysics.simulate(startX, startY, config, wind, undefined, {
+                terrainAt: (x, y) => this.hasTerrainNearProjectile(x, y),
+                maxPoints,
+            });
+        }
+        return this.projectilePhysics.simulate(startX, startY, config, wind);
     }
 
     private clipPathToFirstImpact(
@@ -2373,8 +2714,27 @@ export class BattleScene extends Phaser.Scene {
     private endTurn(_wasPlayerShot: boolean): void {
         const endingTurnNumber = this.turnManager.turnNumber;
         if (this.lastEndedTurnNumber === endingTurnNumber) return;
-
         this.lastEndedTurnNumber = endingTurnNumber;
+
+        // Refresh fall state — it may be stale if isAnimating was true since last update()
+        this.playerFall.update(this.playerSprite, this.terrainEngine, 0);
+        this.aiFall.update(this.aiSprite, this.terrainEngine, 0);
+
+        // Wait for both characters to finish falling before switching turns
+        this.waitForFallsToSettle(() => this.processEndTurn());
+    }
+
+    private waitForFallsToSettle(callback: () => void): void {
+        if (!this.playerFall.isFalling && !this.aiFall.isFalling) {
+            callback();
+            return;
+        }
+        this.time.delayedCall(100, () => this.waitForFallsToSettle(callback));
+    }
+
+    private processEndTurn(): void {
+        if (this.battleEnded) return;
+
         this.activeVolleyId++;
         this.clearScheduledTurnEvents();
         this.onAngleButtonUp(); // clean up hold-to-repeat timers
@@ -2437,7 +2797,8 @@ export class BattleScene extends Phaser.Scene {
             this.cameras.main.startFollow(this.aiSprite, true, 0.08, 0.08);
             this.movementBudgetHUD?.setVisible(false);
             const aiTurnToken = this.turnManager.turnNumber;
-            this.scheduleTurnEvent(1000, () => {
+            const aiDelay = Phaser.Math.Between(3000, 7000);
+            this.scheduleTurnEvent(aiDelay, () => {
                 this.fireAiShot(aiTurnToken);
             });
         } else {
@@ -2680,8 +3041,12 @@ export class BattleScene extends Phaser.Scene {
         const angleX = dialR + 2;
         const hitW = Math.max(56, Math.round(dialR * 0.9));
         const hitH = Math.max(96, Math.round(dialR * 1.55));
-        this._btnAngleMinus.setPosition(angleX - hitW / 2, angleY).setSize(hitW, hitH);
-        this._btnAnglePlus.setPosition(angleX + hitW / 2, angleY).setSize(hitW, hitH);
+        this._btnAngleMinus
+            .setPosition(angleX - hitW / 2, angleY)
+            .setSize(hitW, hitH);
+        this._btnAnglePlus
+            .setPosition(angleX + hitW / 2, angleY)
+            .setSize(hitW, hitH);
     }
 
     // ──────────────────────────────────────────────────────────
@@ -2753,7 +3118,11 @@ export class BattleScene extends Phaser.Scene {
         const centerX = this.scale.width / 2;
         const centerY = this.scale.height / 2;
         const result = this.terrainEngine.explode(centerX, centerY, radius);
-        this.terrainRenderer.applyExplosion(result.center.x, result.center.y, result.radius);
+        this.terrainRenderer.applyExplosion(
+            result.center.x,
+            result.center.y,
+            result.radius,
+        );
     }
 
     private getMapOption(mapName: MapName): BattleMapOption {
@@ -2763,11 +3132,13 @@ export class BattleScene extends Phaser.Scene {
     }
 
     private getTerrainImageData(key: string): ImageData {
-        const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
-        const canvas = document.createElement('canvas');
+        const source = this.textures
+            .get(key)
+            .getSourceImage() as HTMLImageElement;
+        const canvas = document.createElement("canvas");
         canvas.width = source.naturalWidth;
         canvas.height = source.naturalHeight;
-        const ctx = canvas.getContext('2d')!;
+        const ctx = canvas.getContext("2d")!;
         ctx.drawImage(source, 0, 0);
         return ctx.getImageData(0, 0, canvas.width, canvas.height);
     }

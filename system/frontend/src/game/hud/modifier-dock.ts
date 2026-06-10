@@ -90,6 +90,10 @@ export class ModifierDock {
         this.setSlot(index, null);
     }
 
+    setVisible(visible: boolean): void {
+        this.root?.setVisible(visible);
+    }
+
     destroy(): void {
         for (const cleanup of this.keyboardListeners) cleanup();
         this.keyboardListeners = [];

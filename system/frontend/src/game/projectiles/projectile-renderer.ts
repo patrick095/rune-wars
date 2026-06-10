@@ -25,19 +25,21 @@ export class ProjectileRenderer {
     path: Array<{ x: number; y: number }>,
     onComplete: (impactPoint: { x: number; y: number } | null) => void,
     checkImpact?: (x: number, y: number) => boolean
-  ): void {
+  ): { cancel: () => void } {
     if (path.length === 0) {
       onComplete(null);
-      return;
+      return { cancel: () => {} };
     }
 
     projectile.setVisible(true);
     let index = 0;
+    let cancelled = false;
 
     const event = this.scene.time.addEvent({
       delay: 8,
       repeat: path.length - 1,
       callback: () => {
+        if (cancelled) return;
         const point = path[index];
         projectile.setPosition(point.x, point.y);
         if (projectile instanceof Phaser.GameObjects.Image && index > 0) {
@@ -58,6 +60,13 @@ export class ProjectileRenderer {
         }
       },
     });
+
+    return {
+      cancel: () => {
+        cancelled = true;
+        event.remove(false);
+      },
+    };
   }
 
   destroyProjectile(projectile: ProjectileObject): void {

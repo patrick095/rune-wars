@@ -62,6 +62,7 @@ export const RUNE_WARS_BATTLE_WEAPONS = [
   'boomerang',
   'ice-book',
   'potion',
+  'magic-grenade',
 ] as const;
 
 export function runeWarsCharacterLayerKey(
