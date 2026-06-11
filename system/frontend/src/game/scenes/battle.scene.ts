@@ -1594,7 +1594,15 @@ export class BattleScene extends Phaser.Scene {
     private startChargingPower(): void {
         if (this.isAnimating || !this.turnManager.isPlayerTurn) return;
         // FREEZE blocks power charging
-        if (this.statusEffects.hasEffect("player", "FREEZE")) return;
+        if (this.statusEffects.hasEffect("player", "FREEZE")) {
+            this.showItemFloatingText(
+                this.playerStats.x,
+                this.playerStats.y,
+                "❄ Congelado!",
+                "#44aaff",
+            );
+            return;
+        }
         if (this.isChargingPower) return;
 
         this.isChargingPower = true;
@@ -2272,7 +2280,11 @@ export class BattleScene extends Phaser.Scene {
                 const resolvedBaseDamage = mapModProjState.baseDamage;
                 const resolvedExcavationRadius = mapModProjState.excavationRadius;
 
-                if (explodeOnImpact && (impact.hitTerrain || impact.hitTarget)) {
+                // Volley shots (realtimeCollision) always explode at their endpoint:
+                // the second shot of a shot_plus1 can fly through a crater already
+                // created by the first shot and would otherwise fizzle silently.
+                const forceExplode = realtimeCollision;
+                if (explodeOnImpact && (impact.hitTerrain || impact.hitTarget || forceExplode)) {
                     const explodeResult = this.terrainEngine.explode(
                         resolvedImpact.x,
                         resolvedImpact.y,
@@ -2811,6 +2823,8 @@ export class BattleScene extends Phaser.Scene {
             this.ghostTrace?.clear();
             // Consume any unused shot modifier at the start of each player turn
             this.shotModifierSystem.consumeAll();
+            // Disarm teleport if it was never fired last turn (player passed turn)
+            this.teleportShotArmed = false;
             // Allow one consumable per turn
             this.consumableUsedThisTurn = false;
             this.updateTrajectoryPreview();
@@ -2928,8 +2942,8 @@ export class BattleScene extends Phaser.Scene {
             this.turnManager.isPlayerTurn &&
             this.statusEffects.hasEffect("player", "FREEZE")
         ) {
-            this._btnAngleMinus.setFillStyle(0x000000, 0.001);
-            this._btnAnglePlus.setFillStyle(0x000000, 0.001);
+            this._btnAngleMinus.setFillStyle(0x2266cc, 0.6);
+            this._btnAnglePlus.setFillStyle(0x2266cc, 0.6);
         } else {
             this._btnAngleMinus.setFillStyle(0x000000, 0.001);
             this._btnAnglePlus.setFillStyle(0x000000, 0.001);
