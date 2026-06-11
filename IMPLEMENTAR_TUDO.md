@@ -1,183 +1,194 @@
-# Implementar Tudo — v1.6.0: Motor de Mapa Bitmap + Terrain Destrutível
+# Implementar Tudo — v1.7.0
 
 ## Objetivo Geral
-Substituir o motor de terrain baseado em grade (tiles 8×8px) por um sistema bitmap pixel-perfect. As imagens PNG reais dos mapas PVP passam a ser usadas diretamente. Explosões cortam buracos circulares via `RenderTexture.erase()`. Colisão lê o canal alpha do PNG via `Uint8Array`. 12 spawn points por mapa em coordenadas de pixel. 5 mapas PVP suportados.
+Implementar quatro grandes entregas na versão 1.7.0 do Rune Wars:
+1. **Inventário funcional com dados reais** — endpoints corrigidos, ITEM_CATALOG, equip/unequip real
+2. **Cofre/baú funcional** — overlay Angular dedicado com DnD entre inventário e cofre
+3. **Admin Panel** — tecla "I" no Hub abre painel para admin inspecionar/editar inventários
+4. **Sala PvP redesenhada** — 4 slots de equipe, carrossel de mapa, modos, consumíveis persistentes
+
+---
 
 ## Estratégia
-- 8 subagentes com escopo fechado e contexto mínimo
-- Execução em 5 fases (2 paralelas iniciais, convergência progressiva)
-- Sem alteração de backend ou dungeon/academy
-- Build validado ao final antes de qualquer commit
+- Backend e frontend desenvolvidos em paralelo (backend-first onde há dependência de endpoint)
+- DB migrations rodam primeiro para desbloquear todas as entidades
+- ITEM_CATALOG criado em paralelo com migrations (sem dependência)
+- Agentes com escopo fechado e contexto mínimo
+- QA valida build e critérios ao final
 
 ---
 
 ## Fila de Execução
 
-### Fase 1 — Paralela (independentes)
-Podem executar simultaneamente:
-- **Agente 001** — Criar `tools/analyze-spawns.mjs` e gerar spawn points dos 5 mapas
-- **Agente 002** — Atualizar `terrain-types.ts` (WORLD_WIDTH/HEIGHT, CELL_SIZE deprecado, ExplosionResult sem cellsDestroyed)
+### Fase 1 — Fundação (paralelo, executar agora)
+Pode executar em paralelo:
+- **Agent 001** — DB Migrations (is_admin, character_consumable, pvp_room columns + seeds)
+- **Agent 002** — ITEM_CATALOG (constante TypeScript estática)
 
-### Fase 2 — Paralela (dependem de 002)
-Podem executar simultaneamente após Agente 002 concluir:
-- **Agente 003** — Reescrever `terrain-engine.ts` (Uint8Array, fromImageData, API preservada)
-- **Agente 004** — Reescrever `terrain-renderer.ts` + deletar `terrain-textures.ts`
-- **Agente 005** — Atualizar `spawn-selector.ts` ({x,y} em pixels)
+### Fase 2 — Backend + Inventory Frontend (paralelo, após Fase 1)
+Pode executar em paralelo:
+- **Agent 003** — BE Auth + Admin Module (aguarda 001)
+- **Agent 004** — BE ConsumableInventory Module (aguarda 001)
+- **Agent 005** — BE PvP Room Extensions (aguarda 001)
+- **Agent 006** — FE Inventory Fix + CharacterComponent Equip (aguarda 002)
 
-### Fase 3 — Sequencial (depende de 003+004+005)
-- **Agente 006** — Atualizar `battle.scene.ts` (preload assets reais, integração do novo motor, renomear castle→mystic_castle)
+### Fase 3 — Frontend Secundário (paralelo, após Fase 2 parcial)
+Pode executar em paralelo:
+- **Agent 007** — FE VaultScreenComponent (aguarda 006)
+- **Agent 008** — FE ConsumableInventoryService (aguarda 004)
 
-### Fase 4 — Sequencial (depende de 001+006)
-- **Agente 007** — Atualizar JSONs de mapa PVP (remover grid, spawn points pixel, renomear map-castle→map-mystic-castle)
+### Fase 4 — Frontend Avançado (paralelo, após Fase 3)
+Pode executar em paralelo:
+- **Agent 009** — FE AdminInventoryPanelComponent + HubComponent keydown (aguarda 003 + 008)
+- **Agent 010** — FE PvpRoomComponent Redesign Completo (aguarda 005 + 008)
 
-### Fase 5 — Validação Final (depende de todos)
-- **Agente 008** — Rodar `ng build`, corrigir erros TypeScript, verificar regressões
+### Fase 5 — Validação Final
+Sequencial:
+- **Agent 011** — QA Build + Validação (aguarda todos os anteriores)
 
 ---
 
 ## Mapa de Dependências
 
 ```
-001-spawn-points ──────────────────────────────────────────→ 007-map-jsons
-002-terrain-types → 003-terrain-engine → 006-battle-scene → 007-map-jsons → 008-validacao
-002-terrain-types → 004-terrain-renderer → 006-battle-scene ↗
-002-terrain-types → 005-spawn-selector → 006-battle-scene ↗
+001 (DB) ──────────┬──→ 003 (BE Auth+Admin)
+                   ├──→ 004 (BE Consumables)
+                   └──→ 005 (BE PvP Room)
+
+002 (ITEM_CATALOG) ──→ 006 (FE Inventory)
+                         └──→ 007 (FE Vault)
+
+004 (BE Consumables) ──→ 008 (FE Consumable Service)
+
+003 (BE Auth+Admin) ──┐
+                      ├──→ 009 (FE Admin Panel)
+008 (FE Consumables) ─┘
+
+005 (BE PvP Room) ────┐
+                      ├──→ 010 (FE PvP Room Redesign)
+008 (FE Consumables) ─┘
+
+[TODOS 001-010] ──→ 011 (QA Build)
 ```
 
 ---
 
 ## Subagentes
 
-| ID | Nome | Dependências | Paralelo com |
-|----|------|-------------|--------------|
-| 001 | Analisar e Gerar Spawn Points | nenhuma | 002 |
-| 002 | Atualizar terrain-types.ts | nenhuma | 001 |
-| 003 | Reescrever terrain-engine.ts | 002 | 004, 005 |
-| 004 | Reescrever terrain-renderer.ts + deletar terrain-textures | 002 | 003, 005 |
-| 005 | Atualizar spawn-selector.ts | 002 | 003, 004 |
-| 006 | Atualizar battle.scene.ts | 003, 004, 005 | — |
-| 007 | Atualizar JSONs de mapa PVP | 001, 006 | — |
-| 008 | Validação e Build | 001–007 | — |
-
----
-
-## Arquivos Alterados por Agente
-
-| Arquivo | Agente | Operação |
-|---------|--------|----------|
-| `tools/analyze-spawns.mjs` | 001 | Criar |
-| `system/frontend/src/app/shared/game-core/terrain-types.ts` | 002 | Modificar |
-| `system/frontend/src/app/shared/game-core/terrain-engine.ts` | 003 | Reescrever |
-| `system/frontend/src/game/terrain/terrain-renderer.ts` | 004 | Reescrever |
-| `system/frontend/src/game/terrain/terrain-textures.ts` | 004 | **Deletar** |
-| `system/frontend/src/game/terrain/spawn-selector.ts` | 005 | Modificar |
-| `system/frontend/src/game/scenes/battle.scene.ts` | 006 | Modificar |
-| `system/frontend/src/app/shared/game-core/maps/map-plains.json` | 007 | Modificar |
-| `system/frontend/src/app/shared/game-core/maps/map-castle.json` | 007 | **Deletar** |
-| `system/frontend/src/app/shared/game-core/maps/map-mystic-castle.json` | 007 | Criar |
-| `system/frontend/src/app/shared/game-core/maps/map-deep-mines.json` | 007 | Modificar |
-| `system/frontend/src/app/shared/game-core/maps/map-arcane-ruins.json` | 007 | Modificar |
-| `system/frontend/src/app/shared/game-core/maps/map-runic-forest.json` | 007 | Modificar |
+| # | Nome | Escopo | Fase | Depende de |
+|---|------|--------|------|------------|
+| 001 | DB Migrations | Migrations SQL + seeds | 1 | — |
+| 002 | ITEM_CATALOG | Constante TypeScript | 1 | — |
+| 003 | BE Auth + Admin | User.is_admin + JWT + AdminModule | 2 | 001 |
+| 004 | BE Consumables | CharacterConsumable entity + ConsumableInventoryModule | 2 | 001 |
+| 005 | BE PvP Room | PvpRoom slots/mode + 3 endpoints | 2 | 001 |
+| 006 | FE Inventory | InventoryService fix + CharacterComponent equip | 2 | 002 |
+| 007 | FE Vault | VaultScreenComponent + GameScreen 'vault' | 3 | 006 |
+| 008 | FE Consumable Service | ConsumableInventoryService | 3 | 004 |
+| 009 | FE Admin Panel | AdminInventoryPanelComponent + HubComponent keydown | 4 | 003, 008 |
+| 010 | FE PvP Room | PvpRoomComponent redesign completo | 4 | 005, 008 |
+| 011 | QA Build | npm run build + validação dos critérios | 5 | todos |
 
 ---
 
 ## Instruções de Execução
 
-### Pré-requisito
-Ler `.ai-orchestration/ORCHESTRATION_STATE.md` para verificar se já há execução em andamento.
+### Como chamar cada agente
 
-### Execução passo a passo
-
-**Passo 1 — Fase 1 (paralela)**
-Execute os dois agentes em paralelo:
+Cada agente tem um sub-spec completo em:
 ```
-[Agente 001] Siga .ai-orchestration/agents/001-spawn-points.md
-[Agente 002] Siga .ai-orchestration/agents/002-terrain-types.md
+.ai-orchestration/agents/{NNN}-{nome}.md
 ```
 
-**Passo 2 — Verificar Fase 1**
-Confirmar que ambos os resumos existem com status Concluído:
-- `.ai-orchestration/agents/001-spawn-points-resumo.md`
-- `.ai-orchestration/agents/002-terrain-types-resumo.md`
+Para executar um agente, leia o sub-spec correspondente e delegue a execução. O agente deve:
+1. Ler o sub-spec inteiro antes de começar
+2. Consultar os arquivos listados em "Arquivos a consultar"
+3. Implementar exatamente o que está em "Implementações exigidas"
+4. Criar o arquivo de resumo `*-result.md` ao terminar
+5. Atualizar `.ai-orchestration/ORCHESTRATION_STATE.md` e `FILES_CHANGED.md`
 
-**Passo 3 — Fase 2 (paralela)**
-Execute os três agentes em paralelo (002 deve estar concluído):
-```
-[Agente 003] Siga .ai-orchestration/agents/003-terrain-engine.md
-[Agente 004] Siga .ai-orchestration/agents/004-terrain-renderer.md
-[Agente 005] Siga .ai-orchestration/agents/005-spawn-selector.md
-```
+### Como verificar se um agente terminou
+Checar se existe `.ai-orchestration/agents/{NNN}-{nome}-result.md` com `Status: Concluído`.
 
-**Passo 4 — Verificar Fase 2**
-Confirmar resumos com status Concluído para 003, 004, 005.
-
-**Passo 5 — Fase 3 (sequencial)**
-```
-[Agente 006] Siga .ai-orchestration/agents/006-battle-scene.md
-```
-
-**Passo 6 — Verificar Fase 3**
-Confirmar `.ai-orchestration/agents/006-battle-scene-resumo.md` como Concluído.
-
-**Passo 7 — Fase 4 (sequencial)**
-```
-[Agente 007] Siga .ai-orchestration/agents/007-map-jsons.md
-```
-
-**Passo 8 — Fase 5 — Validação**
-```
-[Agente 008] Siga .ai-orchestration/agents/008-validacao-build.md
-```
+### Como liberar agentes dependentes
+Antes de iniciar um agente, verificar se todos os `result.md` das dependências existem com Status Concluído.
 
 ---
 
 ## Como lidar com bugs
 
-### Bug CRÍTICO (bloqueia build ou runtime)
-1. Registrar em `.ai-orchestration/BUGS_AND_BLOCKERS.md` como CRÍTICO
-2. Criar novo sub-spec em `.ai-orchestration/agents/009-bug-fix-{nome}.md`
-3. Executar agente corretivo antes de prosseguir com fases dependentes
-4. Atualizar `ORCHESTRATION_STATE.md` e `AGENTS_QUEUE.md`
+### Se o Agent 011 encontrar erros de build (CRÍTICO):
+1. NÃO criar commit
+2. Criar sub-spec de correção: `.ai-orchestration/agents/012-fix-{bug}.md`
+3. Executar Agent 012 antes de finalizar
+4. Reexecutar Agent 011 após correção
 
-### Bug IMPORTANTE (erro de tipo, lógica incorreta)
-1. Registrar em `BUGS_AND_BLOCKERS.md` como IMPORTANTE
-2. O Agente 008 pode corrigir diretamente se for erro de compilação
-3. Se for lógica, criar agente corretivo pontual
+### Se um agente intermediário reportar bug CRÍTICO:
+1. Pausar agentes dependentes
+2. Criar novo agente corretivo com escopo fechado
+3. Liberar dependentes somente após correção
 
-### Bug BAIXO (warning, style, cosmético)
-1. Registrar em `BUGS_AND_BLOCKERS.md` como BAIXO
-2. Acumular para tratar no final ou deixar como pendência documentada
+### Se um agente reportar bug IMPORTANTE ou BAIXO:
+1. Registrar em `BUGS_AND_BLOCKERS.md`
+2. Continuar execução dos demais agentes
+3. Tratar antes do commit final (Agent 011 irá identificar)
 
 ---
 
 ## Como lidar com conflitos
 
-Se dois agentes tocarem o mesmo arquivo:
-1. Verificar `FILES_CHANGED.md` antes de iniciar cada agente
-2. Se conflito detectado, o agente subsequente deve ler o arquivo já modificado
-3. Nunca sobrescrever mudanças do agente anterior sem ler primeiro
-4. Registrar o conflito em `DECISIONS_LOG.md`
+Se dois agentes alteraram o mesmo arquivo:
+1. Agent 011 detecta via `FILES_CHANGED.md`
+2. Verificar se as alterações são compatíveis
+3. Se conflito: criar Agent de merge com os dois result.md como contexto
 
 ---
 
 ## Como finalizar
 
-Após Agente 008 concluir com sucesso:
+Após Agent 011 reportar `APROVADO`:
 
-1. Verificar checklist em `.ai-orchestration/FINAL_CLEANUP.md`
-2. Criar resumo final permanente em `docs/implementations/2026-06-10-v1.6.0-motor-bitmap-pvp.md`
-3. Remover `.ai-orchestration/` com `rm -rf .ai-orchestration/`
-4. Perguntar ao usuário sobre commit
+1. **Verificar checklist final** em `.ai-orchestration/FINAL_CLEANUP.md`
+2. **Criar resumo permanente** em `docs/implementations/2026-06-10-v1.7.0-implementation-summary.md`
+3. **Remover pasta temporária**: `rm -rf .ai-orchestration/`
+4. **Perguntar sobre commit** — nunca commitar automaticamente
 
 ---
 
-## Retomada
+## Arquivos do Projeto Afetados
 
-Se a implementação for interrompida, retome assim:
-```
-/plan continue
-```
-Ou manualmente:
-1. Ler `.ai-orchestration/ORCHESTRATION_STATE.md`
-2. Ler `.ai-orchestration/AGENTS_QUEUE.md`
-3. Continuar da "Próxima ação recomendada"
+### Backend — modificar
+- `system/backend/src/auth/user.entity.ts`
+- `system/backend/src/auth/auth.service.ts`
+- `system/backend/src/auth/jwt.strategy.ts`
+- `system/backend/src/app.module.ts`
+- `system/backend/src/migrations/` (novos arquivos)
+
+### Backend — criar
+- `system/backend/src/inventory/character-consumable.entity.ts`
+- `system/backend/src/consumable-inventory/` (módulo completo)
+- `system/backend/src/admin/` (módulo completo)
+- `system/backend/src/pvp/` (extensões: slots, mode, map_slug, 3 endpoints)
+
+### Frontend — modificar
+- `system/frontend/src/app/shared/services/inventory.service.ts`
+- `system/frontend/src/app/character/character.component.ts`
+- `system/frontend/src/app/character/character.component.html`
+- `system/frontend/src/app/shared/services/game-navigator.service.ts`
+- `system/frontend/src/app/app.component.ts`
+- `system/frontend/src/app/app.component.html`
+- `system/frontend/src/app/hub/hub.component.ts`
+- `system/frontend/src/app/hub/hub.component.html`
+- `system/frontend/src/app/pvp/pvp-room.component.ts`
+- `system/frontend/src/app/pvp/pvp-room.component.html`
+- `system/frontend/src/app/pvp/pvp-room.component.scss`
+
+### Frontend — criar
+- `system/frontend/src/app/shared/game-core/item-catalog.ts`
+- `system/frontend/src/app/shared/services/consumable-inventory.service.ts`
+- `system/frontend/src/app/vault/vault-screen.component.ts`
+- `system/frontend/src/app/vault/vault-screen.component.html`
+- `system/frontend/src/app/vault/vault-screen.component.scss`
+- `system/frontend/src/app/admin/admin-inventory-panel.component.ts`
+- `system/frontend/src/app/admin/admin-inventory-panel.component.html`
+- `system/frontend/src/app/admin/admin-inventory-panel.component.scss`
