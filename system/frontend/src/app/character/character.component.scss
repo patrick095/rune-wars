@@ -1,40 +1,35 @@
-// ── Tab navigation ────────────────────────────────────────────────────────
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #333;
-  padding-bottom: 0;
+// ── Back button ───────────────────────────────────────────────────────────
+.back-btn {
+  background: none;
+  border: none;
+  color: #aad4ff;
+  font-family: monospace;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0 12px;
+  display: block;
 
-  button {
-    padding: 10px 20px;
-    background: transparent;
-    color: #aaa;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    cursor: pointer;
-    font-family: monospace;
-    font-size: 14px;
-    transition: color 0.2s, border-color 0.2s;
-
-    &:hover {
-      color: #fff;
-    }
-
-    &.active {
-      color: #aad4ff;
-      border-bottom-color: #4488ff;
-    }
-  }
+  &:hover { color: #fff; }
 }
 
-// ── Inventory layout ──────────────────────────────────────────────────────
-.inventory-layout {
+.vault-toggle-row {
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.vault-btn {
+  padding: 8px 16px;
+  background: #333;
+  color: #aad4ff;
+  border: 1px solid #4488ff44;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover { background: #444; }
 }
 
 .loading-msg {
@@ -44,19 +39,26 @@
   font-size: 14px;
 }
 
+// ── Host ─────────────────────────────────────────────────────────────────
+:host {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  background: #1a1a2e;
+}
+
 // ── Base page ─────────────────────────────────────────────────────────────
 .character-page {
   padding: 16px;
-  max-width: 600px;
-  margin: 0 auto;
+  width: 900px;
+  max-width: 100%;
   color: #fff;
-  background: #1a1a2e;
-  min-height: 100vh;
   font-family: monospace;
 
   h1 {
     font-size: 24px;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     color: #aad4ff;
     text-align: center;
   }
@@ -66,6 +68,31 @@
     color: #aad4ff;
     margin-bottom: 8px;
   }
+}
+
+// ── Main two-column layout ─────────────────────────────────────────────────
+.main-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.attrs-panel {
+  flex: 1;
+  min-width: 280px;
+}
+
+.equipment-panel {
+  flex: 1;
+  min-width: 280px;
+}
+
+// ── Inventory section (full width below) ──────────────────────────────────
+.inventory-section {
+  margin-top: 24px;
+  border-top: 1px solid #333;
+  padding-top: 16px;
 }
 
 .presets {
@@ -86,13 +113,8 @@
     font-size: 14px;
     transition: background 0.2s;
 
-    &:hover {
-      background: #555;
-    }
-
-    &:active {
-      background: #4488ff;
-    }
+    &:hover { background: #555; }
+    &:active { background: #4488ff; }
   }
 }
 
@@ -103,10 +125,7 @@
 
   .points-remaining {
     color: #88ff88;
-
-    &.no-points {
-      color: #ff8888;
-    }
+    &.no-points { color: #ff8888; }
   }
 }
 
@@ -140,18 +159,9 @@
     justify-content: center;
     transition: background 0.2s;
 
-    &:hover {
-      background: #555;
-    }
-
-    &:active {
-      background: #4488ff;
-    }
-
-    &:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
+    &:hover { background: #555; }
+    &:active { background: #4488ff; }
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
   }
 
   .label {
@@ -184,49 +194,21 @@
   color: #ccc;
   border-bottom: 1px solid #333;
 
-  &:last-child {
-    border-bottom: none;
-  }
+  &:last-child { border-bottom: none; }
 
   span:last-child {
     color: #fff;
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 }
 
-.weapons-list {
-  margin: 16px 0;
-}
-
-.weapon-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  background: #252545;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  font-size: 14px;
-
-  &.locked {
-    opacity: 0.5;
-  }
-
-  .lock-icon,
-  .unlock-icon {
-    font-size: 16px;
-    flex-shrink: 0;
-  }
-
-  .weapon-name {
-    flex: 1;
-    color: #fff;
-  }
-
-  .weapon-damage {
-    color: #aaa;
-    font-size: 12px;
-  }
+.bonus {
+  color: #88ff88;
+  font-size: 12px;
+  font-weight: normal;
 }
 
 .save-btn {
@@ -243,13 +225,8 @@
   min-height: 44px;
   transition: background 0.2s;
 
-  &:hover {
-    background: #2266dd;
-  }
-
-  &:active {
-    background: #1144aa;
-  }
+  &:hover { background: #2266dd; }
+  &:active { background: #1144aa; }
 }
 
 .save-feedback {

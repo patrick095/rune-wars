@@ -95,6 +95,20 @@ export class StatusEffectManager {
   }
 
   /**
+   * Remove um efeito específico de um jogador pelo tipo.
+   */
+  remove(playerId: string, type: RunicEffectType): void {
+    const effects = this._effects.get(playerId);
+    if (!effects) return;
+    const remaining = effects.filter(e => e.type !== type);
+    if (remaining.length === 0) {
+      this._effects.delete(playerId);
+    } else {
+      this._effects.set(playerId, remaining);
+    }
+  }
+
+  /**
    * Remove todos os efeitos de um jogador específico.
    */
   clear(playerId: string): void {

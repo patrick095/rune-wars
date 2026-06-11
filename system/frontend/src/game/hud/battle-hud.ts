@@ -152,6 +152,11 @@ export class BattleHud {
         this.windDisplay.setLastShot(force, angle);
     }
 
+    /** Set or clear the calibration target zone on the power bar. */
+    setCalibrationZone(zone: { min: number; max: number } | null): void {
+        this.powerBar.setTargetZone(zone);
+    }
+
     /**
      * Propagate game state to all HUD sub-components.
      * Call every frame (or whenever state changes).

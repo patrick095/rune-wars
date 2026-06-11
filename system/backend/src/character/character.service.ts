@@ -31,6 +31,12 @@ export class CharacterService {
     return char;
   }
 
+  async findOneById(id: string) {
+    const char = await this.repo.findOne({ where: { id } });
+    if (!char) throw new NotFoundException('Character not found');
+    return char;
+  }
+
   async update(id: string, userId: string, dto: Partial<Character>) {
     const char = await this.findOne(id, userId);
     Object.assign(char, dto);

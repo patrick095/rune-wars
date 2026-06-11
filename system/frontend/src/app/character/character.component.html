@@ -1,160 +1,141 @@
 <div class="character-page">
+  <button class="back-btn" type="button" (click)="goBack()">← Voltar ao Hub</button>
   <h1>Personagem</h1>
 
-  <!-- Tab navigation -->
-  <div class="tabs">
-    <button
-      type="button"
-      [class.active]="activeTab === 'character'"
-      (click)="activeTab = 'character'"
-    >Personagem</button>
-    <button
-      type="button"
-      [class.active]="activeTab === 'inventory'"
-      (click)="setTab('inventory')"
-    >Inventário</button>
-    <button
-      type="button"
-      [class.active]="activeTab === 'vault'"
-      (click)="setTab('vault')"
-    >Cofre</button>
+  <!-- ── Vault toggle ──────────────────────────────────────────────────── -->
+  <div class="vault-toggle-row">
+    <button type="button" class="vault-btn" (click)="showVault = !showVault">
+      {{ showVault ? '← Inventário' : '🗄 Cofre' }}
+    </button>
   </div>
 
-  <!-- ── TAB: Personagem ───────────────────────────────────────────────── -->
-  <ng-container *ngIf="activeTab === 'character'">
-
-    <!-- Presets -->
-    <div class="presets">
-      <button
-        *ngFor="let p of presets"
-        (click)="applyPreset(p)"
-        type="button"
-      >{{ p.name }}</button>
-    </div>
-
-    <!-- Nível -->
-    <div class="attr-row level-row">
-      <span class="label">Nível</span>
-      <button type="button" (click)="decrementLevel()">−</button>
-      <span class="value">{{ base.level }}</span>
-      <button type="button" (click)="incrementLevel()">+</button>
-    </div>
-
-    <!-- Pontos disponíveis -->
-    <div class="points-info">
-      Pontos: {{ stats.usedPoints }}/{{ stats.totalPoints }}
-      <span class="points-remaining" [class.no-points]="availablePoints === 0">
-        ({{ availablePoints }} disponíveis)
-      </span>
-    </div>
-
-    <!-- Atributos -->
-    <div class="attrs-section">
-      <div class="attr-row">
-        <span class="label">Força</span>
-        <button type="button" (click)="decrement('strength')">−</button>
-        <span class="value">{{ base.strength }}</span>
-        <button type="button" (click)="increment('strength')">+</button>
-      </div>
-
-      <div class="attr-row">
-        <span class="label">Agilidade</span>
-        <button type="button" (click)="decrement('agility')">−</button>
-        <span class="value">{{ base.agility }}</span>
-        <button type="button" (click)="increment('agility')">+</button>
-      </div>
-
-      <div class="attr-row">
-        <span class="label">Vitalidade</span>
-        <button type="button" (click)="decrement('vitality')">−</button>
-        <span class="value">{{ base.vitality }}</span>
-        <button type="button" (click)="increment('vitality')">+</button>
-      </div>
-
-      <div class="attr-row">
-        <span class="label">Sorte</span>
-        <button type="button" (click)="decrement('luck')">−</button>
-        <span class="value">{{ base.luck }}</span>
-        <button type="button" (click)="increment('luck')">+</button>
-      </div>
-    </div>
-
-    <!-- Stats derivados -->
-    <div class="stats-derived">
-      <h2>Stats Derivados</h2>
-      <div class="stat-line">
-        <span>HP Máximo</span>
-        <span>{{ stats.maxHp }}</span>
-      </div>
-      <div class="stat-line">
-        <span>Dano</span>
-        <span>{{ stats.damage | number:'1.2-2' }}x</span>
-      </div>
-      <div class="stat-line">
-        <span>Defesa</span>
-        <span>{{ (stats.defense * 100) | number:'1.1-1' }}%</span>
-      </div>
-      <div class="stat-line">
-        <span>Mobilidade</span>
-        <span>{{ stats.mobility }}</span>
-      </div>
-      <div class="stat-line">
-        <span>Chance Rúnica</span>
-        <span>{{ (stats.runicChance * 100) | number:'1.1-1' }}%</span>
-      </div>
-    </div>
-
-    <!-- Lista de armas -->
-    <div class="weapons-list">
-      <h2>Armas</h2>
-      <div
-        *ngFor="let w of weapons"
-        class="weapon-item"
-        [class.locked]="!w.canUse"
-      >
-        <span class="lock-icon" *ngIf="!w.canUse">🔒</span>
-        <span class="unlock-icon" *ngIf="w.canUse">⚔️</span>
-        <span class="weapon-name">{{ w.weapon.name }}</span>
-        <span class="weapon-damage">{{ w.weapon.baseDamage }} dano</span>
-      </div>
-    </div>
-
-    <!-- Salvar -->
-    <button class="save-btn" type="button" (click)="save()">
-      Salvar Build
-    </button>
-    <div class="save-feedback" *ngIf="saveMessage">{{ saveMessage }}</div>
-
-  </ng-container>
-
-  <!-- ── TAB: Inventário ───────────────────────────────────────────────── -->
-  <ng-container *ngIf="activeTab === 'inventory'">
-
-    <div *ngIf="inventoryLoading" class="loading-msg">Carregando inventário…</div>
-
-    <div *ngIf="!inventoryLoading" class="inventory-layout">
-      <app-equipment-slots
-        [equippedItems]="equippedItems"
-        (equip)="onEquip($event)"
-        (unequip)="onUnequip($event)"
-      ></app-equipment-slots>
-
-      <app-inventory-grid
-        [items]="inventoryItems"
-        (itemMove)="onItemMove($event)"
-        (itemClick)="onItemClick($event)"
-      ></app-inventory-grid>
-    </div>
-
-  </ng-container>
-
-  <!-- ── TAB: Cofre ───────────────────────────────────────────────────── -->
-  <ng-container *ngIf="activeTab === 'vault'">
+  <!-- ── VAULT VIEW ────────────────────────────────────────────────────── -->
+  <ng-container *ngIf="showVault">
     <ng-container *ngIf="characterId as activeCharacterId">
       <app-vault-grid
         [characterId]="activeCharacterId"
         [characterGold]="0"
       ></app-vault-grid>
     </ng-container>
+  </ng-container>
+
+  <!-- ── MAIN VIEW (character + inventory) ────────────────────────────── -->
+  <ng-container *ngIf="!showVault">
+
+    <!-- Top section: attrs left, equipment + derived stats right -->
+    <div class="main-layout">
+
+      <!-- Left: base attributes -->
+      <div class="attrs-panel">
+        <div class="attr-row level-row">
+          <span class="label">Nível</span>
+          <button type="button" (click)="decrementLevel()">−</button>
+          <span class="value">{{ base.level }}</span>
+          <button type="button" (click)="incrementLevel()">+</button>
+        </div>
+
+        <div class="points-info">
+          Pontos: {{ stats.usedPoints }}/{{ stats.totalPoints }}
+          <span class="points-remaining" [class.no-points]="availablePoints === 0">
+            ({{ availablePoints }} disponíveis)
+          </span>
+        </div>
+
+        <div class="attrs-section">
+          <div class="attr-row">
+            <span class="label">Força</span>
+            <button type="button" (click)="decrement('strength')">−</button>
+            <span class="value">{{ base.strength }}</span>
+            <button type="button" (click)="increment('strength')">+</button>
+          </div>
+          <div class="attr-row">
+            <span class="label">Agilidade</span>
+            <button type="button" (click)="decrement('agility')">−</button>
+            <span class="value">{{ base.agility }}</span>
+            <button type="button" (click)="increment('agility')">+</button>
+          </div>
+          <div class="attr-row">
+            <span class="label">Vitalidade</span>
+            <button type="button" (click)="decrement('vitality')">−</button>
+            <span class="value">{{ base.vitality }}</span>
+            <button type="button" (click)="increment('vitality')">+</button>
+          </div>
+          <div class="attr-row">
+            <span class="label">Sorte</span>
+            <button type="button" (click)="decrement('luck')">−</button>
+            <span class="value">{{ base.luck }}</span>
+            <button type="button" (click)="increment('luck')">+</button>
+          </div>
+        </div>
+
+        <div class="stats-derived">
+          <h2>Stats Derivados</h2>
+          <div class="stat-line">
+            <span>HP Máximo</span>
+            <span>
+              {{ effectiveMaxHp }}
+              <span *ngIf="equipmentBonusHp > 0" class="bonus">(+{{ equipmentBonusHp }})</span>
+            </span>
+          </div>
+          <div class="stat-line">
+            <span>Dano</span>
+            <span>
+              {{ effectiveDamage | number:'1.2-2' }}x
+              <span *ngIf="equipmentBonusAttack > 0" class="bonus">(+{{ equipmentBonusAttack }} atq)</span>
+            </span>
+          </div>
+          <div class="stat-line">
+            <span>Defesa</span>
+            <span>
+              {{ (effectiveDefense * 100) | number:'1.1-1' }}%
+              <span *ngIf="equipmentBonusDefense > 0" class="bonus">(+{{ equipmentBonusDefense }} def)</span>
+            </span>
+          </div>
+          <div class="stat-line">
+            <span>Mobilidade</span>
+            <span>
+              {{ effectiveMobility }}
+              <span *ngIf="equipmentBonusSpeed > 0" class="bonus">(+{{ equipmentBonusSpeed * 2 }} vel)</span>
+            </span>
+          </div>
+          <div class="stat-line">
+            <span>Chance Rúnica</span>
+            <span>{{ (stats.runicChance * 100) | number:'1.1-1' }}%</span>
+          </div>
+        </div>
+
+        <button class="save-btn" type="button" (click)="save()">Salvar Build</button>
+        <div class="save-feedback" *ngIf="saveMessage">{{ saveMessage }}</div>
+      </div>
+
+      <!-- Right: equipment slots -->
+      <div class="equipment-panel">
+        <h2>Equipamentos</h2>
+        <div *ngIf="inventoryLoading" class="loading-msg">Carregando…</div>
+        <ng-container *ngIf="!inventoryLoading">
+          <app-equipment-slots
+            [equippedItems]="equippedItems"
+            (equip)="onEquip($event)"
+            (unequip)="onUnequip($event)"
+            (itemDropped)="onItemDroppedToSlot($event)"
+          ></app-equipment-slots>
+        </ng-container>
+      </div>
+
+    </div>
+
+    <!-- Inventory grid (full width below) -->
+    <div class="inventory-section">
+      <h2>Inventário</h2>
+      <div *ngIf="inventoryLoading" class="loading-msg">Carregando inventário…</div>
+      <ng-container *ngIf="!inventoryLoading">
+        <app-inventory-grid
+          [items]="inventoryItems"
+          (itemMove)="onItemMove($event)"
+          (itemClick)="onItemClick($event)"
+        ></app-inventory-grid>
+      </ng-container>
+    </div>
+
   </ng-container>
 </div>

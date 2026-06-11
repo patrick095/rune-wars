@@ -9,6 +9,14 @@ export interface AuthResponse {
   user_id: string;
 }
 
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  isAdmin: boolean;
+  iat?: number;
+  exp?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly TOKEN_KEY = 'rw_token';
@@ -38,6 +46,28 @@ export class AuthService {
 
   getToken(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  /**
+   * Decodes the JWT payload without verifying the signature.
+   * Returns null if no token is stored or the token is malformed.
+   */
+  getDecodedToken(): JwtPayload | null {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload as JwtPayload;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Returns true if the current user has admin privileges. */
+  isAdmin(): boolean {
+    return this.getDecodedToken()?.isAdmin === true;
   }
 
   private hasToken(): boolean {

@@ -1,0 +1,114 @@
+<div class="vault-overlay">
+  <div class="vault-container">
+
+    <!-- Header -->
+    <div class="vault-header">
+      <h2 class="vault-title">Cofre do Herói</h2>
+      <div class="vault-header-info">
+        <span class="gold-info character-gold">
+          <img src="assets/icons/gold-coin.png" alt="Gold" class="gold-icon" onerror="this.style.display='none'" />
+          Personagem: <strong>{{ characterGold }}g</strong>
+        </span>
+        <span class="gold-info vault-gold">
+          <img src="assets/icons/gold-coin.png" alt="Gold" class="gold-icon" onerror="this.style.display='none'" />
+          Cofre: <strong>{{ vaultGold }}g</strong>
+        </span>
+      </div>
+      <button class="btn-close" (click)="close()" aria-label="Fechar cofre">✕</button>
+    </div>
+
+    <!-- Error Banner -->
+    @if (error) {
+      <div class="error-banner">{{ error }}</div>
+    }
+
+    <!-- Loading -->
+    @if (loading) {
+      <div class="loading-overlay">
+        <span class="loading-text">Carregando...</span>
+      </div>
+    }
+
+    <!-- Two-column layout -->
+    @if (!loading) {
+      <div class="vault-columns">
+
+        <!-- Left: Equipment slots + Inventory bag -->
+        <div class="vault-column inventory-column">
+          <h3 class="column-title">Equipamentos</h3>
+          <p class="column-hint">Clique em um item equipado para desequipar</p>
+          <app-equipment-slots
+            [equippedItems]="equippedItems"
+            (unequip)="onUnequip($event)">
+          </app-equipment-slots>
+
+          <h3 class="column-title" style="margin-top:12px">Inventário</h3>
+          <p class="column-hint">Arraste itens para o cofre →</p>
+          <div class="grid-wrapper">
+            <app-inventory-grid
+              [items]="inventoryItems"
+              (itemMove)="onDropToVault($event)">
+            </app-inventory-grid>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="vault-divider">
+          <div class="divider-line"></div>
+          <span class="divider-icon">⚔</span>
+          <div class="divider-line"></div>
+        </div>
+
+        <!-- Right: Vault -->
+        <div class="vault-column vault-items-column">
+          <h3 class="column-title">Cofre</h3>
+          <p class="column-hint">← Arraste itens para o inventário (taxa: {{ withdrawFee }}g)</p>
+          <div class="grid-wrapper">
+            <div class="vault-grid">
+              @for (item of vaultSlots; track $index) {
+                <app-item-slot
+                  [item]="item"
+                  [slotIndex]="$index"
+                  (itemDrop)="onDropToInventory($event)">
+                </app-item-slot>
+              }
+            </div>
+          </div>
+        </div>
+
+      </div>
+    }
+
+  </div>
+
+  <!-- Withdraw Confirmation Modal -->
+  @if (showWithdrawModal) {
+    <div class="modal-backdrop" (click)="cancelWithdraw()">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <h3 class="modal-title">Retirar Item do Cofre</h3>
+        @if (pendingWithdrawItem) {
+          <p class="modal-item-name">{{ pendingWithdrawItem.name }}</p>
+        }
+        <p class="modal-message">
+          Retirar este item custa <strong>{{ withdrawFee }}g</strong>.<br />
+          Você possui <strong>{{ characterGold }}g</strong>.
+        </p>
+        @if (!canConfirmWithdraw) {
+          <p class="modal-warning">Gold insuficiente para retirar este item.</p>
+        }
+        <div class="modal-actions">
+          <button
+            class="btn btn-confirm"
+            [disabled]="!canConfirmWithdraw"
+            (click)="confirmWithdraw()">
+            Confirmar
+          </button>
+          <button class="btn btn-cancel" (click)="cancelWithdraw()">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

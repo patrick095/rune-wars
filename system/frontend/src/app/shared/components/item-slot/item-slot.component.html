@@ -12,7 +12,7 @@
   (mouseenter)="showTooltip = true"
   (mouseleave)="showTooltip = false"
 >
-  <img *ngIf="item?.icon" [src]="item!.icon" [alt]="item!.name" class="item-icon" />
+  <img *ngIf="item?.iconPath || item?.icon" [src]="item!.iconPath || item!.icon" [alt]="item!.name" class="item-icon" onerror="this.style.display='none'" />
   <span *ngIf="!item && equipmentType" class="slot-label">{{ equipmentType }}</span>
 
   <app-item-tooltip *ngIf="showTooltip && item" [item]="item"></app-item-tooltip>

@@ -6,7 +6,6 @@ import { GameNavigatorService } from './shared/services/game-navigator.service';
 import { CharacterComponent } from './character/character.component';
 import { HubComponent } from './hub/hub.component';
 import { PlaygroundComponent } from './playground/playground.component';
-import { PvpComponent } from './pvp/pvp.component';
 import { PvpLobbyComponent } from './pvp/pvp-lobby/pvp-lobby.component';
 import { PvpRoomComponent } from './pvp/pvp-room/pvp-room.component';
 import { BattleHostComponent } from './battle/battle-host.component';
@@ -17,6 +16,8 @@ import { UpgradeComponent } from './upgrade/upgrade.component';
 import { MarketComponent } from './market/market.component';
 import { GuildComponent } from './guild/guild.component';
 import { RankingsComponent } from './rankings/rankings.component';
+import { VaultScreenComponent } from './vault/vault-screen.component';
+import { AdminInventoryPanelComponent } from './admin/admin-inventory-panel.component';
 import { Subscription, filter } from 'rxjs';
 
 @Component({
@@ -28,7 +29,6 @@ import { Subscription, filter } from 'rxjs';
     CharacterComponent,
     HubComponent,
     PlaygroundComponent,
-    PvpComponent,
     PvpLobbyComponent,
     PvpRoomComponent,
     BattleHostComponent,
@@ -39,6 +39,8 @@ import { Subscription, filter } from 'rxjs';
     MarketComponent,
     GuildComponent,
     RankingsComponent,
+    VaultScreenComponent,
+    AdminInventoryPanelComponent,
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
@@ -73,14 +75,20 @@ export class AppComponent implements OnInit, OnDestroy {
       Promise.resolve().then(() => this.screenActive.set(true));
     });
 
-    // Block Phaser canvas pointer events when a non-hub screen is active
+    // Block Phaser canvas pointer events when a non-hub screen is active OR overlay is open
     effect(() => {
       const screen = this.navigator.screen();
+      const adminOpen = this.navigator.showAdminPanel();
       const canvas =
         document.querySelector<HTMLCanvasElement>('#hub-canvas canvas') ??
         document.querySelector<HTMLCanvasElement>('canvas');
       if (canvas) {
-        canvas.style.pointerEvents = screen !== 'hub' ? 'none' : '';
+        canvas.style.pointerEvents = (screen !== 'hub' || adminOpen) ? 'none' : '';
+      }
+      // Also block the game-frame's interactive elements when admin panel is open
+      const gameFrame = document.getElementById('game-frame');
+      if (gameFrame) {
+        gameFrame.style.pointerEvents = adminOpen ? 'none' : '';
       }
     });
   }

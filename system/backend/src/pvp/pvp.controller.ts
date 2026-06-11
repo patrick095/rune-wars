@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PvpService } from './pvp.service';
 
@@ -10,6 +10,11 @@ export class PvpController {
   @Get('rooms')
   listRooms() {
     return this.pvpService.listRooms();
+  }
+
+  @Get('rooms/:id')
+  getRoom(@Param('id') id: string) {
+    return this.pvpService.findRoom(id);
   }
 
   @Post('rooms')
@@ -35,5 +40,44 @@ export class PvpController {
   @Post('rooms/:id/heartbeat')
   heartbeat(@Param('id') id: string, @Request() req: any, @Body() body: { characterId: string }) {
     return this.pvpService.touchRoom(id, req.user.userId, body.characterId);
+  }
+
+  @Post('rooms/:id/slots/:slotIndex/close')
+  closeSlot(
+    @Param('id') id: string,
+    @Param('slotIndex', ParseIntPipe) slotIndex: number,
+    @Request() req: any,
+    @Body() body: { characterId: string },
+  ) {
+    return this.pvpService.closeSlot(id, slotIndex, body.characterId);
+  }
+
+  @Post('rooms/:id/slots/:slotIndex/kick')
+  kickPlayer(
+    @Param('id') id: string,
+    @Param('slotIndex', ParseIntPipe) slotIndex: number,
+    @Request() req: any,
+    @Body() body: { characterId: string },
+  ) {
+    return this.pvpService.kickPlayer(id, slotIndex, body.characterId);
+  }
+
+  @Get('rooms/:id/find-match')
+  findMatch(@Param('id') id: string) {
+    return this.pvpService.findMatch(id);
+  }
+
+  @Post('rooms/:id/start-battle')
+  startBattle(@Param('id') id: string, @Request() req: any, @Body() body: { characterId?: string }) {
+    return this.pvpService.startBattle(id, body.characterId);
+  }
+
+  @Post('rooms/:id/ready')
+  setReady(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: { characterId: string; consumableSelection: string[]; vs_cpu?: boolean },
+  ) {
+    return this.pvpService.setReady(id, body.characterId, body.consumableSelection ?? [], body.vs_cpu ?? false);
   }
 }

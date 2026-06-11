@@ -41,6 +41,9 @@ export class EquipmentSlotsComponent {
     { type: 'bracelet', label: 'Pulseira', cssClass: 'slot-bracelet', item: null },
   ];
 
+  /** Emitted when an item is dragged from the inventory grid onto an equipment slot. */
+  @Output() itemDropped = new EventEmitter<{ fromInventoryIndex: number; targetSlot: EquipmentSlotType }>();
+
   onSlotClick(slot: EquipmentSlot): void {
     if (slot.item) {
       this.unequip.emit({ slot: slot.type });
@@ -48,7 +51,7 @@ export class EquipmentSlotsComponent {
   }
 
   onDrop(event: { fromIndex: number; toIndex: number }, slot: EquipmentSlot): void {
-    // Drag-drop from inventory grid into an equipment slot
-    // The parent component should handle the actual item transfer
+    // Drag-drop from inventory grid into an equipment slot — emit so parent can perform equip
+    this.itemDropped.emit({ fromInventoryIndex: event.fromIndex, targetSlot: slot.type });
   }
 }

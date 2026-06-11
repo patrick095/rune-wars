@@ -1,43 +1,258 @@
-<div class="pvp-room">
+<div class="pvp-room"
+  [style.backgroundImage]="'linear-gradient(rgba(0,0,0,0.72),rgba(0,0,0,0.72)), url(assets/hub/hub_background_painted.png)'"
+  [style.backgroundSize]="'cover'"
+  [style.backgroundPosition]="'center'"
+>
+
+  <!-- Header -->
   <div class="room-header">
-    <button class="btn-back" (click)="goLobby()">← Lobby</button>
-    <h2>Sala: {{ room?.name ?? '...' }}</h2>
+    <button class="btn-back" (click)="goLobby()">← SALA PvP</button>
+    <div class="header-spacer"></div>
+    <button class="btn-inventory" (click)="openInventory()">🎒 Inventário</button>
+    <div class="header-currencies">
+      <span class="currency">💎</span>
+      <span class="currency">🪙</span>
+    </div>
   </div>
 
   @if (error) {
     <div class="error-banner">{{ error }}</div>
   }
 
-  <div class="player-slots">
-    <div class="slot slot--filled">
-      <span class="slot-label">Jogador 1</span>
-      <span class="slot-name">{{ playerName }}</span>
-    </div>
-    <div class="slot" [class.slot--filled]="(room?.playerIds?.length ?? room?.playerCount ?? 0) >= 2">
-      <span class="slot-label">Jogador 2</span>
-      <span class="slot-name">{{ secondSlotLabel }}</span>
-    </div>
-  </div>
+  @if (consumableSlotsFull) {
+    <div class="warning-banner">Todos os 5 slots de consumíveis já estão preenchidos!</div>
+  }
 
-  @if (isOwner) {
-    <div class="map-selector">
-      <label for="map-select">Mapa</label>
-      <select id="map-select" [(ngModel)]="selectedMap">
-        <option value="plains">Planícies</option>
-        <option value="mystic_castle">Castelo Místico</option>
-        <option value="deep_mines">Minas Profundas</option>
-        <option value="arcane_ruins">Ruínas Arcanas</option>
-        <option value="runic_forest">Floresta Rúnica</option>
-      </select>
-    </div>
-  } @else {
-    <div class="map-info">
-      <span>Mapa: {{ room?.mapName ?? selectedMap }}</span>
+  <!-- Main layout: left col + right col -->
+  <div class="room-layout">
+
+    <!-- ── LEFT COLUMN ── -->
+    <div class="col-left">
+
+      <!-- Team slots -->
+      <section class="panel">
+        <h3 class="panel-title">SUA EQUIPE</h3>
+        <div class="team-slots">
+          @for (slot of slots; track $index) {
+            <div
+              class="team-slot"
+              [class.team-slot--leader]="$index === 0"
+              [class.team-slot--filled]="slot.player !== null"
+              [class.team-slot--closed]="slot.closed"
+              [class.team-slot--ready]="slot.ready"
+            >
+              @if (slot.player) {
+                <span class="slot-name">{{ slot.player.name }}</span>
+                @if (slot.player.level) {
+                  <span class="slot-level">Lv {{ slot.player.level }}</span>
+                }
+                @if (slot.ready) {
+                  <span class="slot-ready-badge">PRONTO</span>
+                }
+                @if (isOwner && slot.player.characterId !== currentCharacterId) {
+                  <button class="btn-kick" (click)="requestKick($index)" title="Chutar jogador">✕</button>
+                }
+              } @else if (slot.closed) {
+                <span class="slot-empty-label">FECHADO</span>
+                @if (isOwner) {
+                  <button class="btn-slot-action" (click)="closeSlot($index)" title="Reabrir vaga">Abrir</button>
+                }
+              } @else {
+                <span class="slot-empty-label">Aguardando...</span>
+                @if (isOwner) {
+                  <button class="btn-slot-action" (click)="closeSlot($index)" title="Fechar vaga">Fechar</button>
+                }
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Selected consumables -->
+      <section class="panel">
+        <h3 class="panel-title">CONSUMÍVEIS SELECIONADOS</h3>
+        <div class="consumable-selected-slots">
+          @for (sel of consumableSelection; track $index) {
+            <div
+              class="consumable-selected-slot"
+              [class.consumable-selected-slot--filled]="sel !== null"
+              (click)="removeConsumable($index)"
+              [title]="sel ? 'Clique para remover' : 'Slot vazio'"
+            >
+              @if (sel !== null) {
+                @let def = getConsumableDef(sel);
+                @if (def) {
+                  <img [src]="def.iconPath" [alt]="def.name" class="consumable-icon" />
+                  <span class="consumable-slot-num">{{ $index + 1 }}</span>
+                } @else {
+                  <span class="consumable-slot-num">{{ $index + 1 }}</span>
+                }
+              } @else {
+                <span class="consumable-slot-num">{{ $index + 1 }}</span>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Consumable inventory -->
+      <section class="panel panel--inventory">
+        <h3 class="panel-title">INVENTÁRIO DE CONSUMÍVEIS</h3>
+        @if (consumableInventory.length === 0) {
+          <p class="empty-inventory">Nenhum consumível disponível.</p>
+        } @else {
+          <div class="consumable-inventory">
+            @for (item of consumableInventory; track item.id) {
+              <button
+                class="consumable-item"
+                (click)="selectConsumable(item.id)"
+                [title]="item.name"
+              >
+                <img [src]="item.iconPath" [alt]="item.name" class="consumable-icon" />
+                <span class="consumable-name">{{ item.name }}</span>
+              </button>
+            }
+          </div>
+        }
+      </section>
+
+    </div><!-- /col-left -->
+
+    <!-- ── RIGHT COLUMN ── -->
+    <div class="col-right">
+
+      <!-- Map carousel -->
+      <section class="panel panel--map">
+        <h3 class="panel-title">SELEÇÃO DE MAPA</h3>
+        <div class="map-carousel">
+          <button class="carousel-btn carousel-btn--prev" (click)="prevMap()">‹</button>
+          <div class="map-thumbnail-wrap">
+            <img
+              [src]="mapThumbnailUrl"
+              [alt]="selectedMap.name"
+              class="map-thumbnail"
+              onerror="this.style.opacity='0.3'"
+            />
+            <div class="map-thumbnail-overlay">{{ selectedMap.name }}</div>
+          </div>
+          <button class="carousel-btn carousel-btn--next" (click)="nextMap()">›</button>
+        </div>
+        <div class="map-dots">
+          @for (map of MAPS; track map.slug) {
+            <span
+              class="map-dot"
+              [class.map-dot--active]="map.slug === selectedMap.slug"
+            ></span>
+          }
+        </div>
+        <p class="map-name-label">{{ selectedMap.name }}</p>
+      </section>
+
+      <!-- Battle mode -->
+      <section class="panel">
+        <h3 class="panel-title">SELEÇÃO DE MODO</h3>
+        <div class="mode-buttons">
+          <button
+            class="btn-mode"
+            [class.btn-mode--active]="selectedMode === 'ranked'"
+            (click)="selectMode('ranked')"
+          >RANKEADA</button>
+          <button
+            class="btn-mode"
+            [class.btn-mode--active]="selectedMode === 'free'"
+            (click)="selectMode('free')"
+          >LIVRE</button>
+          <button
+            class="btn-mode"
+            [class.btn-mode--active]="selectedMode === 'guild'"
+            [class.btn-mode--disabled]="!hasGuild"
+            [disabled]="!hasGuild"
+            (click)="selectMode('guild')"
+            [title]="!hasGuild ? 'Você não está em uma guilda' : ''"
+          >GUILD</button>
+        </div>
+      </section>
+
+      <!-- Ready button -->
+      <section class="panel panel--ready">
+        @if (isSoloFreeModeReady) {
+          <button class="btn-ready btn-ready--vs-cpu" (click)="onReadyVsCpu()">JOGAR VS CPU</button>
+        } @else {
+          <button class="btn-ready" (click)="onReady()">PRONTO</button>
+        }
+      </section>
+
+    </div><!-- /col-right -->
+
+  </div><!-- /room-layout -->
+
+  <!-- Countdown overlay -->
+  @if (countdownActive) {
+    <div class="battle-overlay">
+      <div class="battle-overlay__box">
+        <div class="battle-overlay__title">BATALHA EM</div>
+        <div class="battle-overlay__countdown">{{ countdownSeconds }}</div>
+        <button class="battle-overlay__cancel" (click)="cancelCountdown()">Cancelar</button>
+      </div>
     </div>
   }
 
-  <div class="room-actions">
-    <button class="btn-action btn-vs-ai" (click)="vsAI()">⚔️ Jogar vs CPU</button>
-    <button class="btn-action btn-wait" (click)="waitForPlayer()">👥 Aguardar Jogador</button>
-  </div>
+  <!-- Matchmaking search overlay -->
+  @if (searchingMatch) {
+    <div class="battle-overlay">
+      <div class="battle-overlay__box">
+        <div class="battle-overlay__title">Procurando adversários...</div>
+        <div class="battle-overlay__search-bar">
+          <div class="battle-overlay__search-fill" [style.width.%]="((10 - searchSeconds) / 10) * 100"></div>
+        </div>
+        <div class="battle-overlay__search-hint">{{ searchSeconds }}s restantes</div>
+        <button class="battle-overlay__cancel" (click)="cancelSearch()">Cancelar</button>
+      </div>
+    </div>
+  }
+
+  <!-- Kick confirmation modal -->
+  @if (confirmKickSlot !== null) {
+    <div class="modal-overlay" (click)="cancelKick()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <p class="modal-text">
+          Deseja chutar
+          <strong>{{ kickTargetName }}</strong>
+          da sala?
+        </p>
+        <div class="modal-actions">
+          <button class="btn-modal btn-modal--cancel" (click)="cancelKick()">Cancelar</button>
+          <button class="btn-modal btn-modal--confirm" (click)="confirmKick()">Chutar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ── Inventory overlay ───────────────────────────────────────────── -->
+  @if (showInventory) {
+    <div class="modal-overlay" (click)="closeInventory()">
+      <div class="inventory-modal" (click)="$event.stopPropagation()">
+        <div class="inventory-modal-header">
+          <span class="inventory-modal-title">Equipamentos</span>
+          <button class="btn-close-inventory" (click)="closeInventory()">✕</button>
+        </div>
+        @if (inventoryLoading) {
+          <div class="loading-msg">Carregando inventário…</div>
+        } @else {
+          <div class="inventory-modal-body">
+            <app-equipment-slots
+              [equippedItems]="equippedItems"
+              (equip)="onEquip($event)"
+              (unequip)="onUnequip($event)"
+              (itemDropped)="onItemDroppedToSlot($event)"
+            ></app-equipment-slots>
+            <app-inventory-grid
+              [items]="inventoryItems"
+            ></app-inventory-grid>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
 </div>

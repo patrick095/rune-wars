@@ -23,8 +23,19 @@ interface BattleLaunchData {
     playerRace?: string;
     playerName?: string;
     opponentName?: string;
+    opponentRace?: string;
     roomName?: string;
     vsAI?: boolean;
+    playerMaxHp?: number;
+    aiMaxHp?: number;
+    aiAgility?: number;
+    playerWeaponId?: string;
+    aiWeaponId?: string;
+    playerConsumables?: string[];
+    playerStrength?: number;
+    playerLuck?: number;
+    aiStrength?: number;
+    aiLuck?: number;
 }
 import {
     TerrainEngine,
@@ -206,11 +217,17 @@ export class BattleScene extends Phaser.Scene {
 
     // v0.6.0 runic effects
     private playerLuck = 10;
+    private playerStrength = 0;
+    private aiStrength = 0;
     private teleportShotArmed = false;
-    private usedConsumableIds = new Set<string>();
+    private iceShotArmed = false;
+    private aiIceShotArmed = false;
+    private calibrationTargetZone: { min: number; max: number } | null = null;
+    private usedConsumableSlots = new Set<number>();
     private consumableUsedThisTurn = false;
     private aiUsedConsumableIds = new Set<string>();
     private aiShotModifierSystem = new ShotModifierSystem();
+    private playerConsumables: string[] = [];
     private battleEnded = false;
 
     // v1.4.0 last-shot info for HUD display
@@ -250,6 +267,12 @@ export class BattleScene extends Phaser.Scene {
 
     // v1.2.0 movement budget
     private playerAgility = 50;
+    private aiAgility = 50;
+    private playerInitialMaxHp = 100;
+    private aiInitialMaxHp = 100;
+    private playerWeaponId: string | null = null;
+    private aiWeaponId: string | null = null;
+    private opponentRace = 'human';
     private moveBudgetTotal = 0;
     private moveBudgetUsed = 0;
     private movementBudgetHUD!: MovementBudgetHUD;
@@ -359,7 +382,17 @@ export class BattleScene extends Phaser.Scene {
                 ? "dungeon_cave_entrance"
                 : "plains");
         this.playerAgility = data?.agility ?? 50;
+        this.aiAgility = data?.aiAgility ?? 50;
+        this.playerInitialMaxHp = data?.playerMaxHp ?? 100;
+        this.aiInitialMaxHp = data?.aiMaxHp ?? 100;
+        this.playerWeaponId = data?.playerWeaponId ?? null;
+        this.aiWeaponId = data?.aiWeaponId ?? null;
+        this.playerConsumables = data?.playerConsumables ?? [];
+        this.playerStrength = data?.playerStrength ?? 0;
+        this.playerLuck = data?.playerLuck ?? 10;
+        this.aiStrength = data?.aiStrength ?? 0;
         this.playerRace = data?.playerRace ?? "human";
+        this.opponentRace = data?.opponentRace ?? "human";
         this.playerName = data?.playerName?.trim() || "Jogador";
         this.vsAI = data?.vsAI ?? true;
         this.opponentName =
@@ -519,16 +552,16 @@ export class BattleScene extends Phaser.Scene {
         this.secondaryItemSystem = new SecondaryItemSystem();
         this.shotModifierSystem = new ShotModifierSystem();
         this.playerStats = {
-            hp: 100,
-            maxHp: 100,
+            hp: this.playerInitialMaxHp,
+            maxHp: this.playerInitialMaxHp,
             x: 0,
             y: 0,
             isPlayer: true,
             facing: "right",
         };
         this.aiStats = {
-            hp: 100,
-            maxHp: 100,
+            hp: this.aiInitialMaxHp,
+            maxHp: this.aiInitialMaxHp,
             x: 0,
             y: 0,
             isPlayer: false,
@@ -552,7 +585,10 @@ export class BattleScene extends Phaser.Scene {
         this.aiShieldReduction = 0;
         this.playerInvisibleTurns = 0;
         this.calibrationShotActive = false;
-        this.usedConsumableIds = new Set<string>();
+        this.calibrationTargetZone = null;
+        this.iceShotArmed = false;
+        this.aiIceShotArmed = false;
+        this.usedConsumableSlots = new Set<number>();
         this.consumableUsedThisTurn = false;
         this.constructedByPlayer = 0;
         this.playerSecondaryItemId = null;
@@ -571,9 +607,18 @@ export class BattleScene extends Phaser.Scene {
         // Register self globally for debug panel
         (window as unknown as Record<string, unknown>)["battleScene"] = this; // eslint-disable-line
 
-        // Initialize weapons
-        this.playerWeapon = this.weaponSystem.getDefault();
-        this.aiWeapon = this.weaponSystem.getDefault();
+        // Equip consumables selected in the PVP room
+        for (const id of this.playerConsumables) {
+            this.consumableSystem.equip(id);
+        }
+
+        // Initialize weapons — use configured IDs if provided, else default
+        this.playerWeapon = this.playerWeaponId
+            ? (this.weaponSystem.getById(this.playerWeaponId) ?? this.weaponSystem.getDefault())
+            : this.weaponSystem.getDefault();
+        this.aiWeapon = this.aiWeaponId
+            ? (this.weaponSystem.getById(this.aiWeaponId) ?? this.weaponSystem.getDefault())
+            : this.weaponSystem.getDefault();
         this.projRenderer = new ProjectileRenderer(this);
 
         const { width, height } = this.scale;
@@ -764,8 +809,8 @@ export class BattleScene extends Phaser.Scene {
             runeWarsWeaponLayerKey(this.playerWeapon.id),
         );
 
-        // [v1.5.0] CharacterSprite for enemy (always elf in PvP, dwarf in dungeon)
-        const aiRace: Race = this.battleMode === "dungeon" ? "dwarf" : "elf";
+        // [v1.5.0] CharacterSprite for enemy — use configured race or fallback
+        const aiRace: Race = this.battleMode === "dungeon" ? "dwarf" : (this.opponentRace as Race) ?? "elf";
         this.aiCharacterSprite = CharacterSprite.create(
             this,
             aiRace,
@@ -824,9 +869,9 @@ export class BattleScene extends Phaser.Scene {
 
         // Wire BattleHud dock events to game logic
         this.events.on("consumable:use", (index: number) => {
-            const items = this.consumableSystem.getAll();
+            const items = this.consumableSystem.getEquipped();
             if (index < items.length)
-                this.onConsumableDockSelect(items[index].id);
+                this.onConsumableDockSelect(index, items[index].id);
         });
         this.events.on("modifier:use", (index: number) => {
             if (index < this.modifierDefs.length)
@@ -858,9 +903,9 @@ export class BattleScene extends Phaser.Scene {
     }
 
     override update(_time: number, delta: number): void {
-        if (!this.isAnimating) {
-            this.handleKeyboardInput(delta);
-
+        // Fall physics run unconditionally so characters fall during fall-wait even
+        // when isAnimating=true (locked between shot landing and turn processing).
+        if (!this.battleEnded) {
             const playerFallState = this.playerFall.update(
                 this.playerSprite,
                 this.terrainEngine,
@@ -888,6 +933,10 @@ export class BattleScene extends Phaser.Scene {
             this.aiStats.x = this.aiSprite.x;
             this.aiStats.y = this.aiSprite.y;
             this.syncActorAssets();
+        }
+
+        if (!this.isAnimating) {
+            this.handleKeyboardInput(delta);
         }
 
         this.previewRefreshMs += delta;
@@ -1381,10 +1430,17 @@ export class BattleScene extends Phaser.Scene {
         iconKey: string;
         quantity?: number;
     } | null> {
-        return this.consumableSystem.getAll().map((c) => {
-            if (this.usedConsumableIds.has(c.id)) return null;
-            return { iconKey: runeWarsItemIconKey("consumable", c.id) };
+        const equipped = this.consumableSystem.getEquipped();
+        // Pad to 5 slots with nulls so the dock maintains consistent slot count
+        const slots: Array<{ iconKey: string } | null> = Array(5).fill(null);
+        equipped.forEach((c, i) => {
+            if (this.usedConsumableSlots.has(i)) {
+                slots[i] = null;
+            } else {
+                slots[i] = { iconKey: runeWarsItemIconKey("consumable", c.id) };
+            }
         });
+        return slots;
     }
 
     private buildModifierSlots(): Array<{
@@ -1403,10 +1459,10 @@ export class BattleScene extends Phaser.Scene {
         });
     }
 
-    private onConsumableDockSelect(id: string): void {
+    private onConsumableDockSelect(slotIndex: number, id: string): void {
         if (!this.turnManager.isPlayerTurn || this.isAnimating) return;
         if (this.statusEffects.hasEffect("player", "ITEM_BLOCK")) return;
-        if (this.usedConsumableIds.has(id)) return;
+        if (this.usedConsumableSlots.has(slotIndex)) return;
         if (this.consumableUsedThisTurn) {
             this.showItemFloatingText(
                 this.playerStats.x,
@@ -1416,7 +1472,7 @@ export class BattleScene extends Phaser.Scene {
             );
             return;
         }
-        this.usedConsumableIds.add(id);
+        this.usedConsumableSlots.add(slotIndex);
         this.consumableUsedThisTurn = true;
         this.useDebugConsumable("player", id);
     }
@@ -1728,15 +1784,23 @@ export class BattleScene extends Phaser.Scene {
 
         const volleyId = ++this.activeVolleyId;
         const turnToken = this.turnManager.turnNumber;
+
+        const immediateShots = shots.filter(
+            (s) => !(s.delayMs && s.delayMs > 0),
+        );
+        const delayedShots = shots
+            .filter((s) => s.delayMs && s.delayMs > 0)
+            .sort((a, b) => (a.delayMs ?? 0) - (b.delayMs ?? 0));
+
         let pending = shots.length;
         let gameEnded = false;
 
+        const isStale = () =>
+            volleyId !== this.activeVolleyId ||
+            this.turnManager.turnNumber !== turnToken;
+
         const completeShot = (ended: boolean): void => {
-            if (
-                volleyId !== this.activeVolleyId ||
-                this.turnManager.turnNumber !== turnToken
-            )
-                return;
+            if (isStale()) return;
             gameEnded = gameEnded || ended;
             pending -= 1;
             if (pending > 0) {
@@ -1747,36 +1811,63 @@ export class BattleScene extends Phaser.Scene {
             this.endTurn(true);
         };
 
-        for (const shotCfg of shots) {
-            const launch = () => {
-                if (
-                    volleyId !== this.activeVolleyId ||
-                    this.turnManager.turnNumber !== turnToken ||
-                    !this.turnManager.isPlayerTurn
-                ) {
-                    completeShot(true);
-                    return;
-                }
+        // Fire delayed shots one-by-one, each 700 ms after the previous one lands.
+        const fireDelayedChain = (idx: number): void => {
+            if (idx >= delayedShots.length || gameEnded || isStale()) return;
+            this.scheduleTurnEvent(700, () => {
+                if (isStale() || !this.turnManager.isPlayerTurn) return;
+                const wrappedComplete = (ended: boolean): void => {
+                    completeShot(ended);
+                    if (!gameEnded && !ended) fireDelayedChain(idx + 1);
+                };
                 this.launchPlayerVolleyProjectile(
-                    shotCfg,
-                    shots.length,
+                    delayedShots[idx],
+                    1, // sequential — never concurrent
                     profile,
                     wind,
                     turnToken,
-                    completeShot,
+                    wrappedComplete,
                 );
-            };
-            if (shotCfg.delayMs && shotCfg.delayMs > 0) {
-                this.scheduleTurnEvent(shotCfg.delayMs, launch);
-            } else {
-                launch();
+            });
+        };
+
+        // Track when all immediate shots land so we can start the delayed chain.
+        let immediatePending = immediateShots.length;
+
+        const completeImmediate = (ended: boolean): void => {
+            completeShot(ended);
+            immediatePending -= 1;
+            if (
+                immediatePending <= 0 &&
+                !gameEnded &&
+                !ended &&
+                !isStale() &&
+                delayedShots.length > 0
+            ) {
+                fireDelayedChain(0);
             }
+        };
+
+        if (immediateShots.length > 0) {
+            for (const shotCfg of immediateShots) {
+                this.launchPlayerVolleyProjectile(
+                    shotCfg,
+                    immediateShots.length, // concurrency = fan-shot group size
+                    profile,
+                    wind,
+                    turnToken,
+                    completeImmediate,
+                );
+            }
+        } else {
+            // All shots carry a delay — start the chain (first fires in 700 ms)
+            fireDelayedChain(0);
         }
     }
 
     private launchPlayerVolleyProjectile(
         shotCfg: ShotConfig,
-        volleySize: number,
+        concurrentGroupSize: number,
         profile: WeaponDefinition["physicsProfile"],
         wind: ReturnType<WindSystem["getCurrent"]>,
         turnToken: number,
@@ -1798,13 +1889,15 @@ export class BattleScene extends Phaser.Scene {
         );
         this.maybeBuildRunicTerrain(path, "player");
 
-        const projectile =
-            volleySize === 1
-                ? this.projectileArc
-                : this.projRenderer.createProjectile(
-                      WEAPON_COLORS[this.playerWeapon.id] ?? 0xffff00,
-                      runeWarsProjectileKey(this.playerWeapon.id, "projectile"),
-                  );
+        // Fan shots (concurrent group > 1) each get their own projectile object;
+        // solo or sequential shots reuse the shared arc object.
+        const isConcurrent = concurrentGroupSize > 1;
+        const projectile = isConcurrent
+            ? this.projRenderer.createProjectile(
+                  WEAPON_COLORS[this.playerWeapon.id] ?? 0xffff00,
+                  runeWarsProjectileKey(this.playerWeapon.id, "projectile"),
+              )
+            : this.projectileArc;
 
         this.animateProjectileWithOverrides(
             path,
@@ -1813,18 +1906,18 @@ export class BattleScene extends Phaser.Scene {
             shotCfg.excavationRadius,
             {
                 projectile,
-                destroyProjectileOnComplete: volleySize > 1,
+                destroyProjectileOnComplete: isConcurrent,
                 endTurnOnComplete: false,
                 turnToken,
                 onComplete: completeShot,
-                realtimeCollision: volleySize > 1,
+                realtimeCollision: isConcurrent,
             },
         );
     }
 
     /** Returns true if a turn-consuming item was used (turn will end itself). */
     private aiDecideItemsBeforeTurn(turnToken: number): boolean {
-        // 20% chance to freeze the player (ice-throw uses the turn)
+        // 20% chance to arm an ice shot (does NOT use the turn — AI fires normally after)
         if (
             !this.aiUsedConsumableIds.has("ice-throw") &&
             !this.statusEffects.hasEffect("player", "FREEZE") &&
@@ -1833,7 +1926,7 @@ export class BattleScene extends Phaser.Scene {
         ) {
             this.aiUsedConsumableIds.add("ice-throw");
             this.useDebugConsumable("ai", "ice-throw");
-            return true;
+            // does NOT return true — AI still fires this turn
         }
 
         // Heal when below 40% HP (heal does not consume the turn)
@@ -2205,7 +2298,11 @@ export class BattleScene extends Phaser.Scene {
                 const tdx = detonX - impact.targetStats.x;
                 const tdy = detonY - impact.targetStats.y;
                 const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
-                const effectiveRadius = Math.max(resolvedExcavationRadius, 30);
+                // hitTarget detection allows dx<30 dy<40 (max dist≈50), so ensure
+                // effectiveRadius covers that when the projectile hits the target directly.
+                const effectiveRadius = impact.hitTarget
+                    ? Math.max(resolvedExcavationRadius, 60)
+                    : Math.max(resolvedExcavationRadius, 30);
 
                 let gameEnded = false;
                 if (distToTarget <= effectiveRadius) {
@@ -2297,12 +2394,21 @@ export class BattleScene extends Phaser.Scene {
                     );
                 }
 
-                this.resolveTeleportShot(isPlayerShot, resolvedImpact, impact.hitTerrain);
+                // Bug 3: For teleport, only allow terrain hits explicitly found during path
+                // clipping — avoids false positives from the last path-endpoint analysis.
+                const teleportHitTerrain = clipped.impact !== null
+                    ? impact.hitTerrain
+                    : false;
+                this.resolveTeleportShot(isPlayerShot, resolvedImpact, teleportHitTerrain);
 
                 const tdx = resolvedImpact.x - impact.targetStats.x;
                 const tdy = resolvedImpact.y - impact.targetStats.y;
                 const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
-                const effectiveRadius = Math.max(resolvedExcavationRadius, 30);
+                // hitTarget detection allows dx<30 dy<40 (max dist≈50), so ensure
+                // effectiveRadius covers that when the projectile hits the target directly.
+                const effectiveRadius = impact.hitTarget
+                    ? Math.max(resolvedExcavationRadius, 60)
+                    : Math.max(resolvedExcavationRadius, 30);
                 const inSplashZone = distToTarget <= effectiveRadius;
 
                 let gameEnded = false;
@@ -2319,6 +2425,9 @@ export class BattleScene extends Phaser.Scene {
                 } else if (options.endTurnOnComplete ?? true) {
                     this.endTurn(isPlayerShot);
                 }
+
+                // Bug 4: Apply/disarm ice shot (hit = inSplashZone with damage enabled)
+                this.resolveIceShot(isPlayerShot, applyDamage && inSplashZone);
 
                 options.onComplete?.(gameEnded);
             },
@@ -2630,10 +2739,19 @@ export class BattleScene extends Phaser.Scene {
         const shooterId = isPlayerShot ? "player" : "ai";
         const targetId = isPlayerShot ? "ai" : "player";
 
+        // Strength scales damage (each point = +5%)
+        const strength = isPlayerShot ? this.playerStrength : this.aiStrength;
+        if (strength > 0) {
+            damage = Math.round(damage * (1 + strength * 0.05));
+        }
+
         // VULNERABILITY multiplies damage received by 1.5
         if (this.statusEffects.hasEffect(targetId, "VULNERABILITY")) {
             damage = Math.round(damage * 1.5);
         }
+
+        // FREEZE breaks when the frozen target receives damage
+        const targetWasFrozen = this.statusEffects.hasEffect(targetId, "FREEZE");
 
         if (isPlayerShot) {
             damage = this.applyShieldReduction("ai", damage);
@@ -2667,9 +2785,14 @@ export class BattleScene extends Phaser.Scene {
             }
         }
 
+        // Break pre-existing freeze when target takes damage
+        if (damage > 0 && targetWasFrozen) {
+            this.statusEffects.remove(targetId, "FREEZE");
+        }
+
         // Roll runic effect from shooter's weapon
         const shooterWeapon = isPlayerShot ? this.playerWeapon : this.aiWeapon;
-        const luck = isPlayerShot ? this.playerLuck : 10;
+        const luck = isPlayerShot ? this.playerLuck : (this.aiStrength > 0 ? 10 : 10);
         if (rollRunicEffect(luck)) {
             const runicEffect = getWeaponRunicEffect(shooterWeapon.id);
             if (runicEffect) {
@@ -2728,12 +2851,19 @@ export class BattleScene extends Phaser.Scene {
         if (this.lastEndedTurnNumber === endingTurnNumber) return;
         this.lastEndedTurnNumber = endingTurnNumber;
 
+        // Lock input while waiting for falls to settle so the player cannot fire
+        // a second shot or accidentally pass the turn during the fall animation.
+        this.isAnimating = true;
+
         // Refresh fall state — it may be stale if isAnimating was true since last update()
         this.playerFall.update(this.playerSprite, this.terrainEngine, 0);
         this.aiFall.update(this.aiSprite, this.terrainEngine, 0);
 
-        // Wait for both characters to finish falling before switching turns
-        this.waitForFallsToSettle(() => this.processEndTurn());
+        // Unlock and advance turn only once all characters have landed.
+        this.waitForFallsToSettle(() => {
+            this.isAnimating = false;
+            this.processEndTurn();
+        });
     }
 
     private waitForFallsToSettle(callback: () => void): void {
@@ -2785,6 +2915,10 @@ export class BattleScene extends Phaser.Scene {
                     bleedDamage,
                     "#ff4444",
                 );
+                // Bug 4: Bleed damage breaks freeze
+                if (this.statusEffects.hasEffect(activePlayerId, "FREEZE")) {
+                    this.statusEffects.remove(activePlayerId, "FREEZE");
+                }
             }
         }
 
@@ -2823,8 +2957,12 @@ export class BattleScene extends Phaser.Scene {
             this.ghostTrace?.clear();
             // Consume any unused shot modifier at the start of each player turn
             this.shotModifierSystem.consumeAll();
-            // Disarm teleport if it was never fired last turn (player passed turn)
+            // Disarm teleport/ice if not fired last turn (player passed turn)
             this.teleportShotArmed = false;
+            this.iceShotArmed = false;
+            // Clear calibration zone at start of new turn
+            this.calibrationTargetZone = null;
+            this.battleHud?.setCalibrationZone(null);
             // Allow one consumable per turn
             this.consumableUsedThisTurn = false;
             this.updateTrajectoryPreview();
@@ -3408,13 +3546,26 @@ export class BattleScene extends Phaser.Scene {
             this.refreshHud();
             return;
         } else if (id === "ice-throw") {
-            const effectTarget = target === "player" ? "ai" : "player";
-            this.applyDebugEffect(effectTarget, "FREEZE");
+            if (target === "player") {
+                this.iceShotArmed = true;
+                this.showItemFloatingText(
+                    this.playerStats.x,
+                    this.playerStats.y,
+                    "❄ Disparo gelado armado!",
+                    "#44aaff",
+                );
+            } else {
+                this.aiIceShotArmed = true;
+            }
+            this.refreshHud();
+            return; // arma o disparo sem encerrar o turno
         } else if (id === "invisibility") {
             if (target === "player") this.playerInvisibleTurns = 1;
             this.syncActorAssets();
         } else if (id === "calibration-shot") {
             this.calibrationShotActive = true;
+            this.calibrationTargetZone = this.computeCalibrationZone();
+            this.battleHud?.setCalibrationZone(this.calibrationTargetZone);
             this.showItemFloatingText(
                 this.playerStats.x,
                 this.playerStats.y,
@@ -3505,6 +3656,54 @@ export class BattleScene extends Phaser.Scene {
                 "#bbbbbb",
             );
         }
+    }
+
+    private resolveIceShot(isPlayerShot: boolean, hitEnemy: boolean): void {
+        if (isPlayerShot && this.iceShotArmed) {
+            this.iceShotArmed = false;
+            if (hitEnemy) {
+                this.statusEffects.apply("ai", { type: "FREEZE", duration: 2 });
+                this.showEffectFloatingText(this.aiStats.x, this.aiStats.y, "FREEZE");
+            }
+        }
+        if (!isPlayerShot && this.aiIceShotArmed) {
+            this.aiIceShotArmed = false;
+            if (hitEnemy) {
+                this.statusEffects.apply("player", { type: "FREEZE", duration: 2 });
+                this.showEffectFloatingText(this.playerStats.x, this.playerStats.y, "FREEZE");
+            }
+        }
+    }
+
+    private computeCalibrationZone(): { min: number; max: number } | null {
+        const profile = this.playerWeapon.physicsProfile;
+        const wind = this.windSystem.getCurrent();
+        let minForce: number | null = null;
+        let maxForce: number | null = null;
+
+        for (let force = 2; force <= 100; force += 2) {
+            const config: ProjectileConfig = {
+                angle: this.getWorldAngle(this.currentAngle),
+                force,
+                gravityScale: profile.gravityScale,
+                windInfluence: profile.windInfluence,
+                baseDamage: this.playerWeapon.baseDamage,
+            };
+            const path = this.projectilePhysics.simulate(
+                this.playerStats.x,
+                this.playerStats.y,
+                config,
+                wind,
+            );
+            const clipped = this.clipPathToFirstImpact(path, true);
+            if (clipped.impact?.hitTarget) {
+                if (minForce === null) minForce = force;
+                maxForce = force;
+            }
+        }
+
+        if (minForce === null || maxForce === null) return null;
+        return { min: Math.max(0, minForce - 1), max: Math.min(100, maxForce + 1) };
     }
 
     private teleportActor(

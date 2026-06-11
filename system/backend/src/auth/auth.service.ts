@@ -31,7 +31,7 @@ export class AuthService {
 
   private sign(user: User) {
     return {
-      access_token: this.jwt.sign({ sub: user.id, email: user.email }),
+      access_token: this.jwt.sign({ sub: user.id, email: user.email, isAdmin: user.is_admin }),
       user_id: user.id,
     };
   }

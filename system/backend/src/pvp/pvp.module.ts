@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PvpRoom } from './pvp-room.entity';
+import { ItemInstance } from '../inventory/item-instance.entity';
 import { PvpService } from './pvp.service';
 import { PvpController } from './pvp.controller';
 import { CharacterModule } from '../character/character.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PvpRoom]), CharacterModule],
+  imports: [TypeOrmModule.forFeature([PvpRoom, ItemInstance]), CharacterModule],
   providers: [PvpService],
   controllers: [PvpController],
   exports: [PvpService],

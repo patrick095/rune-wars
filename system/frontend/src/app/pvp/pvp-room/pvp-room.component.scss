@@ -1,39 +1,36 @@
+// ─── Base ────────────────────────────────────────────────────────────────────
+
 .pvp-room {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 2rem;
   min-height: 100%;
+  padding: 0;
   color: #e8d5a3;
   font-family: 'Georgia', serif;
+  /* background-image is applied inline from the template to avoid build-time asset resolution */
+  background-color: #0d0a06;
 }
+
+// ─── Header ──────────────────────────────────────────────────────────────────
 
 .room-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  width: 100%;
-  max-width: 480px;
-
-  h2 {
-    flex: 1;
-    text-align: center;
-    font-size: 1.4rem;
-    color: #ffd700;
-    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
-    margin: 0;
-  }
+  padding: 0.75rem 1.25rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid #4a3f2a;
 }
 
 .btn-back {
   background: transparent;
   border: 1px solid #6b5c3e;
   color: #c8a96e;
-  padding: 0.4rem 0.8rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-family: inherit;
   transition: background 0.2s, color 0.2s;
 
   &:hover {
@@ -42,142 +39,658 @@
   }
 }
 
-.error-banner {
-  background: rgba(180, 40, 40, 0.3);
-  border: 1px solid #b42828;
+.header-spacer {
+  flex: 1;
+}
+
+.header-currencies {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 1.3rem;
+}
+
+// ─── Banners ─────────────────────────────────────────────────────────────────
+
+.error-banner,
+.warning-banner {
+  margin: 0.5rem 1.25rem;
+  padding: 0.5rem 1rem;
   border-radius: 6px;
-  color: #f08080;
-  padding: 0.6rem 1rem;
-  font-size: 0.9rem;
-  width: 100%;
-  max-width: 480px;
+  font-size: 0.88rem;
   text-align: center;
 }
 
-.player-slots {
-  display: flex;
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 480px;
+.error-banner {
+  background: rgba(180, 40, 40, 0.3);
+  border: 1px solid #b42828;
+  color: #f08080;
 }
 
-.slot {
+.warning-banner {
+  background: rgba(180, 120, 20, 0.3);
+  border: 1px solid #c88a20;
+  color: #ffd080;
+}
+
+// ─── Layout ──────────────────────────────────────────────────────────────────
+
+.room-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  flex: 1;
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+// ─── Panels ──────────────────────────────────────────────────────────────────
+
+.panel {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid #4a3f2a;
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.75rem;
+
+  &--inventory {
+    flex: 1;
+  }
+
+  &--map {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &--ready {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+}
+
+.panel-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: #8a7a5a;
+  text-transform: uppercase;
+  margin: 0 0 0.65rem;
+}
+
+.col-left,
+.col-right {
+  display: flex;
+  flex-direction: column;
+}
+
+// ─── Team Slots ──────────────────────────────────────────────────────────────
+
+.team-slots {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.team-slot {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  padding: 1.2rem 1rem;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 72px;
+  padding: 0.6rem 0.4rem;
   border: 2px dashed #4a3f2a;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.3);
-  transition: border-color 0.3s, background 0.3s;
+  font-size: 0.8rem;
+  transition: border-color 0.25s, background 0.25s;
+
+  // Slot 1 — leader highlight
+  &--leader {
+    border-color: #7b4abf;
+    background: rgba(123, 74, 191, 0.1);
+  }
 
   &--filled {
-    border-color: #6b9e4a;
-    background: rgba(107, 158, 74, 0.1);
+    border-style: solid;
+    border-color: #c8a030;
+    background: rgba(200, 160, 48, 0.08);
   }
-}
 
-.slot-label {
-  font-size: 0.75rem;
-  color: #8a7a5a;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  &--closed {
+    border-color: #5a3a3a;
+    background: rgba(80, 20, 20, 0.25);
+    opacity: 0.65;
+  }
+
+  &--ready {
+    border-color: #4aaf60;
+    background: rgba(74, 175, 96, 0.1);
+  }
 }
 
 .slot-name {
-  font-size: 1rem;
-  color: #e8d5a3;
+  font-size: 0.85rem;
   font-weight: bold;
-
-  .slot--filled & {
-    color: #c8f08a;
-  }
+  color: #e8d5a3;
+  text-align: center;
+  word-break: break-word;
 }
 
-.map-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  width: 100%;
-  max-width: 480px;
-
-  label {
-    font-size: 0.85rem;
-    color: #8a7a5a;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  select {
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid #6b5c3e;
-    border-radius: 6px;
-    color: #e8d5a3;
-    padding: 0.5rem 0.75rem;
-    font-size: 1rem;
-    cursor: pointer;
-    width: 100%;
-
-    &:focus {
-      outline: none;
-      border-color: #ffd700;
-    }
-
-    option {
-      background: #1a1208;
-      color: #e8d5a3;
-    }
-  }
-}
-
-.map-info {
-  font-size: 0.95rem;
+.slot-level {
+  font-size: 0.7rem;
   color: #a89060;
-  padding: 0.5rem 0;
 }
 
-.room-actions {
+.slot-ready-badge {
+  font-size: 0.65rem;
+  color: #6fdf8a;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.slot-empty-label {
+  font-size: 0.75rem;
+  color: #6a5a3a;
+  font-style: italic;
+}
+
+.btn-kick {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(180, 40, 40, 0.6);
+  border: 1px solid #b42828;
+  color: #ffaaaa;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  padding: 1px 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(180, 40, 40, 0.9);
+  }
+}
+
+.btn-slot-action {
+  font-size: 0.65rem;
+  background: rgba(100, 80, 30, 0.5);
+  border: 1px solid #6b5c3e;
+  color: #c8a96e;
+  border-radius: 3px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(100, 80, 30, 0.9);
+    color: #ffd700;
+  }
+}
+
+// ─── Consumable Selected Slots ───────────────────────────────────────────────
+
+.consumable-selected-slots {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
+}
+
+.consumable-selected-slot {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border: 2px dashed #c06010;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+
+  &--filled {
+    border-style: solid;
+    border-color: #e07020;
+    background: rgba(224, 112, 32, 0.1);
+
+    &:hover {
+      background: rgba(180, 40, 40, 0.25);
+      border-color: #b42828;
+    }
+  }
+}
+
+.consumable-slot-num {
+  font-size: 0.65rem;
+  color: #6a5a3a;
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+}
+
+// ─── Consumable Inventory ────────────────────────────────────────────────────
+
+.empty-inventory {
+  font-size: 0.8rem;
+  color: #6a5a3a;
+  font-style: italic;
+  margin: 0;
+}
+
+.consumable-inventory {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.consumable-item {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border: 1px solid #6b5c3e;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: border-color 0.2s, background 0.2s;
+
+  &:hover {
+    border-color: #c8a030;
+    background: rgba(200, 160, 48, 0.12);
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+}
+
+.consumable-icon {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.consumable-name {
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  font-size: 0.55rem;
+  color: #ffd080;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
+// ─── Map Carousel ────────────────────────────────────────────────────────────
+
+.map-carousel {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   width: 100%;
-  max-width: 480px;
+}
+
+.carousel-btn {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #6b5c3e;
+  color: #c8a96e;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: rgba(200, 169, 110, 0.2);
+    color: #ffd700;
+  }
+}
+
+.map-thumbnail-wrap {
+  flex: 1;
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #6b5c3e;
+  aspect-ratio: 16 / 9;
+  background: #0a0a0a;
+}
+
+.map-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.3s;
+}
+
+.map-thumbnail-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  color: #ffd700;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.5rem;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.map-dots {
+  display: flex;
+  gap: 0.4rem;
   margin-top: 0.5rem;
 }
 
-.btn-action {
+.map-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4a3f2a;
+  transition: background 0.2s;
+
+  &--active {
+    background: #c8a030;
+  }
+}
+
+.map-name-label {
+  font-size: 0.85rem;
+  color: #a89060;
+  margin: 0.3rem 0 0;
+  text-align: center;
+}
+
+// ─── Mode Buttons ─────────────────────────────────────────────────────────────
+
+.mode-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-mode {
+  flex: 1;
+  padding: 0.5rem 0.25rem;
+  border: 2px solid #4a3f2a;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #8a7a5a;
+  font-family: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s;
+
+  &:hover:not(:disabled) {
+    border-color: #7b4abf;
+    color: #c8a0ff;
+    background: rgba(123, 74, 191, 0.1);
+  }
+
+  &--active {
+    border-color: #9b5fe0;
+    color: #d8a8ff;
+    background: rgba(123, 74, 191, 0.2);
+    box-shadow: 0 0 8px rgba(155, 95, 224, 0.5);
+  }
+
+  &--disabled,
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+// ─── Ready Button ─────────────────────────────────────────────────────────────
+
+.btn-ready {
   width: 100%;
-  padding: 0.85rem 1.5rem;
+  padding: 0.9rem 1.5rem;
   border: none;
   border-radius: 8px;
-  font-size: 1.05rem;
-  font-family: 'Georgia', serif;
+  background: linear-gradient(135deg, #a05010, #e08020);
+  color: #fff8e0;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 2px 10px rgba(224, 128, 32, 0.45);
+  transition: box-shadow 0.2s, transform 0.1s;
+
+  &:hover {
+    box-shadow: 0 4px 20px rgba(224, 128, 32, 0.7);
+  }
 
   &:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
   }
 }
 
-.btn-vs-ai {
-  background: linear-gradient(135deg, #7a3a1a, #c06030);
-  color: #ffe8c0;
-  box-shadow: 0 2px 8px rgba(192, 96, 48, 0.4);
+// ─── Inventory button ─────────────────────────────────────────────────────────
+
+.btn-inventory {
+  background: rgba(68, 136, 255, 0.15);
+  border: 1px solid #4488ff66;
+  color: #aad4ff;
+  padding: 0.35rem 0.85rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+  margin-right: 0.5rem;
 
   &:hover {
-    box-shadow: 0 4px 16px rgba(192, 96, 48, 0.6);
+    background: rgba(68, 136, 255, 0.3);
+    color: #fff;
   }
 }
 
-.btn-wait {
-  background: linear-gradient(135deg, #1a4a2a, #2e8a50);
-  color: #c0ffe0;
-  box-shadow: 0 2px 8px rgba(46, 138, 80, 0.4);
+// ─── Inventory Modal ──────────────────────────────────────────────────────────
+
+.inventory-modal {
+  background: #12100a;
+  border: 1px solid #6b5c3e;
+  border-radius: 12px;
+  padding: 1.25rem;
+  width: min(860px, 95vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inventory-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #4a3f2a;
+  padding-bottom: 0.75rem;
+}
+
+.inventory-modal-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #c8a96e;
+  font-family: 'Georgia', serif;
+  letter-spacing: 0.5px;
+}
+
+.btn-close-inventory {
+  background: none;
+  border: none;
+  color: #a08050;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+
+  &:hover { color: #fff; }
+}
+
+.inventory-modal-body {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.loading-msg {
+  text-align: center;
+  color: #a08050;
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+
+// ─── Kick Confirmation Modal ──────────────────────────────────────────────────
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal {
+  background: #1a1208;
+  border: 1px solid #6b5c3e;
+  border-radius: 10px;
+  padding: 1.5rem 2rem;
+  max-width: 320px;
+  width: 90%;
+  text-align: center;
+}
+
+.modal-text {
+  font-size: 0.95rem;
+  color: #e8d5a3;
+  margin: 0 0 1.25rem;
+
+  strong {
+    color: #ffd700;
+  }
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.btn-modal {
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
 
   &:hover {
-    box-shadow: 0 4px 16px rgba(46, 138, 80, 0.6);
+    opacity: 0.85;
+  }
+
+  &--cancel {
+    background: #3a2a1a;
+    border: 1px solid #6b5c3e;
+    color: #c8a96e;
+  }
+
+  &--confirm {
+    background: linear-gradient(135deg, #7a1a1a, #c03030);
+    color: #ffe8e8;
+  }
+}
+
+// ─── Battle start overlays ────────────────────────────────────────────────────
+
+.battle-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+
+  &__box {
+    background: #100c04;
+    border: 2px solid #c8a030;
+    border-radius: 12px;
+    padding: 2rem 3rem;
+    text-align: center;
+    min-width: 240px;
+  }
+
+  &__title {
+    font-size: 1rem;
+    color: #e8d5a3;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+
+  &__countdown {
+    font-size: 5rem;
+    font-weight: bold;
+    color: #ffd700;
+    line-height: 1;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  }
+
+  &__search-bar {
+    width: 100%;
+    height: 8px;
+    background: #2a2010;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+
+  &__search-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #c8a030, #ffd700);
+    border-radius: 4px;
+    transition: width 0.9s linear;
+  }
+
+  &__search-hint {
+    font-size: 0.8rem;
+    color: #a08050;
+    margin-bottom: 1.25rem;
+  }
+
+  &__cancel {
+    background: #2a1a0a;
+    border: 1px solid #6b5c3e;
+    color: #c8a96e;
+    padding: 0.5rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-family: inherit;
+    transition: background 0.2s;
+
+    &:hover { background: #3a2a1a; }
   }
 }

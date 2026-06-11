@@ -1,0 +1,166 @@
+@if (visible) {
+  <div class="admin-panel-backdrop" (click)="onBackdropClick($event)">
+    <div class="admin-panel-modal" role="dialog" aria-label="Painel Administrativo de Inventário">
+
+      <!-- HEADER -->
+      <header class="admin-panel-header">
+        <div class="admin-panel-title">
+          <span class="admin-panel-title-text">ADMIN PANEL</span>
+          <span class="admin-badge">ADMIN</span>
+        </div>
+        <button class="admin-close-btn" type="button" (click)="onClose()" aria-label="Fechar painel">✕</button>
+      </header>
+
+      <div class="admin-panel-divider"></div>
+
+      <!-- BUSCA DE PERSONAGENS -->
+      <section class="admin-section">
+        <label class="admin-section-label">BUSCAR PERSONAGEM:</label>
+        <input
+          class="admin-input"
+          type="text"
+          placeholder="Nome ou e-mail..."
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="onSearchInput()"
+          aria-label="Buscar personagem"
+        />
+
+        @if (loadingCharacters) {
+          <div class="admin-loading">Carregando personagens...</div>
+        }
+
+        @if (!loadingCharacters && searchResults.length > 0) {
+          <ul class="admin-char-list">
+            @for (char of searchResults; track char.id) {
+              <li
+                class="admin-char-item"
+                [class.selected]="selectedCharacter?.id === char.id"
+                (click)="selectCharacter(char)"
+              >
+                <span class="char-name">{{ char.name }}</span>
+                <span class="char-level">Nv. {{ char.level }}</span>
+                <span class="char-email">{{ char.email }}</span>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (!loadingCharacters && searchQuery && searchResults.length === 0) {
+          <div class="admin-empty">Nenhum personagem encontrado.</div>
+        }
+      </section>
+
+      <div class="admin-panel-divider"></div>
+
+      <!-- INVENTÁRIO DO PERSONAGEM SELECIONADO -->
+      @if (selectedCharacter) {
+        <section class="admin-section">
+          <div class="admin-section-label">
+            INVENTÁRIO DE: <strong class="char-name-highlight">{{ selectedCharacter.name }}</strong>
+          </div>
+
+          @if (loadingInventory) {
+            <div class="admin-loading">Carregando inventário...</div>
+          }
+
+          @if (!loadingInventory && inventory.length === 0) {
+            <div class="admin-empty">Inventário vazio.</div>
+          }
+
+          @if (!loadingInventory && inventory.length > 0) {
+            <div class="admin-inventory-grid">
+              @for (item of inventory; track item.id) {
+                <div class="admin-inv-slot" [title]="getItemName(item.item_base_id) + ' (' + item.rarity + ')'">
+                  <div class="slot-icon">
+                    @if (getItemIconPath(item.item_base_id)) {
+                      <img
+                        [src]="getItemIconPath(item.item_base_id)"
+                        [alt]="getItemName(item.item_base_id)"
+                        onerror="this.style.opacity='0.2'"
+                      />
+                    }
+                    @if (item.equipped_slot) {
+                      <span class="equipped-badge" title="Equipado: {{ item.equipped_slot }}">E</span>
+                    }
+                  </div>
+                  <div class="slot-info">
+                    <span class="slot-name">{{ getItemName(item.item_base_id) }}</span>
+                    <span class="slot-rarity">{{ item.rarity }}</span>
+                  </div>
+                  <button class="btn-remove-item" (click)="removeItem(item.id)" title="Remover item">✕</button>
+                </div>
+              }
+            </div>
+          }
+        </section>
+
+        <div class="admin-panel-divider"></div>
+
+        <!-- ADICIONAR ITEM -->
+        <section class="admin-section">
+          <div class="admin-section-label">ADICIONAR ITEM:</div>
+          <div class="admin-form-row">
+            <label class="admin-form-label">Categoria:
+              <select class="admin-select" [(ngModel)]="selectedCategory" (ngModelChange)="onCategoryChange()">
+                @for (cat of itemCategories; track cat) {
+                  <option [value]="cat">{{ cat }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="admin-form-label">Item:
+              <select class="admin-select" [(ngModel)]="selectedItemId">
+                @for (item of filteredItems; track item.id) {
+                  <option [value]="item.id">{{ item.name }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="admin-form-label">Qtd:
+              <input class="admin-input admin-input-qty" type="number" min="1" [(ngModel)]="itemQuantity" />
+            </label>
+
+            <button
+              class="admin-btn admin-btn-add"
+              type="button"
+              (click)="addItem()"
+              [disabled]="addingItem || !selectedItemId"
+            >
+              {{ addingItem ? 'Adicionando...' : 'Adicionar' }}
+            </button>
+          </div>
+        </section>
+
+        <div class="admin-panel-divider"></div>
+
+        <!-- ADICIONAR CONSUMÍVEL -->
+        <section class="admin-section">
+          <div class="admin-section-label">ADICIONAR CONSUMÍVEL:</div>
+          <div class="admin-form-row">
+            <label class="admin-form-label">Consumível:
+              <select class="admin-select" [(ngModel)]="selectedConsumableId">
+                @for (cons of consumableList; track cons.id) {
+                  <option [value]="cons.id">{{ cons.name }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="admin-form-label">Qtd:
+              <input class="admin-input admin-input-qty" type="number" min="1" [(ngModel)]="consumableQuantity" />
+            </label>
+
+            <button
+              class="admin-btn admin-btn-add"
+              type="button"
+              (click)="addConsumable()"
+              [disabled]="addingConsumable || !selectedConsumableId"
+            >
+              {{ addingConsumable ? 'Adicionando...' : 'Adicionar' }}
+            </button>
+          </div>
+        </section>
+      }
+
+    </div>
+  </div>
+}

@@ -13,14 +13,28 @@ export type GameScreen =
   | 'market'
   | 'guild'
   | 'rankings'
-  | 'academy';
+  | 'academy'
+  | 'vault';
 
 export interface BattleConfig {
   mapName: string;
   vsAI: boolean;
   roomName?: string;
   playerName?: string;
+  playerRace?: string;
+  playerMaxHp?: number;
+  playerAgility?: number;
+  playerWeaponId?: string;
+  playerConsumables?: string[];
+  playerStrength?: number;
+  playerLuck?: number;
   opponentName?: string;
+  opponentRace?: string;
+  aiMaxHp?: number;
+  aiAgility?: number;
+  aiWeaponId?: string;
+  aiStrength?: number;
+  aiLuck?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -36,6 +50,12 @@ export class GameNavigatorService {
 
   private _battleConfig = signal<BattleConfig | null>(null);
   readonly battleConfig = this._battleConfig.asReadonly();
+
+  private _showAdminPanel = signal<boolean>(false);
+  readonly showAdminPanel = this._showAdminPanel.asReadonly();
+
+  openAdminPanel(): void { this._showAdminPanel.set(true); }
+  closeAdminPanel(): void { this._showAdminPanel.set(false); }
 
   goTo(screen: GameScreen): void {
     this._screen.set(screen);

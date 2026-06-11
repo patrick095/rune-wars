@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, OnDestroy, NgZone, inject } from '@angular/core';
+import { AfterViewInit, Component, HostListener, OnDestroy, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import Phaser from 'phaser';
@@ -7,6 +7,7 @@ import { HUB_POIS, HubPointOfInterest } from '../../game/hub/hub-poi';
 import { GameEventBusService } from '../shared/services/game-event-bus.service';
 import { ActiveCharacterService } from '../shared/services/active-character.service';
 import { GameNavigatorService, GameScreen } from '../shared/services/game-navigator.service';
+import { AuthService } from '../shared/services/auth.service';
 
 @Component({
   selector: 'app-hub',
@@ -18,6 +19,7 @@ import { GameNavigatorService, GameScreen } from '../shared/services/game-naviga
 export class HubComponent implements AfterViewInit, OnDestroy {
   private game: Phaser.Game | null = null;
   private activeCharacterService = inject(ActiveCharacterService);
+  private authService = inject(AuthService);
 
   isMobile = false;
   activePoi: HubPointOfInterest | null = null;
@@ -129,6 +131,21 @@ export class HubComponent implements AfterViewInit, OnDestroy {
       this.navigator.goTo(gameScreen);
     } else {
       this.router.navigate([route]);
+    }
+  }
+
+  logout(): void {
+    this.authService.logout();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent): void {
+    if ((event.key === 'i' || event.key === 'I') && this.authService.isAdmin()) {
+      if (this.navigator.showAdminPanel()) {
+        this.navigator.closeAdminPanel();
+      } else {
+        this.navigator.openAdminPanel();
+      }
     }
   }
 }

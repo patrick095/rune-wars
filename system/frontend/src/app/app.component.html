@@ -49,6 +49,9 @@
           @case ('character') {
             <app-character></app-character>
           }
+          @case ('vault') {
+            <app-vault-screen></app-vault-screen>
+          }
           @default {
             <app-hub></app-hub>
           }
@@ -75,4 +78,9 @@
     </div>
 
   </div>
+
+  <app-admin-inventory-panel
+    [visible]="navigator.showAdminPanel()"
+    (close)="navigator.closeAdminPanel()"
+  ></app-admin-inventory-panel>
 </div>

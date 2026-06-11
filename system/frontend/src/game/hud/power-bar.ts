@@ -14,6 +14,7 @@ export class PowerBar {
     private barFill!: Phaser.GameObjects.Graphics;
     private ticks!: Phaser.GameObjects.Graphics;
     private ghost!: Phaser.GameObjects.Graphics;
+    private targetZoneLayer!: Phaser.GameObjects.Graphics;
     private powerLabel!: Phaser.GameObjects.Text;
     private powerValueText!: Phaser.GameObjects.Text;
     private fireButton!: Phaser.GameObjects.Graphics;
@@ -28,6 +29,7 @@ export class PowerBar {
     private angleLimits = { minAngle: 0, maxAngle: 90 };
     private lastShotPower = 0;
     private isCharging = false;
+    private targetZone: { min: number; max: number } | null = null;
     private fireDownCallback: (() => void) | null = null;
     private fireUpCallback: (() => void) | null = null;
 
@@ -56,6 +58,7 @@ export class PowerBar {
         this.barFill = scene.add.graphics();
         this.ticks = scene.add.graphics();
         this.ghost = scene.add.graphics();
+        this.targetZoneLayer = scene.add.graphics();
         this.fireButton = scene.add.graphics();
 
         this.angleLabel = scene.add
@@ -118,6 +121,7 @@ export class PowerBar {
             this.angleDial,
             this.barBg,
             this.barFill,
+            this.targetZoneLayer,
             this.ghost,
             this.ticks,
             this.angleLabel,
@@ -171,6 +175,11 @@ export class PowerBar {
 
     recordShot(power: number): void {
         this.lastShotPower = Phaser.Math.Clamp(power, 0, MAX_POWER);
+        this.drawPower();
+    }
+
+    setTargetZone(zone: { min: number; max: number } | null): void {
+        this.targetZone = zone;
         this.drawPower();
     }
 
@@ -385,6 +394,7 @@ export class PowerBar {
     private drawPower(): void {
         this.barBg.clear();
         this.barFill.clear();
+        this.targetZoneLayer.clear();
         this.ticks.clear();
         this.ghost.clear();
 
@@ -452,6 +462,36 @@ export class PowerBar {
                 Math.round((this.barH - 4) * 0.4),
                 2,
             );
+        }
+
+        // Calibration target zone band
+        if (this.targetZone) {
+            const zMin = Phaser.Math.Clamp(this.targetZone.min, 0, MAX_POWER);
+            const zMax = Phaser.Math.Clamp(this.targetZone.max, 0, MAX_POWER);
+            const zx = this.barX + (zMin / MAX_POWER) * this.barW;
+            const zw = ((zMax - zMin) / MAX_POWER) * this.barW;
+            // Semi-transparent green fill
+            this.targetZoneLayer.fillStyle(0x00ff88, 0.28);
+            this.targetZoneLayer.fillRect(
+                zx,
+                this.barY - this.barH / 2 + 1,
+                zw,
+                this.barH - 2,
+            );
+            // Bright border edges
+            this.targetZoneLayer.lineStyle(2, 0x00ff88, 0.9);
+            this.targetZoneLayer.lineBetween(
+                zx, this.barY - this.barH / 2,
+                zx, this.barY + this.barH / 2,
+            );
+            this.targetZoneLayer.lineBetween(
+                zx + zw, this.barY - this.barH / 2,
+                zx + zw, this.barY + this.barH / 2,
+            );
+            // Top/bottom border lines
+            this.targetZoneLayer.lineStyle(1, 0x00ff88, 0.5);
+            this.targetZoneLayer.lineBetween(zx, this.barY - this.barH / 2, zx + zw, this.barY - this.barH / 2);
+            this.targetZoneLayer.lineBetween(zx, this.barY + this.barH / 2, zx + zw, this.barY + this.barH / 2);
         }
 
         // Ticks

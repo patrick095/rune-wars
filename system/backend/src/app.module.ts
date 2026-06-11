@@ -16,6 +16,8 @@ import { MarketModule } from './market/market.module';
 import { GuildsModule } from './guilds/guilds.module';
 import { VaultModule } from './vault/vault.module';
 import { PvpModule } from './pvp/pvp.module';
+import { ConsumableInventoryModule } from './consumable-inventory/consumable-inventory.module';
+import { AdminModule } from './admin/admin.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -46,6 +48,8 @@ import { HealthController } from './health.controller';
     GuildsModule,
     VaultModule,
     PvpModule,
+    ConsumableInventoryModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })

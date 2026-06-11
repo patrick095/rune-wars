@@ -15,6 +15,9 @@ export class User {
   @CreateDateColumn()
   created_at: Date;
 
+  @Column({ default: false })
+  is_admin: boolean;
+
   @OneToMany(() => Character, c => c.user)
   characters: Character[];
 }

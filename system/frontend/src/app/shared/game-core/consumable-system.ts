@@ -5,7 +5,7 @@ export interface Consumable {
   description: string;
 }
 
-export const MAX_CONSUMABLES_PER_BATTLE = 3;
+export const MAX_CONSUMABLES_PER_BATTLE = 5;
 
 export class ConsumableSystem {
   private static readonly CONSUMABLES: Consumable[] = [
@@ -24,8 +24,8 @@ export class ConsumableSystem {
     {
       id: 'ice-throw',
       name: 'Lançamento de Gelo',
-      usesTurn: true,
-      description: 'Imobiliza o alvo por 1 turno (aplica FREEZE).',
+      usesTurn: false,
+      description: 'Arma o próximo disparo com gelo: acertando o alvo aplica FREEZE por 1 turno.',
     },
     {
       id: 'invisibility',
@@ -59,7 +59,6 @@ export class ConsumableSystem {
    */
   equip(id: string): boolean {
     if (this._equipped.length >= MAX_CONSUMABLES_PER_BATTLE) return false;
-    if (this._equipped.some(c => c.id === id)) return false;
     const consumable = this.getById(id);
     if (!consumable) return false;
     this._equipped.push(consumable);

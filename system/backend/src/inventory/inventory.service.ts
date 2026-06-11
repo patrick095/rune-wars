@@ -27,4 +27,14 @@ export class InventoryService {
   async unequip(itemId: string, characterId: string, userId: string) {
     return this.equip(itemId, null, characterId, userId);
   }
+
+  /**
+   * Acknowledges an inventory reorder request.
+   * Visual ordering is managed client-side. This method validates ownership
+   * and returns a success payload so the frontend receives a 201 instead of 404.
+   */
+  async move(characterId: string, userId: string, fromIndex: number, toIndex: number) {
+    await this.chars.findOne(characterId, userId);
+    return { characterId, fromIndex, toIndex };
+  }
 }
