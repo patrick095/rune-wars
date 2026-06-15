@@ -122,30 +122,54 @@
     <div class="col-right">
 
       <!-- Map carousel -->
-      <section class="panel panel--map">
-        <h3 class="panel-title">SELEÇÃO DE MAPA</h3>
+      <section class="panel panel--map" [class.panel--map-locked]="isMapLocked">
+        <h3 class="panel-title">
+          SELEÇÃO DE MAPA
+          @if (isMapLocked) {
+            <span class="map-lock-badge">🔒 Rankeada</span>
+          }
+        </h3>
         <div class="map-carousel">
-          <button class="carousel-btn carousel-btn--prev" (click)="prevMap()">‹</button>
+          <button
+            class="carousel-btn carousel-btn--prev"
+            (click)="prevMap()"
+            [disabled]="isMapLocked || !isOwner"
+          >‹</button>
           <div class="map-thumbnail-wrap">
-            <img
-              [src]="mapThumbnailUrl"
-              [alt]="selectedMap.name"
-              class="map-thumbnail"
-              onerror="this.style.opacity='0.3'"
-            />
+            @if (selectedMap.slug === 'random') {
+              <div class="map-thumbnail map-thumbnail--random">
+                <span class="map-random-icon">🎲</span>
+              </div>
+            } @else {
+              <img
+                [src]="mapThumbnailUrl"
+                [alt]="selectedMap.name"
+                class="map-thumbnail"
+                onerror="this.style.opacity='0.3'"
+              />
+            }
             <div class="map-thumbnail-overlay">{{ selectedMap.name }}</div>
           </div>
-          <button class="carousel-btn carousel-btn--next" (click)="nextMap()">›</button>
+          <button
+            class="carousel-btn carousel-btn--next"
+            (click)="nextMap()"
+            [disabled]="isMapLocked || !isOwner"
+          >›</button>
         </div>
-        <div class="map-dots">
-          @for (map of MAPS; track map.slug) {
-            <span
-              class="map-dot"
-              [class.map-dot--active]="map.slug === selectedMap.slug"
-            ></span>
-          }
-        </div>
+        @if (!isMapLocked) {
+          <div class="map-dots">
+            @for (map of MAPS; track map.slug) {
+              <span
+                class="map-dot"
+                [class.map-dot--active]="map.slug === selectedMap.slug"
+              ></span>
+            }
+          </div>
+        }
         <p class="map-name-label">{{ selectedMap.name }}</p>
+        @if (isMapLocked) {
+          <p class="map-lock-hint">Em partidas rankeadas o mapa é sempre aleatório.</p>
+        }
       </section>
 
       <!-- Battle mode -->

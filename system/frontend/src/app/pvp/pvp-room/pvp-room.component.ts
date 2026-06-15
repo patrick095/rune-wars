@@ -68,6 +68,7 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   // Map carousel
   selectedMapIndex = 0;
   readonly MAPS = [
+    { slug: 'random', name: 'Aleatório' },
     { slug: 'plains', name: 'Planícies' },
     { slug: 'mystic-castle', name: 'Castelo Místico' },
     { slug: 'deep-mines', name: 'Minas Profundas' },
@@ -115,7 +116,12 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   }
 
   get mapThumbnailUrl(): string {
+    if (this.selectedMap.slug === 'random') return `assets/maps/random_map.png`;
     return `assets/maps/${this.selectedMap.slug}/background.png`;
+  }
+
+  get isMapLocked(): boolean {
+    return this.selectedMode === 'ranked';
   }
 
   get playerName(): string {
@@ -180,18 +186,36 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   // ── Map carousel ──────────────────────────────────────────────────────────
 
   nextMap(): void {
+    if (this.isMapLocked || !this.isOwner) return;
     this.selectedMapIndex = (this.selectedMapIndex + 1) % this.MAPS.length;
+    this.persistSettings({ map_slug: this.selectedMap.slug });
   }
 
   prevMap(): void {
+    if (this.isMapLocked || !this.isOwner) return;
     this.selectedMapIndex = (this.selectedMapIndex - 1 + this.MAPS.length) % this.MAPS.length;
+    this.persistSettings({ map_slug: this.selectedMap.slug });
   }
 
   // ── Mode selection ────────────────────────────────────────────────────────
 
   selectMode(mode: 'ranked' | 'free' | 'guild'): void {
+    if (!this.isOwner) return;
     if (mode === 'guild' && !this.hasGuild) return;
     this.selectedMode = mode;
+    if (mode === 'ranked') {
+      this.selectedMapIndex = 0; // force random
+    }
+    this.persistSettings({ mode });
+  }
+
+  private persistSettings(settings: { map_slug?: string; mode?: string }): void {
+    const roomId = this.navigator.roomId();
+    if (!roomId || !this.currentCharacterId) return;
+    this.api.patch<unknown>(`/pvp/rooms/${roomId}/settings`, {
+      characterId: this.currentCharacterId,
+      ...settings,
+    }).subscribe({ error: () => undefined });
   }
 
   // ── Consumables ───────────────────────────────────────────────────────────

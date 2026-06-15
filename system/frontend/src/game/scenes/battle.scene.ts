@@ -4,7 +4,13 @@ import { WindSystem } from "../../app/shared/game-core/wind-system";
 import { ProjectilePhysics } from "../../app/shared/game-core/projectile-physics";
 import { DamageCalculator } from "../../app/shared/game-core/damage-calculator";
 import { Difficulty } from "../../app/shared/game-core/ai-local";
+import {
+    AiStrategyEngine,
+    AiStrategyType,
+} from "../../app/shared/game-core/ai-strategy";
 import { ProjectileConfig } from "../../app/shared/game-core/projectile-config";
+import { AiDecisionMaker, aiLogger } from "../../app/shared/game-core/ai-decision-maker";
+import { BattleSnapshot } from "../../app/shared/game-core/ai-battle-types";
 
 interface BattleCharacterState {
     hp: number;
@@ -36,6 +42,10 @@ interface BattleLaunchData {
     playerLuck?: number;
     aiStrength?: number;
     aiLuck?: number;
+    /** If set, overrides random difficulty selection for this battle. */
+    difficulty?: Difficulty;
+    /** Player level used to redistribute AI stats according to the chosen strategy. */
+    playerLevel?: number;
 }
 import {
     TerrainEngine,
@@ -186,9 +196,10 @@ const AI_SEARCH_BY_DIFFICULTY: Record<
         forceError: number;
     }
 > = {
-    easy: { angleStep: 8, forceStep: 12, angleError: 14, forceError: 14 },
-    medium: { angleStep: 5, forceStep: 8, angleError: 7, forceError: 8 },
-    hard: { angleStep: 3, forceStep: 5, angleError: 3, forceError: 4 },
+    easy:   { angleStep: 8, forceStep: 12, angleError: 14, forceError: 14 },
+    medium: { angleStep: 5, forceStep: 8,  angleError: 7,  forceError: 8  },
+    hard:   { angleStep: 3, forceStep: 5,  angleError: 3,  forceError: 4  },
+    heroic: { angleStep: 2, forceStep: 3,  angleError: 1,  forceError: 2  },
 };
 const AI_REPOSITION_THRESHOLD = 70;
 
@@ -219,6 +230,14 @@ export class BattleScene extends Phaser.Scene {
     private playerLuck = 10;
     private playerStrength = 0;
     private aiStrength = 0;
+    private aiLuck = 10;
+    // v1.7.0 AI strategy engine
+    private readonly aiStrategyEngine = new AiStrategyEngine();
+    // v1.7.0 tactical AI decision maker
+    private readonly aiDecisionMaker = new AiDecisionMaker();
+    private aiStrategy: AiStrategyType = 'mixed';
+    private aiExcavScore = 0;
+    private aiLastImpactX: number | null = null;
     private teleportShotArmed = false;
     private iceShotArmed = false;
     private aiIceShotArmed = false;
@@ -373,6 +392,13 @@ export class BattleScene extends Phaser.Scene {
 
     private playerRace: string = "human";
 
+    private pickRandomDifficulty(): Difficulty {
+        const r = Math.random();
+        if (r < 0.33) return "easy";
+        if (r < 0.67) return "medium";
+        return "hard";
+    }
+
     init(data?: BattleLaunchData): void {
         this.isPlayground = data?.isPlayground ?? false;
         this.battleMode = data?.mode ?? "pvp";
@@ -391,6 +417,7 @@ export class BattleScene extends Phaser.Scene {
         this.playerStrength = data?.playerStrength ?? 0;
         this.playerLuck = data?.playerLuck ?? 10;
         this.aiStrength = data?.aiStrength ?? 0;
+        this.aiLuck = data?.aiLuck ?? 10;
         this.playerRace = data?.playerRace ?? "human";
         this.opponentRace = data?.opponentRace ?? "human";
         this.playerName = data?.playerName?.trim() || "Jogador";
@@ -398,6 +425,25 @@ export class BattleScene extends Phaser.Scene {
         this.opponentName =
             data?.opponentName?.trim() || (this.vsAI ? "Inimigo" : "Oponente");
         this.roomName = data?.roomName?.trim() || "";
+
+        // Pick difficulty randomly each match unless explicitly provided
+        this.difficulty = data?.difficulty ?? this.pickRandomDifficulty();
+
+        // Pick AI strategy for this battle based on difficulty
+        this.aiStrategy = this.aiStrategyEngine.pickStrategy(this.difficulty);
+
+        // Redistribute AI stats according to strategy when player level is known
+        const playerLevel = data?.playerLevel;
+        if (playerLevel && (this.vsAI ?? true)) {
+            const stats = this.aiStrategyEngine.computeAiStats(
+                playerLevel,
+                this.aiStrategy,
+            );
+            this.aiInitialMaxHp = stats.maxHp;
+            this.aiStrength = stats.strength;
+            this.aiAgility = stats.agility;
+            this.aiLuck = stats.luck;
+        }
     }
 
     preload(): void {
@@ -599,6 +645,8 @@ export class BattleScene extends Phaser.Scene {
         this.aiUsedConsumableIds = new Set<string>();
         this.aiShotModifierSystem = new ShotModifierSystem();
         this.battleEnded = false;
+        this.aiExcavScore = 0;
+        this.aiLastImpactX = null;
     }
 
     create(): void {
@@ -676,7 +724,7 @@ export class BattleScene extends Phaser.Scene {
         const fallbackAiX = WORLD_WIDTH * 0.9;
 
         if (spawns[0]) {
-            const p = spawnToWorld(spawns[0], 1, charHeight);
+            const p = spawnToWorld(spawns[0], 1, charHeight, this.terrainEngine);
             this.playerStats.x = p.x;
             this.playerStats.y = p.y;
         } else {
@@ -690,7 +738,7 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (spawns[1]) {
-            const a = spawnToWorld(spawns[1], 1, charHeight);
+            const a = spawnToWorld(spawns[1], 1, charHeight, this.terrainEngine);
             this.aiStats.x = a.x;
             this.aiStats.y = a.y;
         } else {
@@ -1917,18 +1965,6 @@ export class BattleScene extends Phaser.Scene {
 
     /** Returns true if a turn-consuming item was used (turn will end itself). */
     private aiDecideItemsBeforeTurn(turnToken: number): boolean {
-        // 20% chance to arm an ice shot (does NOT use the turn — AI fires normally after)
-        if (
-            !this.aiUsedConsumableIds.has("ice-throw") &&
-            !this.statusEffects.hasEffect("player", "FREEZE") &&
-            this.consumableSystem.getById("ice-throw") &&
-            Math.random() < 0.2
-        ) {
-            this.aiUsedConsumableIds.add("ice-throw");
-            this.useDebugConsumable("ai", "ice-throw");
-            // does NOT return true — AI still fires this turn
-        }
-
         // Heal when below 40% HP (heal does not consume the turn)
         if (
             !this.aiUsedConsumableIds.has("heal") &&
@@ -1939,51 +1975,48 @@ export class BattleScene extends Phaser.Scene {
             this.useDebugConsumable("ai", "heal");
         }
 
+        // Shield when below 55% HP — favoured by excavation/mixed (need to survive to keep digging)
+        if (
+            !this.aiUsedConsumableIds.has("__shield") &&
+            this.aiShieldReduction === 0 &&
+            this.aiStats.hp < this.aiStats.maxHp * 0.55 &&
+            (this.aiStrategy === "excavation" || this.aiStrategy === "mixed" ||
+             (this.aiStrategy === "damage" && this.aiStats.hp < this.aiStats.maxHp * 0.35))
+        ) {
+            this.aiUsedConsumableIds.add("__shield");
+            this.useDebugSecondaryItem("ai", "shield");
+        }
+
+        // Arm ice-throw to freeze player before a high-damage volley (damage strategy prefers this)
+        // Uses the shot, so fire normally this turn
+        const iceChance = this.aiStrategy === "damage" ? 0.35 : 0.15;
+        if (
+            !this.aiUsedConsumableIds.has("ice-throw") &&
+            !this.statusEffects.hasEffect("player", "FREEZE") &&
+            this.consumableSystem.getById("ice-throw") &&
+            Math.random() < iceChance
+        ) {
+            this.aiUsedConsumableIds.add("ice-throw");
+            this.useDebugConsumable("ai", "ice-throw");
+        }
+
         void turnToken;
         return false;
     }
 
     private aiDecideModifiers(): void {
         const aiHpRatio = this.aiStats.hp / this.aiStats.maxHp;
+        const enemyHpRatio = this.playerStats.hp / this.playerStats.maxHp;
         const distance = Math.abs(this.aiStats.x - this.playerStats.x);
 
-        // Stamina costs mirror the player's system (fraction of 100-pt budget)
-        const COST: Record<ShotModifierType, number> = {
-            shot_x3: 60, shot_plus1: 60, shot_damage_2x: 40, shot_dig_2x: 40,
-        };
-        const BUDGET = 100;
-
-        interface Combo { mods: ShotModifierType[]; weight: number }
-        const combos: Combo[] = [
-            // no modifier — always affordable
-            { mods: [], weight: 1.0 },
-            // single damage
-            { mods: ["shot_damage_2x"], weight: 2.0 },
-            // double damage — favour when losing
-            { mods: ["shot_damage_2x", "shot_damage_2x"], weight: aiHpRatio < 0.5 ? 3.0 : 1.2 },
-            // +1 shot + damage
-            { mods: ["shot_plus1", "shot_damage_2x"], weight: 2.0 },
-            // triple + dig — good for terrain denial at range
-            { mods: ["shot_x3", "shot_dig_2x"], weight: distance > 300 ? 1.5 : 0.5 },
-            // triple spread
-            { mods: ["shot_x3"], weight: distance > 400 ? 1.8 : 0.7 },
-            // +1 shot only
-            { mods: ["shot_plus1"], weight: 0.8 },
-        ];
-
-        const affordable = combos.filter((c) => {
-            const cost = c.mods.reduce((sum, m) => sum + COST[m], 0);
-            return cost <= BUDGET;
-        });
-
-        let rand = Math.random() * affordable.reduce((s, c) => s + c.weight, 0);
-        let chosen = affordable[0];
-        for (const combo of affordable) {
-            rand -= combo.weight;
-            if (rand <= 0) { chosen = combo; break; }
-        }
-
-        for (const mod of chosen.mods) {
+        const mods = this.aiStrategyEngine.decideModifiers(
+            this.aiStrategy,
+            this.aiExcavScore,
+            aiHpRatio,
+            enemyHpRatio,
+            distance,
+        );
+        for (const mod of mods) {
             this.aiShotModifierSystem.add(mod);
         }
     }
@@ -2085,11 +2118,57 @@ export class BattleScene extends Phaser.Scene {
         // Decide consumable items first (some may end the turn)
         if (this.aiDecideItemsBeforeTurn(turnToken)) return;
 
+        // Refresh excavation viability score (terrain changes each turn)
+        this.aiExcavScore = this.aiStrategyEngine.scoreExcavationTarget(
+            this.terrainEngine,
+            this.playerStats.x,
+            this.playerStats.y,
+        );
+
         // [v1.5.0] CharacterAnimator: AI shoot animation
         this.aiCharacterAnimator?.transition("shoot");
 
         const wind = this.windSystem.getCurrent();
-        const shot = this.calculateAiShot();
+
+        // ── Tactical AI decision ──────────────────────────────────────────────
+        const aiSnapshot = this.buildAiBattleSnapshot();
+        const aiDecision = this.aiDecisionMaker.decide(aiSnapshot, this.difficulty);
+        const decidedAction = aiDecision.action;
+
+        // If the decision is a non-shot item that was NOT already handled by
+        // aiDecideItemsBeforeTurn, apply it now.
+        if (decidedAction.type === 'use_heal' && !this.aiUsedConsumableIds.has('heal')) {
+            this.aiUsedConsumableIds.add('heal');
+            this.useDebugConsumable('ai', 'heal');
+        }
+        if (decidedAction.type === 'use_shield' && this.aiShieldReduction === 0 && !this.aiUsedConsumableIds.has('__shield')) {
+            this.aiUsedConsumableIds.add('__shield');
+            this.useDebugSecondaryItem('ai', 'shield');
+        }
+        if (decidedAction.type === 'use_ice_throw' && !this.aiUsedConsumableIds.has('ice-throw')) {
+            this.aiUsedConsumableIds.add('ice-throw');
+            this.useDebugConsumable('ai', 'ice-throw');
+        }
+
+        // Extract fire params from decision (direct fire or heal+fire combo)
+        const fireAction =
+            decidedAction.type === 'fire' ? decidedAction :
+            (decidedAction.type === 'use_heal' || decidedAction.type === 'use_shield' || decidedAction.type === 'use_ice_throw')
+              && decidedAction.thenFire ? decidedAction.thenFire :
+            null;
+
+        // Fall back to calculateAiShot if decision didn't yield a fire action
+        const legacyShot = fireAction ? null : this.calculateAiShot();
+        const shotAngle  = fireAction?.angle  ?? legacyShot!.angle;
+        const shotForce  = fireAction?.force  ?? legacyShot!.force;
+        const legacyScore = legacyShot?.score ?? 0;
+
+        // Shot quality: prefer tactical hitChance when new AI chose a fire action,
+        // fall back to legacyScore (high = bad in that scale) when using legacy AI.
+        const shotIsWeak = fireAction
+            ? aiDecision.evaluation.hitChance < 0.08
+            : legacyScore > AI_REPOSITION_THRESHOLD;
+
         if (this.playerInvisibleTurns > 0) {
             this.scheduleTurnEvent(350, () => {
                 if (
@@ -2101,7 +2180,9 @@ export class BattleScene extends Phaser.Scene {
             });
             return;
         }
-        if (shot.score > AI_REPOSITION_THRESHOLD && this.tryRepositionAi()) {
+
+        // Reposition if shot quality is poor
+        if (shotIsWeak && this.tryRepositionAi()) {
             this.scheduleTurnEvent(350, () => {
                 if (
                     !this.turnManager.isPlayerTurn &&
@@ -2113,14 +2194,21 @@ export class BattleScene extends Phaser.Scene {
             return;
         }
 
-        // Decide shot modifiers and resolve into a volley
-        this.aiDecideModifiers();
+        // Apply modifiers from decision; fall back to strategy-engine modifiers
+        this.aiShotModifierSystem.consumeAll();
+        const decisionMods = fireAction?.modifiers ?? [];
+        if (decisionMods.length > 0) {
+            for (const mod of decisionMods) this.aiShotModifierSystem.add(mod);
+        } else {
+            this.aiDecideModifiers();
+        }
+
         const profile = this.aiWeapon.physicsProfile;
-        this.lastAiShot = { force: shot.force, angle: shot.angle };
+        this.lastAiShot = { force: shotForce, angle: shotAngle };
 
         const { shots, delayedShots } = this.aiShotModifierSystem.resolve(
-            shot.angle,
-            shot.force,
+            shotAngle,
+            shotForce,
             this.aiWeapon,
         );
         this.aiShotModifierSystem.consumeAll();
@@ -2135,8 +2223,8 @@ export class BattleScene extends Phaser.Scene {
         } else {
             // Single-shot path (no modifiers active)
             const config: ProjectileConfig = {
-                angle: shot.angle,
-                force: shot.force,
+                angle: shotAngle,
+                force: shotForce,
                 gravityScale: profile.gravityScale,
                 windInfluence: profile.windInfluence,
                 baseDamage: this.aiWeapon.baseDamage,
@@ -2157,6 +2245,60 @@ export class BattleScene extends Phaser.Scene {
                 { turnToken },
             );
         }
+    }
+
+    private buildAiBattleSnapshot(): BattleSnapshot {
+        const aiConsumedIds = new Set(this.aiUsedConsumableIds);
+        const availableConsumables: string[] = [];
+        if (!aiConsumedIds.has('heal') && this.consumableSystem.getById('heal'))
+            availableConsumables.push('heal');
+        if (!aiConsumedIds.has('ice-throw') && this.consumableSystem.getById('ice-throw'))
+            availableConsumables.push('ice-throw');
+
+        const aiSecId = (this.aiShieldReduction === 0 && !aiConsumedIds.has('__shield'))
+            ? 'shield'
+            : null;
+
+        return {
+            ai: {
+                id: 'ai',
+                x:              this.aiStats.x,
+                y:              this.aiStats.y,
+                hp:             this.aiStats.hp,
+                maxHp:          this.aiStats.maxHp,
+                facing:         this.aiStats.facing,
+                weapon:         this.aiWeapon,
+                shieldReduction: this.aiShieldReduction,
+                effects:        this.statusEffects.getEffects('ai'),
+                strength:       this.aiStrength,
+                luck:           this.aiLuck,
+                usedConsumableIds: aiConsumedIds,
+                invisibleTurns: 0,
+                frozenTurns:    this.statusEffects.hasEffect('ai', 'FREEZE') ? 1 : 0,
+            },
+            player: {
+                id: 'player',
+                x:              this.playerStats.x,
+                y:              this.playerStats.y,
+                hp:             this.playerStats.hp,
+                maxHp:          this.playerStats.maxHp,
+                facing:         this.playerStats.facing,
+                weapon:         this.playerWeapon,
+                shieldReduction: this.playerShieldReduction,
+                effects:        this.statusEffects.getEffects('player'),
+                strength:       this.playerStrength,
+                luck:           this.playerLuck,
+                usedConsumableIds: new Set<string>(),
+                invisibleTurns: this.playerInvisibleTurns,
+                frozenTurns:    this.statusEffects.hasEffect('player', 'FREEZE') ? 1 : 0,
+            },
+            wind:                    this.windSystem.getCurrent(),
+            turnNumber:              this.turnManager.turnNumber,
+            terrain:                 this.terrainEngine,
+            availableConsumables,
+            availableSecondaryItemId: aiSecId,
+            aiShieldActive:          this.aiShieldReduction > 0,
+        };
     }
 
     private maybeBuildRunicTerrain(
@@ -2573,6 +2715,12 @@ export class BattleScene extends Phaser.Scene {
         const wind = this.windSystem.getCurrent();
         const search = AI_SEARCH_BY_DIFFICULTY[this.difficulty];
 
+        // For excavation strategy aim at terrain below the enemy's feet
+        const targetYOffset = this.aiStrategyEngine.getAimTargetOffset(
+            this.aiStrategy,
+            this.aiExcavScore,
+        );
+
         // Dynamic angle range based on player position relative to AI
         const playerIsLeft = this.playerStats.x < this.aiStats.x;
         const angleMin = playerIsLeft ? 95 : 5;
@@ -2604,8 +2752,29 @@ export class BattleScene extends Phaser.Scene {
                     config,
                     wind,
                 );
-                const score = this.scoreAiPath(path);
+                const score = this.scoreAiPath(path, targetYOffset);
                 if (score < best.score) best = { angle, force, score };
+            }
+        }
+
+        // DDTank-style shot correction: remember last impact and pre-correct force.
+        // Positive errorX means shot landed right of target.
+        // If player is to the left (AI shoots left), positive error = overshot → reduce force.
+        // If player is to the right (AI shoots right), positive error = undershot → increase force.
+        if (this.aiLastImpactX !== null && this.difficulty !== "easy") {
+            const errorX = this.aiLastImpactX - this.playerStats.x;
+            const absError = Math.abs(errorX);
+            if (absError > 15) {
+                const corrK = this.difficulty === "hard" ? 0.065 : 0.040;
+                const dirSign = playerIsLeft ? 1 : -1;
+                const forceCorr = dirSign * errorX * corrK;
+                best = {
+                    ...best,
+                    force: Math.max(
+                        20,
+                        Math.min(100, Math.round(best.force + forceCorr)),
+                    ),
+                };
             }
         }
 
@@ -2701,12 +2870,17 @@ export class BattleScene extends Phaser.Scene {
         return true;
     }
 
-    private scoreAiPath(path: Array<{ x: number; y: number }>): number {
+    private scoreAiPath(
+        path: Array<{ x: number; y: number }>,
+        targetYOffset = 0,
+    ): number {
+        const targetX = this.playerStats.x;
+        const targetY = this.playerStats.y + targetYOffset;
         let bestDistance = Number.POSITIVE_INFINITY;
 
         for (const point of path) {
-            const dx = point.x - this.playerStats.x;
-            const dy = point.y - this.playerStats.y;
+            const dx = point.x - targetX;
+            const dy = point.y - targetY;
             bestDistance = Math.min(bestDistance, Math.sqrt(dx * dx + dy * dy));
 
             const hitTerrain =
@@ -2738,6 +2912,11 @@ export class BattleScene extends Phaser.Scene {
 
         const shooterId = isPlayerShot ? "player" : "ai";
         const targetId = isPlayerShot ? "ai" : "player";
+
+        // Track AI impact position for DDTank-style shot correction next turn
+        if (!isPlayerShot) {
+            this.aiLastImpactX = impactX;
+        }
 
         // Strength scales damage (each point = +5%)
         const strength = isPlayerShot ? this.playerStrength : this.aiStrength;
@@ -2792,7 +2971,7 @@ export class BattleScene extends Phaser.Scene {
 
         // Roll runic effect from shooter's weapon
         const shooterWeapon = isPlayerShot ? this.playerWeapon : this.aiWeapon;
-        const luck = isPlayerShot ? this.playerLuck : (this.aiStrength > 0 ? 10 : 10);
+        const luck = isPlayerShot ? this.playerLuck : this.aiLuck;
         if (rollRunicEffect(luck)) {
             const runicEffect = getWeaponRunicEffect(shooterWeapon.id);
             if (runicEffect) {
@@ -3370,7 +3549,7 @@ export class BattleScene extends Phaser.Scene {
         const worldCenterY = WORLD_HEIGHT / 2;
 
         if (spawns[0]) {
-            const p = spawnToWorld(spawns[0], 1, charHeight);
+            const p = spawnToWorld(spawns[0], 1, charHeight, this.terrainEngine);
             this.playerSprite.setPosition(p.x, p.y);
         } else {
             const fallbackX = WORLD_WIDTH * 0.1;
@@ -3387,7 +3566,7 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (spawns[1]) {
-            const a = spawnToWorld(spawns[1], 1, charHeight);
+            const a = spawnToWorld(spawns[1], 1, charHeight, this.terrainEngine);
             this.aiSprite.setPosition(a.x, a.y);
         } else {
             const fallbackX = WORLD_WIDTH * 0.9;

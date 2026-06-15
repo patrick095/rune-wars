@@ -1,6 +1,6 @@
 import { WindState } from './wind-system';
 
-export type Difficulty = 'easy' | 'medium' | 'hard';
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'heroic';
 
 interface ShotParams {
   angle: number;
@@ -11,6 +11,7 @@ const ERROR_MARGIN: Record<Difficulty, { angle: number; force: number }> = {
   easy:   { angle: 20, force: 20 },
   medium: { angle: 10, force: 10 },
   hard:   { angle: 5,  force: 5  },
+  heroic: { angle: 1,  force: 2  },
 };
 
 function randomError(max: number): number {

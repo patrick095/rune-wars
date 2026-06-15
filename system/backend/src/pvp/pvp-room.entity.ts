@@ -46,10 +46,10 @@ export class PvpRoom {
   @Column({ type: 'jsonb', default: [] })
   slots: SlotState[];
 
-  @Column({ default: 'free' })
+  @Column({ default: 'ranked' })
   mode: string;
 
-  @Column({ default: 'plains' })
+  @Column({ default: 'random' })
   map_slug: string;
 
   @Column({ default: false })

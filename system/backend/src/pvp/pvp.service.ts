@@ -7,6 +7,14 @@ import { ItemInstance } from '../inventory/item-instance.entity';
 
 const WEAPON_IDS = ['cannon', 'longbow', 'tnt', 'magic-grenade', 'boomerang', 'ice-book'];
 const RACES = ['human', 'elf', 'dwarf'] as const;
+const BATTLE_MAPS = ['plains', 'mystic-castle', 'deep-mines', 'arcane-ruins', 'runic-forest'];
+
+function resolveMap(slug: string | null | undefined): string {
+  if (!slug || slug === 'random') {
+    return BATTLE_MAPS[Math.floor(Math.random() * BATTLE_MAPS.length)];
+  }
+  return BATTLE_MAPS.includes(slug) ? slug : 'plains';
+}
 
 export interface BattlePlayerConfig {
   characterId: string;
@@ -71,6 +79,8 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       playerIds: [characterId],
       playerCount: 1,
       mapName: mapName ?? 'plains',
+      map_slug: 'random',
+      mode: 'ranked',
       slots: [{ playerId: characterId, playerName: character.name, closed: false }],
     });
     const saved = await this.repo.save(room);
@@ -276,6 +286,41 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
     return this.repo.save(room);
   }
 
+  async updateSettings(
+    roomId: string,
+    requesterId: string,
+    settings: { map_slug?: string; mode?: string },
+  ): Promise<PvpRoom> {
+    const room = await this.repo.findOne({ where: { id: roomId } });
+    if (!room) throw new NotFoundException(`Room ${roomId} not found`);
+    if (room.ownerCharacterId !== requesterId) {
+      throw new ForbiddenException('Apenas o dono pode alterar as configurações da sala');
+    }
+
+    const VALID_MAPS = ['random', 'plains', 'mystic-castle', 'deep-mines', 'arcane-ruins', 'runic-forest'];
+    const VALID_MODES = ['ranked', 'free', 'guild'];
+
+    if (settings.map_slug !== undefined) {
+      if (!VALID_MAPS.includes(settings.map_slug)) {
+        throw new BadRequestException(`Mapa inválido: ${settings.map_slug}`);
+      }
+      room.map_slug = settings.map_slug;
+    }
+
+    if (settings.mode !== undefined) {
+      if (!VALID_MODES.includes(settings.mode)) {
+        throw new BadRequestException(`Modo inválido: ${settings.mode}`);
+      }
+      // In ranked mode, always force random map
+      if (settings.mode === 'ranked') {
+        room.map_slug = 'random';
+      }
+      room.mode = settings.mode;
+    }
+
+    return this.repo.save(room);
+  }
+
   async findMatch(roomId: string): Promise<{ matched: boolean }> {
     const room = await this.repo.findOne({ where: { id: roomId } });
     if (!room) throw new NotFoundException(`Room ${roomId} not found`);
@@ -316,7 +361,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       if (opponentPlayers.length > 0) {
         return {
           matched: true,
-          mapName: room.map_slug ?? 'plains',
+          mapName: resolveMap(room.map_slug),
           roomName: room.name,
           mode: room.mode ?? 'free',
           vsAI: false,
@@ -335,7 +380,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       const opponents = await this.loadBattlePlayers(this.normalizePlayerIds(matchRoom), matchSlots);
       return {
         matched: true,
-        mapName: room.map_slug ?? 'plains',
+        mapName: resolveMap(room.map_slug),
         roomName: room.name,
         mode: room.mode ?? 'free',
         vsAI: false,
@@ -352,7 +397,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
 
     return {
       matched: false,
-      mapName: room.map_slug ?? 'plains',
+      mapName: resolveMap(room.map_slug),
       roomName: room.name,
       mode: room.mode ?? 'free',
       vsAI: true,

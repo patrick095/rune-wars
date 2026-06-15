@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PvpService } from './pvp.service';
 
@@ -60,6 +60,15 @@ export class PvpController {
     @Body() body: { characterId: string },
   ) {
     return this.pvpService.kickPlayer(id, slotIndex, body.characterId);
+  }
+
+  @Patch('rooms/:id/settings')
+  updateSettings(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: { characterId: string; map_slug?: string; mode?: string },
+  ) {
+    return this.pvpService.updateSettings(id, body.characterId, { map_slug: body.map_slug, mode: body.mode });
   }
 
   @Get('rooms/:id/find-match')
