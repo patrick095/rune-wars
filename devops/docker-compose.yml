@@ -40,13 +40,42 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  backend:
+  # backend:
+  #   build:
+  #     context: ../system/backend
+  #     dockerfile: ../../devops/backend/Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   env_file: .env
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: unless-stopped
+
+  backend-dev:
     build:
       context: ../system/backend
       dockerfile: ../../devops/backend/Dockerfile
+      target: dev
     ports:
       - "3000:3000"
     env_file: .env
+    volumes:
+      - ../system/backend:/app
+      - /app/node_modules
+      # terrain-loader.ts resolve o terrain.png subindo 5 níveis de __dirname,
+      # o que cai em "/frontend/src/assets/maps" dentro do container (mesma
+      # estrutura relativa do monorepo no host). Sem este mount o terreno
+      # nunca é encontrado e a sala roda com TerrainEngine vazio (passável).
+      - ../system/frontend/src/assets/maps:/frontend/src/assets/maps:ro
     depends_on:
       postgres:
         condition: service_healthy
