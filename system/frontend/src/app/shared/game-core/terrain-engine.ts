@@ -13,7 +13,7 @@ export interface MapMeta {
     cols?: number;
     /** @deprecated use {x, y} pixel coords instead of col/row */
     rows?: number;
-    spawnPoints?: Array<{ x: number; y: number }>;
+    spawnPoints?: Array<{ x?: number; y?: number; col?: number; row?: number }>;
 }
 
 /** @deprecated Grid dimensions are no longer relevant in pixel-perfect bitmap mode */
@@ -226,7 +226,9 @@ export class TerrainEngine {
         this._constructedByPlayer.delete(playerId);
     }
 
-    getSpawnPoints(meta?: MapMeta): Array<{ x: number; y: number }> {
+    getSpawnPoints(
+        meta?: MapMeta,
+    ): Array<{ x?: number; y?: number; col?: number; row?: number }> {
         return meta?.spawnPoints ?? [];
     }
 

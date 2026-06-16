@@ -2,6 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../shared/services/api.service';
+import { getItemDefinition } from '../shared/game-core/item-catalog';
+import {
+  DisplayStatEntry,
+  getWeaponDisplayStatsByItemId,
+} from '../shared/game-core/weapon-display-stats';
 
 interface Listing {
   id: string;
@@ -87,7 +92,17 @@ type Tab = 'search' | 'my-listings' | 'create' | 'history';
           </thead>
           <tbody>
             <tr *ngFor="let l of listings">
-              <td style="font-family: monospace; font-size: 0.8rem;">{{ l.item_base_id }}</td>
+              <td>
+                <div class="market-item-cell">
+                  <span class="market-item-name">{{ itemName(l.item_base_id) }}</span>
+                  <span class="market-item-id">{{ l.item_base_id }}</span>
+                  <div class="market-weapon-stats" *ngIf="weaponStats(l.item_base_id).length">
+                    <span class="market-weapon-stat" *ngFor="let stat of weaponStats(l.item_base_id)">
+                      {{ stat.key }} {{ stat.value }}
+                    </span>
+                  </div>
+                </div>
+              </td>
               <td><span [class]="'tag tag-' + (l.item_rarity || 'common').toLowerCase()">{{ l.item_rarity }}</span></td>
               <td style="color: #c0a060;">{{ l.price | number }} G</td>
               <td style="font-size: 0.75rem; color: #a0a0c0;">{{ l.seller_id }}</td>
@@ -133,7 +148,17 @@ type Tab = 'search' | 'my-listings' | 'create' | 'history';
           </thead>
           <tbody>
             <tr *ngFor="let l of myListings">
-              <td style="font-family: monospace; font-size: 0.8rem;">{{ l.item_base_id }}</td>
+              <td>
+                <div class="market-item-cell">
+                  <span class="market-item-name">{{ itemName(l.item_base_id) }}</span>
+                  <span class="market-item-id">{{ l.item_base_id }}</span>
+                  <div class="market-weapon-stats" *ngIf="weaponStats(l.item_base_id).length">
+                    <span class="market-weapon-stat" *ngFor="let stat of weaponStats(l.item_base_id)">
+                      {{ stat.key }} {{ stat.value }}
+                    </span>
+                  </div>
+                </div>
+              </td>
               <td><span [class]="'tag tag-' + (l.item_rarity || 'common').toLowerCase()">{{ l.item_rarity }}</span></td>
               <td style="color: #c0a060;">{{ l.price | number }} G</td>
               <td style="font-size: 0.75rem; color: #a0a0c0;">{{ l.created_at | date:'dd/MM/yy HH:mm' }}</td>
@@ -224,7 +249,17 @@ type Tab = 'search' | 'my-listings' | 'create' | 'history';
           </thead>
           <tbody>
             <tr *ngFor="let t of transactions">
-              <td style="font-family: monospace; font-size: 0.8rem;">{{ t.item_base_id }}</td>
+              <td>
+                <div class="market-item-cell">
+                  <span class="market-item-name">{{ itemName(t.item_base_id) }}</span>
+                  <span class="market-item-id">{{ t.item_base_id }}</span>
+                  <div class="market-weapon-stats" *ngIf="weaponStats(t.item_base_id).length">
+                    <span class="market-weapon-stat" *ngFor="let stat of weaponStats(t.item_base_id)">
+                      {{ stat.key }} {{ stat.value }}
+                    </span>
+                  </div>
+                </div>
+              </td>
               <td style="color: #c0a060;">{{ t.price | number }} G</td>
               <td style="color: #e94560;">-{{ t.fee | number }} G</td>
               <td style="color: #40e060;">{{ t.net_price | number }} G</td>
@@ -260,6 +295,11 @@ type Tab = 'search' | 'my-listings' | 'create' | 'history';
     table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     th { color: #a0a0c0; text-align: left; padding: 0.4rem; border-bottom: 1px solid #0f3460; }
     td { padding: 0.4rem; border-bottom: 1px solid #0a1a30; }
+    .market-item-cell { display: flex; flex-direction: column; gap: 0.25rem; min-width: 14rem; }
+    .market-item-name { color: #e8d28a; font-weight: 700; }
+    .market-item-id { color: #7f8cad; font-family: monospace; font-size: 0.75rem; }
+    .market-weapon-stats { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+    .market-weapon-stat { background: #0f3460; border: 1px solid #1f547a; border-radius: 3px; color: #cfe6ff; padding: 0.1rem 0.3rem; font-size: 0.7rem; white-space: nowrap; }
     .success { color: #40e060; }
     .error { color: #e94560; }
     .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
@@ -300,12 +340,29 @@ export class MarketComponent implements OnInit {
   historyError = '';
   historyDone = false;
 
+  private itemNameCache = new Map<string, string>();
+  private weaponStatsCache = new Map<string, DisplayStatEntry[]>();
+
   constructor(private api: ApiService) {}
 
   ngOnInit() {}
 
   setTab(tab: Tab) {
     this.activeTab = tab;
+  }
+
+  itemName(itemBaseId: string): string {
+    if (!this.itemNameCache.has(itemBaseId)) {
+      this.itemNameCache.set(itemBaseId, getItemDefinition(itemBaseId).name);
+    }
+    return this.itemNameCache.get(itemBaseId)!;
+  }
+
+  weaponStats(itemBaseId: string): DisplayStatEntry[] {
+    if (!this.weaponStatsCache.has(itemBaseId)) {
+      this.weaponStatsCache.set(itemBaseId, getWeaponDisplayStatsByItemId(itemBaseId));
+    }
+    return this.weaponStatsCache.get(itemBaseId)!;
   }
 
   searchListings() {

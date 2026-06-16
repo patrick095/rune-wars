@@ -353,7 +353,13 @@ export class AcademyScene extends Phaser.Scene {
     };
 
     const wind = this.windSystem.getCurrent();
-    const path = this.projectilePhysics.simulate(this.playerX, this.playerY, config, wind);
+    const path = this.projectilePhysics.simulate(
+      this.playerX,
+      this.playerY,
+      config,
+      wind,
+      this.currentWeapon.physicsProfile,
+    );
     this.animateProjectile(path);
   }
 
@@ -469,7 +475,13 @@ export class AcademyScene extends Phaser.Scene {
     };
 
     const wind = this.windSystem.getCurrent();
-    const points = this.projectilePhysics.simulate(this.playerX, this.playerY, config, wind);
+    const points = this.projectilePhysics.simulate(
+      this.playerX,
+      this.playerY,
+      config,
+      wind,
+      this.currentWeapon.physicsProfile,
+    );
     this.trajectory.draw(this, points);
   }
 

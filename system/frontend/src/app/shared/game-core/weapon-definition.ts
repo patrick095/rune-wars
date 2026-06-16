@@ -4,6 +4,7 @@ import { WeaponRequirements } from './weapon-requirements';
 export interface ProjectilePhysicsProfile {
   gravityScale: number;
   windInfluence: number;
+  /** Projectile speed at 100% shot force. */
   initialSpeed: number;
   boomerang?: boolean;
   bounces?: number;
@@ -18,6 +19,7 @@ export interface WeaponDefinition {
   physicsProfile: ProjectilePhysicsProfile;
   impactRadius: number;
   excavationRadius: number;
+  weight: number;
   runeEffect?: string;
   requirements?: WeaponRequirements;
   /** ms from launch until forced detonation — projectile bounces until then */

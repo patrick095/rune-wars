@@ -8,7 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MatchmakingService } from './matchmaking.service';
-import { BattleState } from './battle-room.interface';
+import { BattlePlayer, BattleState } from './battle-room.interface';
 
 @WebSocketGateway({ cors: { origin: '*' }, namespace: '/battle' })
 export class BattleGateway implements OnGatewayDisconnect {
@@ -30,23 +30,7 @@ export class BattleGateway implements OnGatewayDisconnect {
     if (player) player.connected = false;
     this.matchmaking.saveRoom(room);
 
-    const timer = setTimeout(() => {
-      const current = this.matchmaking.getRoom(room.roomId);
-      if (!current || current.phase !== 'active') return;
-      const opponent = current.players.find(p => p.characterId !== characterId);
-      if (opponent) {
-        current.phase = 'finished';
-        current.winner = opponent.characterId;
-        this.matchmaking.saveRoom(current);
-        this.server.to(opponent.socketId).emit('battle:result', {
-          winner: opponent.characterId,
-          loser: characterId,
-          xp: 50,
-          gold: 20,
-        });
-        this.matchmaking.removeRoom(room.roomId);
-      }
-    }, 60_000);
+    const timer = setTimeout(() => this.finishByDisconnectedTeam(room.roomId), 0);
 
     this.disconnectTimers.set(characterId, timer);
   }
@@ -183,5 +167,50 @@ export class BattleGateway implements OnGatewayDisconnect {
 
   private calcDamage(angle: number, force: number): number {
     return Math.round((force / 100) * 30 * (0.8 + Math.random() * 0.4));
+  }
+
+  private finishByDisconnectedTeam(roomId: string): void {
+    const room = this.matchmaking.getRoom(roomId);
+    if (!room || room.phase !== 'active') return;
+
+    const teams = this.groupPlayersByTeam(room.players);
+    const connectedTeams = [...teams.entries()]
+      .filter(([, players]) => players.some(p => p.connected));
+
+    if (connectedTeams.length !== 1 || teams.size < 2) return;
+
+    const [winnerTeamId, winnerTeamPlayers] = connectedTeams[0];
+    const winner = winnerTeamPlayers.find(p => p.connected) ?? winnerTeamPlayers[0];
+    const losers = room.players.filter(p => this.getTeamId(p) !== winnerTeamId);
+
+    room.phase = 'finished';
+    room.winner = winner.characterId;
+    this.matchmaking.saveRoom(room);
+
+    room.players.forEach(p => {
+      const isWinner = this.getTeamId(p) === winnerTeamId;
+      this.server.to(p.socketId).emit('battle:result', {
+        winner: winner.characterId,
+        loser: losers[0]?.characterId,
+        reason: 'DISCONNECT',
+        xp: isWinner ? 100 : 10,
+        gold: isWinner ? 50 : 5,
+      });
+    });
+
+    this.matchmaking.removeRoom(room.roomId);
+  }
+
+  private groupPlayersByTeam(players: BattlePlayer[]): Map<string, BattlePlayer[]> {
+    const teams = new Map<string, BattlePlayer[]>();
+    for (const player of players) {
+      const teamId = this.getTeamId(player);
+      teams.set(teamId, [...(teams.get(teamId) ?? []), player]);
+    }
+    return teams;
+  }
+
+  private getTeamId(player: BattlePlayer): string {
+    return player.teamId ?? player.characterId;
   }
 }

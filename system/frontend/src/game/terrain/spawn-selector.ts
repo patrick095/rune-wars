@@ -1,18 +1,93 @@
 import { TerrainEngine } from '../../app/shared/game-core/terrain-engine';
-import { TerrainMaterial } from '../../app/shared/game-core/terrain-types';
+import { WORLD_HEIGHT, WORLD_WIDTH } from '../../app/shared/game-core/terrain-types';
+import {
+  CHARACTER_BODY_HALF_WIDTH,
+  CHARACTER_BODY_HEIGHT,
+  findSafeGroundedPosition,
+} from './character-placement';
 
 export interface SpawnPoint {
+  x?: number;
+  y?: number;
+  col?: number;
+  row?: number;
+}
+
+export interface SpawnNormalizationContext {
+  cols?: number;
+  rows?: number;
+  sourceWidth?: number;
+  sourceHeight?: number;
+}
+
+export interface WorldSpawnPoint {
   x: number;
   y: number;
 }
 
-const CHAR_HEIGHT = 60;
-const CHAR_HALF_H = CHAR_HEIGHT / 2;
+const SPAWN_SEARCH_UP = 260;
+const SPAWN_SEARCH_DOWN = 460;
+const SPAWN_SEARCH_RADIUS_X = 120;
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function normalizeSpawn(
+  spawn: SpawnPoint,
+  context?: SpawnNormalizationContext,
+): WorldSpawnPoint | null {
+  if (isFiniteNumber(spawn.x) && isFiniteNumber(spawn.y)) {
+    const sourceWidth = context?.sourceWidth;
+    const sourceHeight = context?.sourceHeight;
+    const shouldScaleFromSource =
+      isFiniteNumber(sourceWidth) &&
+      isFiniteNumber(sourceHeight) &&
+      sourceWidth > 0 &&
+      sourceHeight > 0 &&
+      (sourceWidth !== WORLD_WIDTH || sourceHeight !== WORLD_HEIGHT);
+
+    if (shouldScaleFromSource) {
+      return {
+        x: spawn.x * (WORLD_WIDTH / sourceWidth),
+        y: spawn.y * (WORLD_HEIGHT / sourceHeight),
+      };
+    }
+
+    return { x: spawn.x, y: spawn.y };
+  }
+
+  if (
+    isFiniteNumber(spawn.col) &&
+    isFiniteNumber(spawn.row) &&
+    isFiniteNumber(context?.cols) &&
+    isFiniteNumber(context?.rows) &&
+    context.cols > 0 &&
+    context.rows > 0
+  ) {
+    return {
+      x: (spawn.col + 0.5) * (WORLD_WIDTH / context.cols),
+      y: (spawn.row + 0.5) * (WORLD_HEIGHT / context.rows),
+    };
+  }
+
+  return null;
+}
+
+export function normalizeSpawns(
+  spawnPoints: SpawnPoint[],
+  context?: SpawnNormalizationContext,
+): WorldSpawnPoint[] {
+  return spawnPoints
+    .map((spawn) => normalizeSpawn(spawn, context))
+    .filter((spawn): spawn is WorldSpawnPoint => spawn !== null);
+}
 
 /**
  * Filters spawn candidates to those where:
- * 1. The spawn y position is in EMPTY terrain (not buried inside solid).
- * 2. There is solid ground within CHAR_HEIGHT pixels below the spawn y.
+ * 1. Coordinates are normalized to the world pixel space.
+ * 2. The full character body fits without overlapping terrain.
+ * 3. There is reachable ground near the spawn.
  *
  * Returns up to `count` valid candidates in a random order.
  */
@@ -20,34 +95,42 @@ export function selectSpawns(
   spawnPoints: SpawnPoint[],
   count: number,
   engine?: TerrainEngine,
-): SpawnPoint[] {
-  let candidates = spawnPoints;
+  context?: SpawnNormalizationContext,
+): WorldSpawnPoint[] {
+  let candidates = normalizeSpawns(spawnPoints, context);
 
   if (engine) {
-    candidates = spawnPoints.filter(spawn => {
-      // Reject spawns that are literally inside solid terrain
-      const mat = engine.getMaterialAt(spawn.x, spawn.y);
-      if (mat !== TerrainMaterial.EMPTY) {
-        console.warn(`[Spawn] (${spawn.x}, ${spawn.y}) descartado: dentro do terreno`);
-        return false;
+    candidates = spawnPoints.reduce<WorldSpawnPoint[]>((valid, spawn) => {
+      const normalized = normalizeSpawn(spawn, context);
+      if (!normalized) {
+        console.warn('[Spawn] ponto descartado: coordenadas invalidas', spawn);
+        return valid;
       }
 
-      // Reject spawns with no solid ground below (character would fall off-map)
-      const floor = engine.getFloorBelow(spawn.x, spawn.y);
-      if (floor === null) {
-        console.warn(`[Spawn] (${spawn.x}, ${spawn.y}) descartado: sem chão abaixo`);
-        return false;
+      const safe = findSafeGroundedPosition(
+        engine,
+        normalized.x,
+        normalized.y,
+        {
+          halfWidth: CHARACTER_BODY_HALF_WIDTH,
+          height: CHARACTER_BODY_HEIGHT,
+          minX: 72,
+          maxX: WORLD_WIDTH - 72,
+          searchUp: SPAWN_SEARCH_UP,
+          searchDown: SPAWN_SEARCH_DOWN,
+          searchRadiusX: SPAWN_SEARCH_RADIUS_X,
+        },
+      );
+      if (!safe) {
+        console.warn(
+          `[Spawn] (${Math.round(normalized.x)}, ${Math.round(normalized.y)}) descartado: sem area segura`,
+        );
+        return valid;
       }
 
-      // Reject spawns where the floor is too far — indicates the spawn is floating
-      // in a large void with no reachable platform (> 2× char height tolerance).
-      if (floor - spawn.y > CHAR_HEIGHT * 2) {
-        console.warn(`[Spawn] (${spawn.x}, ${spawn.y}) descartado: chão muito distante (${floor - spawn.y}px)`);
-        return false;
-      }
-
-      return true;
-    });
+      valid.push(normalized);
+      return valid;
+    }, []);
   }
 
   if (candidates.length === 0) return [];
@@ -67,16 +150,22 @@ export function selectSpawns(
  * This guarantees the character spawns ON the ground, never inside it.
  */
 export function spawnToWorld(
-  spawn: SpawnPoint,
+  spawn: WorldSpawnPoint,
   _cellSize: number,
   charHeight: number,
   engine?: TerrainEngine,
 ): { x: number; y: number } {
   if (engine) {
-    const floor = engine.getFloorBelow(spawn.x, spawn.y);
-    if (floor !== null) {
-      return { x: spawn.x, y: floor - charHeight / 2 };
-    }
+    const safe = findSafeGroundedPosition(engine, spawn.x, spawn.y, {
+      halfWidth: CHARACTER_BODY_HALF_WIDTH,
+      height: charHeight,
+      minX: 72,
+      maxX: WORLD_WIDTH - 72,
+      searchUp: SPAWN_SEARCH_UP,
+      searchDown: SPAWN_SEARCH_DOWN,
+      searchRadiusX: SPAWN_SEARCH_RADIUS_X,
+    });
+    if (safe) return safe;
   }
   // Fallback: use the raw y with a half-height offset (original behaviour)
   return { x: spawn.x, y: spawn.y - charHeight / 2 };

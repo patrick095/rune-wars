@@ -132,6 +132,16 @@ export class BattleHud {
         this.powerBar.updatePowerOnly(force);
     }
 
+    /** Toggle only the charge-specific HUD state without refreshing the full HUD. */
+    setCharging(isCharging: boolean): void {
+        this.powerBar.setCharging(isCharging);
+        if (isCharging) {
+            this.turnTimer.pauseForCharge();
+        } else {
+            this.turnTimer.resumeFromCharge();
+        }
+    }
+
     /** Record the last shot power on the ghost marker. */
     recordShot(power: number): void {
         this.powerBar.recordShot(power);

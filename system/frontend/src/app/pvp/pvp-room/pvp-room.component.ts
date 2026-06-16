@@ -97,12 +97,9 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   inventoryLoading = false;
 
   // Battle start flow
-  countdownActive = false;
-  countdownSeconds = 5;
   searchingMatch = false;
   searchSeconds = 10;
 
-  private countdownTimer: ReturnType<typeof setInterval> | null = null;
   private searchTimer: ReturnType<typeof setInterval> | null = null;
   private searchPollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -166,7 +163,6 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.cancelCountdown();
     this.cancelSearch();
     if (this.pollInterval !== null) {
       clearInterval(this.pollInterval);
@@ -280,34 +276,11 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   // ── Ready / Battle start ──────────────────────────────────────────────────
 
   onReady(): void {
-    this.startCountdown();
+    this.beginMatchSearch();
   }
 
   onReadyVsCpu(): void {
-    this.startCountdown();
-  }
-
-  startCountdown(): void {
-    if (this.countdownActive || this.searchingMatch) return;
-    this.countdownActive = true;
-    this.countdownSeconds = 5;
-    this.error = null;
-
-    this.countdownTimer = setInterval(() => {
-      this.countdownSeconds--;
-      if (this.countdownSeconds <= 0) {
-        this.cancelCountdown();
-        this.beginMatchSearch();
-      }
-    }, 1000);
-  }
-
-  cancelCountdown(): void {
-    if (this.countdownTimer !== null) {
-      clearInterval(this.countdownTimer);
-      this.countdownTimer = null;
-    }
-    this.countdownActive = false;
+    this.beginMatchSearch();
   }
 
   cancelSearch(): void {
@@ -318,8 +291,9 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
 
   private beginMatchSearch(): void {
     const roomId = this.navigator.roomId();
-    if (!roomId) return;
+    if (!roomId || this.searchingMatch) return;
 
+    this.error = null;
     this.searchingMatch = true;
     this.searchSeconds = 10;
 
@@ -336,7 +310,7 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
       });
     }, 2000);
 
-    // Countdown display ticker
+    // Search display ticker
     this.searchTimer = setInterval(() => {
       this.searchSeconds--;
       if (this.searchSeconds <= 0) {

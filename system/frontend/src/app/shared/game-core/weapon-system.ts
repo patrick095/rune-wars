@@ -1,4 +1,27 @@
+import { PROJECTILE_GRAVITY } from './projectile-physics';
 import { WeaponDefinition } from './weapon-definition';
+
+const MAX_FULL_FORCE_RANGE = 4000;
+const MAX_BASE_DAMAGE = 70;
+const MAX_EXCAVATION_RADIUS = 40;
+
+const TNT_GRAVITY = 2.5;
+const CANNON_GRAVITY = 1.5;
+const ICE_BOOK_GRAVITY = 0.5;
+const MAGIC_GRENADE_GRAVITY = 1.8;
+const LONGBOW_GRAVITY = 0.8;
+const POTION_GRAVITY = 1.0;
+const BOOMERANG_GRAVITY = 0.6;
+
+function speedForRangePercent(rangePercent: number, gravityScale: number): number {
+  return Math.round(
+    Math.sqrt(MAX_FULL_FORCE_RANGE * rangePercent * PROJECTILE_GRAVITY * gravityScale),
+  );
+}
+
+function statPercent(maxValue: number, percent: number): number {
+  return Math.round(maxValue * percent);
+}
 
 export class WeaponSystem {
   private static readonly WEAPONS: WeaponDefinition[] = [
@@ -7,15 +30,16 @@ export class WeaponSystem {
       name: 'Canhão',
       hands: 2,
       damageType: 'physical',
-      baseDamage: 40,
+      baseDamage: statPercent(MAX_BASE_DAMAGE, 0.8),
       physicsProfile: {
-        gravityScale: 1.5,
-        windInfluence: 0.2,
-        initialSpeed: 600,
+        gravityScale: CANNON_GRAVITY,
+        windInfluence: 0.25,
+        initialSpeed: speedForRangePercent(0.7, CANNON_GRAVITY),
         boomerang: false,
       },
       impactRadius: 50,
-      excavationRadius: 24,
+      excavationRadius: statPercent(MAX_EXCAVATION_RADIUS, 0.8),
+      weight: 36,
       requirements: { minStrength: 20, minLevel: 5 },
     },
     {
@@ -23,15 +47,16 @@ export class WeaponSystem {
       name: 'Arco Longo',
       hands: 1,
       damageType: 'physical',
-      baseDamage: 25,
+      baseDamage: statPercent(MAX_BASE_DAMAGE, 0.7),
       physicsProfile: {
-        gravityScale: 0.8,
-        windInfluence: 0.8,
-        initialSpeed: 800,
+        gravityScale: LONGBOW_GRAVITY,
+        windInfluence: 0.6,
+        initialSpeed: speedForRangePercent(0.85, LONGBOW_GRAVITY),
         boomerang: false,
       },
       impactRadius: 20,
-      excavationRadius: 8,
+      excavationRadius: statPercent(MAX_EXCAVATION_RADIUS, 0.5),
+      weight: 18,
       requirements: { minAgility: 15 },
     },
     {
@@ -39,15 +64,16 @@ export class WeaponSystem {
       name: 'TNT',
       hands: 2,
       damageType: 'physical',
-      baseDamage: 70,
+      baseDamage: statPercent(MAX_BASE_DAMAGE, 0.9),
       physicsProfile: {
-        gravityScale: 2.5,
+        gravityScale: TNT_GRAVITY,
         windInfluence: 0.1,
-        initialSpeed: 400,
+        initialSpeed: speedForRangePercent(0.6, TNT_GRAVITY),
         boomerang: false,
       },
       impactRadius: 80,
-      excavationRadius: 40,
+      excavationRadius: statPercent(MAX_EXCAVATION_RADIUS, 1),
+      weight: 40,
       detonationDelay: 3000,
       requirements: { minStrength: 15, minLevel: 3 },
     },
@@ -56,15 +82,16 @@ export class WeaponSystem {
       name: 'Granada Mágica',
       hands: 1,
       damageType: 'magical',
-      baseDamage: 70,
+      baseDamage: statPercent(MAX_BASE_DAMAGE, 0.8),
       physicsProfile: {
-        gravityScale: 1.8,
-        windInfluence: 0.25,
-        initialSpeed: 450,
+        gravityScale: MAGIC_GRENADE_GRAVITY,
+        windInfluence: 0.4,
+        initialSpeed: speedForRangePercent(0.85, MAGIC_GRENADE_GRAVITY),
         boomerang: false,
       },
       impactRadius: 56,
-      excavationRadius: 28,
+      excavationRadius: statPercent(MAX_EXCAVATION_RADIUS, 0.8),
+      weight: 26,
       detonationDelay: 3000,
       requirements: { minLevel: 5 },
     },
@@ -73,15 +100,16 @@ export class WeaponSystem {
       name: 'Boomerang',
       hands: 1,
       damageType: 'physical',
-      baseDamage: 20,
+      baseDamage: statPercent(MAX_BASE_DAMAGE, 1),
       physicsProfile: {
-        gravityScale: 0.6,
-        windInfluence: 1.0,
-        initialSpeed: 500,
+        gravityScale: BOOMERANG_GRAVITY,
+        windInfluence: 0.9,
+        initialSpeed: speedForRangePercent(1, BOOMERANG_GRAVITY),
         boomerang: true,
       },
       impactRadius: 15,
-      excavationRadius: 8,
+      excavationRadius: statPercent(MAX_EXCAVATION_RADIUS, 0.5),
+      weight: 12,
       requirements: { minAgility: 10 },
     },
     {
@@ -89,30 +117,32 @@ export class WeaponSystem {
       name: 'Livro de Gelo',
       hands: 2,
       damageType: 'magical',
-      baseDamage: 35,
+      baseDamage: statPercent(MAX_BASE_DAMAGE, 0.8),
       physicsProfile: {
-        gravityScale: 0.5,
-        windInfluence: 0.4,
-        initialSpeed: 700,
+        gravityScale: ICE_BOOK_GRAVITY,
+        windInfluence: 0.3,
+        initialSpeed: speedForRangePercent(0.7, ICE_BOOK_GRAVITY),
         boomerang: false,
       },
       impactRadius: 30,
-      excavationRadius: 8,
+      excavationRadius: statPercent(MAX_EXCAVATION_RADIUS, 0.7),
+      weight: 24,
     },
     {
       id: 'potion',
       name: 'Poção',
       hands: 1,
       damageType: 'mixed',
-      baseDamage: 30,
+      baseDamage: statPercent(MAX_BASE_DAMAGE, 0.7),
       physicsProfile: {
-        gravityScale: 1.0,
-        windInfluence: 0.6,
-        initialSpeed: 550,
+        gravityScale: POTION_GRAVITY,
+        windInfluence: 0.5,
+        initialSpeed: speedForRangePercent(0.85, POTION_GRAVITY),
         boomerang: false,
       },
       impactRadius: 40,
-      excavationRadius: 8,
+      excavationRadius: statPercent(MAX_EXCAVATION_RADIUS, 0.6),
+      weight: 16,
     },
   ];
 

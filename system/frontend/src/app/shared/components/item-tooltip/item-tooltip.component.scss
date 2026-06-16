@@ -7,8 +7,8 @@
   border: 1px solid #c9a227;
   border-radius: 4px;
   padding: 8px 12px;
-  min-width: 160px;
-  max-width: 220px;
+  min-width: 220px;
+  max-width: 280px;
   z-index: 1000;
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
@@ -43,10 +43,12 @@
 
     .stat-key {
       color: #9a9ab8;
+      white-space: nowrap;
     }
 
     .stat-value {
       color: #ffffff;
+      white-space: nowrap;
     }
   }
 

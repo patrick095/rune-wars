@@ -163,7 +163,7 @@ export class PowerBar {
 
     updatePowerOnly(power: number): void {
         this.currentPower = Phaser.Math.Clamp(power, 0, MAX_POWER);
-        this.drawPower();
+        this.drawPowerFill();
         this.updateTexts();
     }
 
@@ -392,8 +392,12 @@ export class PowerBar {
     }
 
     private drawPower(): void {
+        this.drawPowerFrame();
+        this.drawPowerFill();
+    }
+
+    private drawPowerFrame(): void {
         this.barBg.clear();
-        this.barFill.clear();
         this.targetZoneLayer.clear();
         this.ticks.clear();
         this.ghost.clear();
@@ -427,42 +431,6 @@ export class PowerBar {
             this.barH,
             5,
         );
-
-        // Gradient fill
-        const fillW = (this.currentPower / MAX_POWER) * (this.barW - 6);
-        const segments = 80;
-        for (let i = 0; i < segments && fillW > 0; i++) {
-            const t = i / (segments - 1);
-            const x = this.barX + 3 + i * ((this.barW - 6) / segments);
-            if (x > this.barX + 3 + fillW) break;
-            const color =
-                t < 0.45
-                    ? 0x4adb13
-                    : t < 0.72
-                      ? 0xf0d31a
-                      : t < 0.9
-                        ? 0xf28312
-                        : 0xd62216;
-            this.barFill.fillStyle(color, 1);
-            this.barFill.fillRect(
-                x,
-                this.barY - this.barH / 2 + 2,
-                Math.ceil((this.barW - 6) / segments) + 1,
-                this.barH - 4,
-            );
-        }
-
-        // Shine
-        if (this.currentPower > 0) {
-            this.barFill.fillStyle(0xffffff, 0.15);
-            this.barFill.fillRoundedRect(
-                this.barX + 3,
-                this.barY - this.barH / 2 + 2,
-                fillW,
-                Math.round((this.barH - 4) * 0.4),
-                2,
-            );
-        }
 
         // Calibration target zone band
         if (this.targetZone) {
@@ -548,6 +516,59 @@ export class PowerBar {
                 this.barY - this.barH / 2 - 6,
             );
         });
+    }
+
+    private drawPowerFill(): void {
+        this.barFill.clear();
+
+        const innerX = this.barX + 3;
+        const innerY = this.barY - this.barH / 2 + 2;
+        const innerW = this.barW - 6;
+        const innerH = this.barH - 4;
+        const fillW = (this.currentPower / MAX_POWER) * innerW;
+
+        this.drawPowerFillBand(fillW, 0, 0.45, 0x4adb13, 0x9de21a);
+        this.drawPowerFillBand(fillW, 0.45, 0.72, 0x9de21a, 0xf0d31a);
+        this.drawPowerFillBand(fillW, 0.72, 0.9, 0xf0d31a, 0xf28312);
+        this.drawPowerFillBand(fillW, 0.9, 1, 0xf28312, 0xd62216);
+
+        if (this.currentPower > 0) {
+            this.barFill.fillStyle(0xffffff, 0.15);
+            this.barFill.fillRoundedRect(
+                innerX,
+                innerY,
+                fillW,
+                Math.round(innerH * 0.4),
+                2,
+            );
+        }
+    }
+
+    private drawPowerFillBand(
+        fillW: number,
+        startRatio: number,
+        endRatio: number,
+        leftColor: number,
+        rightColor: number,
+    ): void {
+        const innerX = this.barX + 3;
+        const innerY = this.barY - this.barH / 2 + 2;
+        const innerW = this.barW - 6;
+        const innerH = this.barH - 4;
+        const startX = innerX + innerW * startRatio;
+        const endX = innerX + Math.min(fillW, innerW * endRatio);
+        const width = endX - startX;
+
+        if (width <= 0) return;
+
+        this.barFill.fillGradientStyle(
+            leftColor,
+            rightColor,
+            leftColor,
+            rightColor,
+            1,
+        );
+        this.barFill.fillRect(startX, innerY, width, innerH);
     }
 
     private drawFireButton(hover = false): void {

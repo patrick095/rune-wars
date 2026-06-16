@@ -210,17 +210,6 @@
 
   </div><!-- /room-layout -->
 
-  <!-- Countdown overlay -->
-  @if (countdownActive) {
-    <div class="battle-overlay">
-      <div class="battle-overlay__box">
-        <div class="battle-overlay__title">BATALHA EM</div>
-        <div class="battle-overlay__countdown">{{ countdownSeconds }}</div>
-        <button class="battle-overlay__cancel" (click)="cancelCountdown()">Cancelar</button>
-      </div>
-    </div>
-  }
-
   <!-- Matchmaking search overlay -->
   @if (searchingMatch) {
     <div class="battle-overlay">

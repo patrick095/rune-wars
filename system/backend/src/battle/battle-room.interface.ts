@@ -3,6 +3,7 @@ export interface BattlePlayer {
   socketId: string;
   hp: number;
   connected: boolean;
+  teamId?: string;
 }
 
 export interface BattleState {

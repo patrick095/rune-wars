@@ -1,6 +1,10 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InventoryItem } from '../../game-core/types';
+import {
+  DisplayStatEntry,
+  getItemDisplayStats,
+} from '../../game-core/weapon-display-stats';
 
 @Component({
   selector: 'app-item-tooltip',
@@ -12,8 +16,7 @@ import { InventoryItem } from '../../game-core/types';
 export class ItemTooltipComponent {
   @Input() item: InventoryItem | null = null;
 
-  get statEntries(): { key: string; value: number | string }[] {
-    if (!this.item?.stats) return [];
-    return Object.entries(this.item.stats).map(([key, value]) => ({ key, value }));
+  get statEntries(): DisplayStatEntry[] {
+    return getItemDisplayStats(this.item);
   }
 }

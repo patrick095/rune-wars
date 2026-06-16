@@ -61,6 +61,13 @@ import {
     moveSpeed,
     moveBudget,
 } from "../terrain/spawn-selector";
+import type { SpawnNormalizationContext } from "../terrain/spawn-selector";
+import {
+    CHARACTER_BODY_HALF_WIDTH,
+    CHARACTER_BODY_HEIGHT,
+    findSafeGroundedPosition,
+    resolveCharacterTerrainOverlap,
+} from "../terrain/character-placement";
 import { MovementBudgetHUD } from "../hud/movement-budget-hud";
 import { TerrainRenderer } from "../terrain/terrain-renderer";
 import { CharacterFall } from "../terrain/character-fall";
@@ -187,6 +194,9 @@ const MIN_SHOT_POWER = 5;
 const POWER_STEP = 2;
 const POWER_TICK_MS = 50;
 const PROJECTILE_COLLISION_RADIUS = 7;
+const POST_SHOT_TURN_ADVANCE_DELAY_MS = 1000;
+const MAX_TURN_FALL_WAIT_MS = 3600;
+const CONSUMABLE_STAMINA_COST_FRACTION = 0.5;
 const AI_SEARCH_BY_DIFFICULTY: Record<
     Difficulty,
     {
@@ -243,7 +253,6 @@ export class BattleScene extends Phaser.Scene {
     private aiIceShotArmed = false;
     private calibrationTargetZone: { min: number; max: number } | null = null;
     private usedConsumableSlots = new Set<number>();
-    private consumableUsedThisTurn = false;
     private aiUsedConsumableIds = new Set<string>();
     private aiShotModifierSystem = new ShotModifierSystem();
     private playerConsumables: string[] = [];
@@ -351,6 +360,8 @@ export class BattleScene extends Phaser.Scene {
     private resultOverlay = new ResultOverlay();
     private battleMenuButton?: Phaser.GameObjects.Rectangle;
     private battleMenuButtonText?: Phaser.GameObjects.Text;
+    private surrenderButton?: Phaser.GameObjects.Rectangle;
+    private surrenderButtonText?: Phaser.GameObjects.Text;
     private battleMenuPanel?: Phaser.GameObjects.Container;
     private battleMenuOpen = false;
 
@@ -365,9 +376,9 @@ export class BattleScene extends Phaser.Scene {
     // Power bar
     private ghostTrace: GhostTrace | undefined;
     private isChargingPower = false;
+    private chargePerformanceMode = false;
     private powerValue = 0;
     private powerChargeStartedAt = 0;
-    private powerInterval: ReturnType<typeof setInterval> | null = null;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private spaceKey!: Phaser.Input.Keyboard.Key;
     private previewRefreshMs = 0;
@@ -575,10 +586,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     private resetRuntimeState(): void {
-        if (this.powerInterval) {
-            clearInterval(this.powerInterval);
-            this.powerInterval = null;
-        }
+        this.leaveChargePerformanceMode();
         // Clean up hold-to-repeat timers if any
         if (this.holdTimer) {
             clearTimeout(this.holdTimer);
@@ -635,7 +643,6 @@ export class BattleScene extends Phaser.Scene {
         this.iceShotArmed = false;
         this.aiIceShotArmed = false;
         this.usedConsumableSlots = new Set<number>();
-        this.consumableUsedThisTurn = false;
         this.constructedByPlayer = 0;
         this.playerSecondaryItemId = null;
         this.aiSecondaryItemId = null;
@@ -713,10 +720,14 @@ export class BattleScene extends Phaser.Scene {
         const mapJson = this.getMapJsonById(this.currentMap);
         const mapMeta = mapJson?.meta as MapMeta | undefined;
         const rawSpawns = mapMeta?.spawnPoints ?? [];
+        const spawnContext = this.getSpawnNormalizationContext(
+            this.currentMap,
+            mapMeta,
+        );
         const charHeight = 60;
         const spawns =
             rawSpawns.length >= 2
-                ? selectSpawns(rawSpawns, 2, this.terrainEngine)
+                ? selectSpawns(rawSpawns, 2, this.terrainEngine, spawnContext)
                 : [];
 
         const worldCenterY = WORLD_HEIGHT / 2;
@@ -728,13 +739,12 @@ export class BattleScene extends Phaser.Scene {
             this.playerStats.x = p.x;
             this.playerStats.y = p.y;
         } else {
-            const playerFloor = this.terrainEngine.getFloorBelow(
+            const safe = this.findSafeCharacterPosition(
                 fallbackPlayerX,
                 worldCenterY,
             );
-            this.playerStats.x = fallbackPlayerX;
-            this.playerStats.y =
-                playerFloor !== null ? playerFloor - 30 : worldCenterY;
+            this.playerStats.x = safe?.x ?? fallbackPlayerX;
+            this.playerStats.y = safe?.y ?? worldCenterY;
         }
 
         if (spawns[1]) {
@@ -742,12 +752,12 @@ export class BattleScene extends Phaser.Scene {
             this.aiStats.x = a.x;
             this.aiStats.y = a.y;
         } else {
-            const aiFloor = this.terrainEngine.getFloorBelow(
+            const safe = this.findSafeCharacterPosition(
                 fallbackAiX,
                 worldCenterY,
             );
-            this.aiStats.x = fallbackAiX;
-            this.aiStats.y = aiFloor !== null ? aiFloor - 30 : worldCenterY;
+            this.aiStats.x = safe?.x ?? fallbackAiX;
+            this.aiStats.y = safe?.y ?? worldCenterY;
         }
 
         this.playerStats.facing = "right";
@@ -950,7 +960,12 @@ export class BattleScene extends Phaser.Scene {
         this.scale.on("resize", this.onResize, this);
     }
 
-    override update(_time: number, delta: number): void {
+    override update(time: number, delta: number): void {
+        if (this.isChargingPower) {
+            this.updateChargePowerFrame(time);
+            return;
+        }
+
         // Fall physics run unconditionally so characters fall during fall-wait even
         // when isAnimating=true (locked between shot landing and turn processing).
         if (!this.battleEnded) {
@@ -1079,11 +1094,106 @@ export class BattleScene extends Phaser.Scene {
     private snapCharactersToGround(): void {
         this.playerFall.snapToGround(this.playerSprite, this.terrainEngine);
         this.aiFall.snapToGround(this.aiSprite, this.terrainEngine);
+        this.ensureCharactersOutsideTerrain();
         this.playerStats.x = this.playerSprite.x;
         this.playerStats.y = this.playerSprite.y;
         this.aiStats.x = this.aiSprite.x;
         this.aiStats.y = this.aiSprite.y;
         this.syncActorAssets();
+    }
+
+    private getSpawnNormalizationContext(
+        mapName: MapName,
+        mapMeta?: MapMeta,
+    ): SpawnNormalizationContext {
+        const sourceSize = this.getMapTerrainSourceSize(mapName);
+        return {
+            cols: mapMeta?.cols,
+            rows: mapMeta?.rows,
+            sourceWidth: sourceSize?.width ?? mapMeta?.width,
+            sourceHeight: sourceSize?.height ?? mapMeta?.height,
+        };
+    }
+
+    private getMapTerrainSourceSize(
+        mapName: MapName,
+    ): { width: number; height: number } | undefined {
+        if (mapName.startsWith("dungeon")) return undefined;
+
+        const texture = this.textures.get(`map_${mapName}_terrain`);
+        const source = texture?.getSourceImage() as
+            | { width?: number; height?: number }
+            | undefined;
+        const width = source?.width;
+        const height = source?.height;
+
+        if (
+            typeof width === "number" &&
+            Number.isFinite(width) &&
+            typeof height === "number" &&
+            Number.isFinite(height) &&
+            width > 0 &&
+            height > 0
+        ) {
+            return { width, height };
+        }
+
+        return undefined;
+    }
+
+    private findSafeCharacterPosition(
+        desiredX: number,
+        startY: number,
+        options?: {
+            halfWidth?: number;
+            height?: number;
+            searchUp?: number;
+            searchDown?: number;
+            searchRadiusX?: number;
+        },
+    ): { x: number; y: number } | null {
+        return findSafeGroundedPosition(
+            this.terrainEngine,
+            desiredX,
+            startY,
+            {
+                halfWidth: options?.halfWidth ?? CHARACTER_BODY_HALF_WIDTH,
+                height: options?.height ?? CHARACTER_BODY_HEIGHT,
+                minX: 72,
+                maxX: MAP_WORLD_WIDTH - 72,
+                searchUp: options?.searchUp ?? WORLD_HEIGHT,
+                searchDown: options?.searchDown ?? WORLD_HEIGHT,
+                searchRadiusX: options?.searchRadiusX ?? 240,
+            },
+        );
+    }
+
+    private ensureCharactersOutsideTerrain(): void {
+        const playerSafe = resolveCharacterTerrainOverlap(
+            this.terrainEngine,
+            this.playerSprite.x,
+            this.playerSprite.y,
+            {
+                halfWidth: this.playerSprite.width / 2,
+                height: this.playerSprite.height,
+                minX: 72,
+                maxX: MAP_WORLD_WIDTH - 72,
+            },
+        );
+        if (playerSafe) this.playerSprite.setPosition(playerSafe.x, playerSafe.y);
+
+        const aiSafe = resolveCharacterTerrainOverlap(
+            this.terrainEngine,
+            this.aiSprite.x,
+            this.aiSprite.y,
+            {
+                halfWidth: this.aiSprite.width / 2,
+                height: this.aiSprite.height,
+                minX: 72,
+                maxX: MAP_WORLD_WIDTH - 72,
+            },
+        );
+        if (aiSafe) this.aiSprite.setPosition(aiSafe.x, aiSafe.y);
     }
 
     private syncActorAssets(): void {
@@ -1287,6 +1397,34 @@ export class BattleScene extends Phaser.Scene {
         );
         this.battleMenuButton.on("pointerdown", () => this.passTurn());
 
+        const surrenderX = x + 128;
+        this.surrenderButton = this.add
+            .rectangle(surrenderX, y, 118, 48, 0x4e1414, 0.94)
+            .setStrokeStyle(3, 0x9d4a2e, 1)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(36)
+            .setScrollFactor(0);
+        this.surrenderButtonText = this.add
+            .text(surrenderX, y, "DESISTIR", {
+                fontSize: "16px",
+                color: "#ffd6c6",
+                fontFamily: "Georgia, serif",
+                fontStyle: "bold",
+                stroke: "#000000",
+                strokeThickness: 4,
+            })
+            .setOrigin(0.5)
+            .setDepth(37)
+            .setScrollFactor(0);
+
+        this.surrenderButton.on("pointerover", () =>
+            this.surrenderButton?.setFillStyle(0x6b1e16, 0.98),
+        );
+        this.surrenderButton.on("pointerout", () =>
+            this.surrenderButton?.setFillStyle(0x4e1414, 0.94),
+        );
+        this.surrenderButton.on("pointerdown", () => this.confirmSurrenderBattle());
+
         this.layoutBattleMenuButton();
     }
 
@@ -1363,6 +1501,8 @@ export class BattleScene extends Phaser.Scene {
         const x = this.getPassButtonX();
         this.battleMenuButton?.setPosition(x, 26);
         this.battleMenuButtonText?.setPosition(x, 26);
+        this.surrenderButton?.setPosition(x + 128, 26);
+        this.surrenderButtonText?.setPosition(x + 128, 26);
         if (this.battleMenuOpen) {
             this.toggleBattleMenu(true);
         }
@@ -1371,22 +1511,25 @@ export class BattleScene extends Phaser.Scene {
     private passTurn(): void {
         if (!this.turnManager.isPlayerTurn || this.isAnimating) return;
         this.isChargingPower = false;
-        if (this.powerInterval) {
-            clearInterval(this.powerInterval);
-            this.powerInterval = null;
-        }
+        this.leaveChargePerformanceMode();
+        this.battleHud?.setCharging(false);
         this.powerValue = 0;
         this.battleHud?.updatePower(0);
-        this.endTurn(true);
+        this.endTurn(true, false);
+    }
+
+    private confirmSurrenderBattle(): void {
+        if (this.battleEnded) return;
+        const confirmed = window.confirm("Deseja realmente desistir da partida?");
+        if (!confirmed) return;
+        this.surrenderBattle();
     }
 
     private surrenderBattle(): void {
         this.toggleBattleMenu(false);
         this.isChargingPower = false;
-        if (this.powerInterval) {
-            clearInterval(this.powerInterval);
-            this.powerInterval = null;
-        }
+        this.leaveChargePerformanceMode();
+        this.battleHud?.setCharging(false);
         this.isAnimating = true;
         this.finishBattle(false);
     }
@@ -1511,17 +1654,25 @@ export class BattleScene extends Phaser.Scene {
         if (!this.turnManager.isPlayerTurn || this.isAnimating) return;
         if (this.statusEffects.hasEffect("player", "ITEM_BLOCK")) return;
         if (this.usedConsumableSlots.has(slotIndex)) return;
-        if (this.consumableUsedThisTurn) {
+        const cost = CONSUMABLE_STAMINA_COST_FRACTION * this.moveBudgetTotal;
+        const remaining = this.moveBudgetTotal - this.moveBudgetUsed;
+
+        if (remaining < cost) {
             this.showItemFloatingText(
                 this.playerStats.x,
                 this.playerStats.y,
-                "Já usou um item!",
+                "Estamina insuficiente!",
                 "#ff8844",
             );
             return;
         }
+
+        this.moveBudgetUsed += cost;
+        this.movementBudgetHUD?.update(
+            this.moveBudgetUsed,
+            this.moveBudgetTotal,
+        );
         this.usedConsumableSlots.add(slotIndex);
-        this.consumableUsedThisTurn = true;
         this.useDebugConsumable("player", id);
     }
 
@@ -1712,53 +1863,44 @@ export class BattleScene extends Phaser.Scene {
         this.isChargingPower = true;
         this.powerChargeStartedAt = this.time.now;
         this.powerValue = MIN_SHOT_POWER;
+        this.enterChargePerformanceMode();
+        this.battleHud.setCharging(true);
         this.battleHud.updatePower(this.powerValue);
+    }
 
-        // WEAK_SHOT limits max force to 40
+    private updateChargePowerFrame(time: number): void {
+        if (this.battleEnded || this.isAnimating || !this.turnManager.isPlayerTurn) {
+            this.isChargingPower = false;
+            this.leaveChargePerformanceMode();
+            this.battleHud?.setCharging(false);
+            return;
+        }
+
+        this.powerValue = this.calculateChargePower(time);
+        this.battleHud.updatePower(this.powerValue);
+    }
+
+    private calculateChargePower(time: number): number {
         const maxForce = this.statusEffects.hasEffect("player", "WEAK_SHOT")
             ? 40
             : 100;
-
-        this.powerInterval = setInterval(() => {
-            const elapsedTicks = Math.max(
-                0,
-                Math.floor(
-                    (this.time.now - this.powerChargeStartedAt) / POWER_TICK_MS,
-                ),
-            );
-            this.powerValue = Math.min(
-                maxForce,
-                MIN_SHOT_POWER + elapsedTicks * POWER_STEP,
-            );
-            this.battleHud.updatePower(this.powerValue);
-        }, POWER_TICK_MS);
+        const elapsedMs = Math.max(0, time - this.powerChargeStartedAt);
+        return Math.min(
+            maxForce,
+            MIN_SHOT_POWER + (elapsedMs / POWER_TICK_MS) * POWER_STEP,
+        );
     }
 
     private releaseFire(): void {
         if (!this.isChargingPower) return;
         this.isChargingPower = false;
-
-        if (this.powerInterval) {
-            clearInterval(this.powerInterval);
-            this.powerInterval = null;
-        }
+        this.leaveChargePerformanceMode();
+        this.battleHud.setCharging(false);
 
         // Pointer/touch release can happen before the first interval tick.
-        const maxForce = this.statusEffects.hasEffect("player", "WEAK_SHOT")
-            ? 40
-            : 100;
-        const elapsedTicks = Math.max(
-            0,
-            Math.floor(
-                (this.time.now - this.powerChargeStartedAt) / POWER_TICK_MS,
-            ),
-        );
-        this.powerValue = Math.min(
-            maxForce,
-            Math.max(
-                this.powerValue,
-                MIN_SHOT_POWER + elapsedTicks * POWER_STEP,
-            ),
+        this.powerValue = Math.max(
+            this.powerValue,
+            this.calculateChargePower(this.time.now),
         );
 
         if (this.powerValue < MIN_SHOT_POWER) return; // too low, ignore
@@ -1768,6 +1910,18 @@ export class BattleScene extends Phaser.Scene {
         this.battleHud.recordShot(shotPower);
         this.powerValue = 0;
         this.battleHud.updatePower(0);
+    }
+
+    private enterChargePerformanceMode(): void {
+        if (this.chargePerformanceMode) return;
+        this.chargePerformanceMode = true;
+        this.tweens.pauseAll();
+    }
+
+    private leaveChargePerformanceMode(): void {
+        if (!this.chargePerformanceMode) return;
+        this.chargePerformanceMode = false;
+        this.tweens.resumeAll();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -1795,6 +1949,7 @@ export class BattleScene extends Phaser.Scene {
             this.playerStats.y,
             config,
             wind,
+            this.playerWeapon.physicsProfile,
         );
         this.trajectory.draw(this, points);
     }
@@ -1856,7 +2011,7 @@ export class BattleScene extends Phaser.Scene {
                 return;
             }
             if (gameEnded) return;
-            this.endTurn(true);
+            this.endTurn(true, true);
         };
 
         // Fire delayed shots one-by-one, each 700 ms after the previous one lands.
@@ -2046,7 +2201,7 @@ export class BattleScene extends Phaser.Scene {
                 return;
             }
             if (gameEnded) return;
-            this.endTurn(false);
+            this.endTurn(false, true);
         };
 
         for (const shotCfg of shots) {
@@ -2175,7 +2330,7 @@ export class BattleScene extends Phaser.Scene {
                     !this.turnManager.isPlayerTurn &&
                     this.turnManager.turnNumber === turnToken
                 ) {
-                    this.endTurn(false);
+                    this.endTurn(false, false);
                 }
             });
             return;
@@ -2188,7 +2343,7 @@ export class BattleScene extends Phaser.Scene {
                     !this.turnManager.isPlayerTurn &&
                     this.turnManager.turnNumber === turnToken
                 ) {
-                    this.endTurn(false);
+                    this.endTurn(false, false);
                 }
             });
             return;
@@ -2320,6 +2475,12 @@ export class BattleScene extends Phaser.Scene {
         this.secondaryItemSystem.consumeRunicBuilder(playerId);
         this.constructedByPlayer =
             this.terrainEngine.getConstructedCount("player");
+        this.ensureCharactersOutsideTerrain();
+        this.playerStats.x = this.playerSprite.x;
+        this.playerStats.y = this.playerSprite.y;
+        this.aiStats.x = this.aiSprite.x;
+        this.aiStats.y = this.aiSprite.y;
+        this.syncActorAssets();
         // Terrain renderer uses bitmap approach; no full re-render needed after runic builder
     }
 
@@ -2454,7 +2615,7 @@ export class BattleScene extends Phaser.Scene {
                         options.endTurnOnComplete ?? true,
                     );
                 } else if (options.endTurnOnComplete ?? true) {
-                    this.endTurn(isPlayerShot);
+                    this.endTurn(isPlayerShot, true);
                 }
                 options.onComplete?.(gameEnded);
             });
@@ -2473,11 +2634,27 @@ export class BattleScene extends Phaser.Scene {
         const animationPath = clipped.path;
         this.showProjectileTrailFx(weapon.id, animationPath);
 
+        let realtimePreviousPoint = path[0];
+        let realtimeImpactPoint: { x: number; y: number } | null = null;
+        let realtimeImpact: ReturnType<typeof this.getProjectileImpact> | null =
+            null;
         const checkImpactFn = realtimeCollision
             ? (x: number, y: number): boolean => {
                   checkMapModifier(x, y);
-                  const hit = this.getProjectileImpact({ x, y }, isPlayerShot);
-                  return hit.hitTerrain || hit.hitTarget;
+                  const point = { x, y };
+                  const impactPoint = this.findImpactOnSegment(
+                      realtimePreviousPoint,
+                      point,
+                      isPlayerShot,
+                  );
+                  realtimePreviousPoint = point;
+                  if (!impactPoint) return false;
+                  realtimeImpactPoint = impactPoint;
+                  realtimeImpact = this.getProjectileImpact(
+                      impactPoint,
+                      isPlayerShot,
+                  );
+                  return true;
               }
             : checkMapModifier;
 
@@ -2500,6 +2677,7 @@ export class BattleScene extends Phaser.Scene {
 
                 const resolvedImpact =
                     clipped.impactPoint ??
+                    realtimeImpactPoint ??
                     impactPoint ??
                     animationPath[animationPath.length - 1];
                 const traveledPath = animationPath;
@@ -2511,6 +2689,7 @@ export class BattleScene extends Phaser.Scene {
 
                 const impact =
                     clipped.impact ??
+                    realtimeImpact ??
                     this.getProjectileImpact(resolvedImpact, isPlayerShot);
                 const teleportUtilityShot = isPlayerShot && this.teleportShotArmed;
                 const explodeOnImpact = options.explodeOnImpact ?? !teleportUtilityShot;
@@ -2524,9 +2703,15 @@ export class BattleScene extends Phaser.Scene {
                 // created by the first shot and would otherwise fizzle silently.
                 const forceExplode = realtimeCollision;
                 if (explodeOnImpact && (impact.hitTerrain || impact.hitTarget || forceExplode)) {
+                    const explosionCenter = impact.hitTerrain
+                        ? (this.findNearestTerrainPoint(
+                              resolvedImpact,
+                              PROJECTILE_COLLISION_RADIUS * 2,
+                          ) ?? resolvedImpact)
+                        : resolvedImpact;
                     const explodeResult = this.terrainEngine.explode(
-                        resolvedImpact.x,
-                        resolvedImpact.y,
+                        explosionCenter.x,
+                        explosionCenter.y,
                         resolvedExcavationRadius,
                     );
                     this.terrainRenderer.applyExplosion(
@@ -2565,7 +2750,7 @@ export class BattleScene extends Phaser.Scene {
                         options.endTurnOnComplete ?? true,
                     );
                 } else if (options.endTurnOnComplete ?? true) {
-                    this.endTurn(isPlayerShot);
+                    this.endTurn(isPlayerShot, true);
                 }
 
                 // Bug 4: Apply/disarm ice shot (hit = inSplashZone with damage enabled)
@@ -2588,12 +2773,25 @@ export class BattleScene extends Phaser.Scene {
         if (weapon.detonationDelay && weapon.detonationDelay > 0) {
             // Enough frames so animation fills the detonation window (8 ms/frame)
             const maxPoints = Math.ceil(weapon.detonationDelay / 8);
-            return this.projectilePhysics.simulate(startX, startY, config, wind, undefined, {
-                terrainAt: (x, y) => this.hasTerrainNearProjectile(x, y),
-                maxPoints,
-            });
+            return this.projectilePhysics.simulate(
+                startX,
+                startY,
+                config,
+                wind,
+                weapon.physicsProfile,
+                {
+                    terrainAt: (x, y) => this.hasTerrainNearProjectile(x, y),
+                    maxPoints,
+                },
+            );
         }
-        return this.projectilePhysics.simulate(startX, startY, config, wind);
+        return this.projectilePhysics.simulate(
+            startX,
+            startY,
+            config,
+            wind,
+            weapon.physicsProfile,
+        );
     }
 
     private clipPathToFirstImpact(
@@ -2751,6 +2949,7 @@ export class BattleScene extends Phaser.Scene {
                     this.aiStats.y,
                     config,
                     wind,
+                    this.aiWeapon.physicsProfile,
                 );
                 const score = this.scoreAiPath(path, targetYOffset);
                 if (score < best.score) best = { angle, force, score };
@@ -2825,14 +3024,21 @@ export class BattleScene extends Phaser.Scene {
         };
 
         for (const x of candidates) {
-            const floorY = this.terrainEngine.getFloorBelow(
+            const safe = this.findSafeCharacterPosition(
                 x,
                 this.aiSprite.y + this.aiSprite.height / 2,
+                {
+                    halfWidth: this.aiSprite.width / 2,
+                    height: this.aiSprite.height,
+                    searchUp: this.aiSprite.height * 2,
+                    searchDown: this.aiSprite.height * 4,
+                    searchRadiusX: 0,
+                },
             );
-            if (floorY === null) continue;
+            if (!safe) continue;
             const original = { x: this.aiStats.x, y: this.aiStats.y };
-            this.aiStats.x = x;
-            this.aiStats.y = floorY - this.aiSprite.height / 2;
+            this.aiStats.x = safe.x;
+            this.aiStats.y = safe.y;
             const shot = this.calculateAiShot();
             if (shot.score < best.score)
                 best = {
@@ -2984,22 +3190,12 @@ export class BattleScene extends Phaser.Scene {
 
                 // RANDOM_TELEPORT: move target sprite to random X position
                 if (runicEffect.type === "RANDOM_TELEPORT") {
-                    const { width } = this.scale;
-                    const newX = Phaser.Math.Between(60, width - 60);
-                    const targetSprite = isPlayerShot
-                        ? this.aiSprite
-                        : this.playerSprite;
-                    const floorY = this.terrainEngine.getFloorBelow(newX, 0);
-                    const newY = floorY !== null ? floorY - 30 : targetSprite.y;
-                    targetSprite.setPosition(newX, newY);
-                    if (isPlayerShot) {
-                        this.aiStats.x = newX;
-                        this.aiStats.y = newY;
-                    } else {
-                        this.playerStats.x = newX;
-                        this.playerStats.y = newY;
-                    }
-                    this.syncActorAssets();
+                    const newX = Phaser.Math.Between(72, MAP_WORLD_WIDTH - 72);
+                    this.teleportActor(isPlayerShot ? "ai" : "player", newX, 0, {
+                        searchUp: 0,
+                        searchDown: WORLD_HEIGHT,
+                        searchRadiusX: 180,
+                    });
                 }
             }
         }
@@ -3020,15 +3216,16 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (shouldEndTurn) {
-            this.endTurn(isPlayerShot);
+            this.endTurn(isPlayerShot, true);
         }
         return false;
     }
 
-    private endTurn(_wasPlayerShot: boolean): void {
+    private endTurn(_wasPlayerShot: boolean, delayAfterShot: boolean): void {
         const endingTurnNumber = this.turnManager.turnNumber;
         if (this.lastEndedTurnNumber === endingTurnNumber) return;
         this.lastEndedTurnNumber = endingTurnNumber;
+        const requestedAt = this.time.now;
 
         // Lock input while waiting for falls to settle so the player cannot fire
         // a second shot or accidentally pass the turn during the fall animation.
@@ -3040,17 +3237,33 @@ export class BattleScene extends Phaser.Scene {
 
         // Unlock and advance turn only once all characters have landed.
         this.waitForFallsToSettle(() => {
-            this.isAnimating = false;
-            this.processEndTurn();
-        });
+            const elapsed = this.time.now - requestedAt;
+            const remainingDelay = delayAfterShot
+                ? Math.max(0, POST_SHOT_TURN_ADVANCE_DELAY_MS - elapsed)
+                : 0;
+
+            this.scheduleTurnEvent(remainingDelay, () => {
+                if (this.battleEnded) return;
+                this.isAnimating = false;
+                this.processEndTurn();
+            });
+        }, requestedAt);
     }
 
-    private waitForFallsToSettle(callback: () => void): void {
+    private waitForFallsToSettle(callback: () => void, startedAt: number): void {
+        if (this.battleEnded) return;
         if (!this.playerFall.isFalling && !this.aiFall.isFalling) {
             callback();
             return;
         }
-        this.time.delayedCall(100, () => this.waitForFallsToSettle(callback));
+        if (this.time.now - startedAt >= MAX_TURN_FALL_WAIT_MS) {
+            this.snapCharactersToGround();
+            callback();
+            return;
+        }
+        this.time.delayedCall(100, () =>
+            this.waitForFallsToSettle(callback, startedAt),
+        );
     }
 
     private processEndTurn(): void {
@@ -3142,8 +3355,6 @@ export class BattleScene extends Phaser.Scene {
             // Clear calibration zone at start of new turn
             this.calibrationTargetZone = null;
             this.battleHud?.setCalibrationZone(null);
-            // Allow one consumable per turn
-            this.consumableUsedThisTurn = false;
             this.updateTrajectoryPreview();
             // [v1.5.0] BattleInputController: reset charge flag on new player turn
             this.battleInputController?.resetTurn();
@@ -3539,11 +3750,15 @@ export class BattleScene extends Phaser.Scene {
         const mapJson = this.getMapJsonById(mapName);
         const mapMeta = mapJson?.meta as MapMeta | undefined;
         const rawSpawns = mapMeta?.spawnPoints ?? [];
+        const spawnContext = this.getSpawnNormalizationContext(
+            mapName,
+            mapMeta,
+        );
         const charHeight = 60;
 
         const spawns =
             rawSpawns.length >= 2
-                ? selectSpawns(rawSpawns, 2, this.terrainEngine)
+                ? selectSpawns(rawSpawns, 2, this.terrainEngine, spawnContext)
                 : [];
 
         const worldCenterY = WORLD_HEIGHT / 2;
@@ -3553,15 +3768,13 @@ export class BattleScene extends Phaser.Scene {
             this.playerSprite.setPosition(p.x, p.y);
         } else {
             const fallbackX = WORLD_WIDTH * 0.1;
-            const playerFloor = this.terrainEngine.getFloorBelow(
+            const safe = this.findSafeCharacterPosition(
                 fallbackX,
                 worldCenterY,
             );
             this.playerSprite.setPosition(
-                fallbackX,
-                playerFloor !== null
-                    ? playerFloor - this.playerSprite.height / 2
-                    : worldCenterY,
+                safe?.x ?? fallbackX,
+                safe?.y ?? worldCenterY,
             );
         }
 
@@ -3570,15 +3783,13 @@ export class BattleScene extends Phaser.Scene {
             this.aiSprite.setPosition(a.x, a.y);
         } else {
             const fallbackX = WORLD_WIDTH * 0.9;
-            const aiFloor = this.terrainEngine.getFloorBelow(
+            const safe = this.findSafeCharacterPosition(
                 fallbackX,
                 worldCenterY,
             );
             this.aiSprite.setPosition(
-                fallbackX,
-                aiFloor !== null
-                    ? aiFloor - this.aiSprite.height / 2
-                    : worldCenterY,
+                safe?.x ?? fallbackX,
+                safe?.y ?? worldCenterY,
             );
         }
         this.syncActorAssets();
@@ -3639,6 +3850,14 @@ export class BattleScene extends Phaser.Scene {
             worldY,
             material as TerrainMaterial,
         );
+        if (this.playerSprite && this.aiSprite) {
+            this.ensureCharactersOutsideTerrain();
+            this.playerStats.x = this.playerSprite.x;
+            this.playerStats.y = this.playerSprite.y;
+            this.aiStats.x = this.aiSprite.x;
+            this.aiStats.y = this.aiSprite.y;
+            this.syncActorAssets();
+        }
         // Terrain renderer uses bitmap approach; visual update requires applyExplosion for erasure
     }
 
@@ -3666,20 +3885,12 @@ export class BattleScene extends Phaser.Scene {
 
         // If RANDOM_TELEPORT applied via debug, move sprite immediately
         if (type === "RANDOM_TELEPORT") {
-            const { width } = this.scale;
-            const newX = Phaser.Math.Between(60, width - 60);
-            const targetSprite =
-                target === "player" ? this.playerSprite : this.aiSprite;
-            const floorY = this.terrainEngine.getFloorBelow(newX, 0);
-            const newY = floorY !== null ? floorY - 30 : targetSprite.y;
-            targetSprite.setPosition(newX, newY);
-            if (target === "player") {
-                this.playerStats.x = newX;
-                this.playerStats.y = newY;
-            } else {
-                this.aiStats.x = newX;
-                this.aiStats.y = newY;
-            }
+            const newX = Phaser.Math.Between(72, MAP_WORLD_WIDTH - 72);
+            this.teleportActor(target, newX, 0, {
+                searchUp: 0,
+                searchDown: WORLD_HEIGHT,
+                searchRadiusX: 180,
+            });
         }
     }
 
@@ -3758,7 +3969,7 @@ export class BattleScene extends Phaser.Scene {
         if (item.usesTurn) this.shotModifierSystem.consumeAll();
 
         this.refreshHud();
-        if (item.usesTurn) this.endTurn(target === "player");
+        if (item.usesTurn) this.endTurn(target === "player", false);
     }
 
     useDebugSecondaryItem(target: "player" | "ai", id: string): void {
@@ -3792,7 +4003,7 @@ export class BattleScene extends Phaser.Scene {
 
         this.refreshHud();
         this.syncActorAssets();
-        if (item.usesTurn) this.endTurn(target === "player");
+        if (item.usesTurn) this.endTurn(target === "player", false);
     }
 
     private resolveTeleportShot(
@@ -3814,10 +4025,18 @@ export class BattleScene extends Phaser.Scene {
             return;
         }
 
+        const teleportAnchor =
+            this.findNearestTerrainPoint(impactPoint, PROJECTILE_COLLISION_RADIUS) ??
+            impactPoint;
         const teleported = this.teleportActor(
             "player",
-            impactPoint.x,
-            Math.max(0, impactPoint.y - 80),
+            teleportAnchor.x,
+            teleportAnchor.y,
+            {
+                searchUp: 120,
+                searchDown: 180,
+                searchRadiusX: 56,
+            },
         );
         if (teleported) {
             this.showItemFloatingText(
@@ -3873,6 +4092,7 @@ export class BattleScene extends Phaser.Scene {
                 this.playerStats.y,
                 config,
                 wind,
+                this.playerWeapon.physicsProfile,
             );
             const clipped = this.clipPathToFirstImpact(path, true);
             if (clipped.impact?.hitTarget) {
@@ -3889,16 +4109,24 @@ export class BattleScene extends Phaser.Scene {
         target: "player" | "ai",
         x: number,
         floorSearchY = 0,
+        options?: {
+            searchUp?: number;
+            searchDown?: number;
+            searchRadiusX?: number;
+        },
     ): boolean {
         const sprite = target === "player" ? this.playerSprite : this.aiSprite;
         const newX = Math.max(72, Math.min(x, MAP_WORLD_WIDTH - 72));
-        const floorY = this.terrainEngine.getFloorBelow(newX, floorSearchY);
-        if (floorY === null) return false;
+        const safe = this.findSafeCharacterPosition(newX, floorSearchY, {
+            halfWidth: sprite.width / 2,
+            height: sprite.height,
+            searchUp: options?.searchUp ?? sprite.height * 3,
+            searchDown: options?.searchDown ?? sprite.height * 4,
+            searchRadiusX: options?.searchRadiusX ?? sprite.width * 3,
+        });
+        if (!safe) return false;
 
-        sprite.setPosition(
-            newX,
-            floorY !== null ? floorY - sprite.height / 2 : sprite.y,
-        );
+        sprite.setPosition(safe.x, safe.y);
         if (target === "player") {
             this.playerStats.x = sprite.x;
             this.playerStats.y = sprite.y;
@@ -3908,6 +4136,38 @@ export class BattleScene extends Phaser.Scene {
         }
         this.syncActorAssets();
         return true;
+    }
+
+    private findNearestTerrainPoint(
+        center: { x: number; y: number },
+        radius: number,
+    ): { x: number; y: number } | null {
+        let best: { x: number; y: number; distSq: number } | null = null;
+        const minX = Math.floor(center.x - radius);
+        const maxX = Math.ceil(center.x + radius);
+        const minY = Math.floor(center.y - radius);
+        const maxY = Math.ceil(center.y + radius);
+        const radiusSq = radius * radius;
+
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                const dx = x - center.x;
+                const dy = y - center.y;
+                const distSq = dx * dx + dy * dy;
+                if (distSq > radiusSq) continue;
+                if (
+                    this.terrainEngine.getMaterialAt(x, y) ===
+                    TerrainMaterial.EMPTY
+                ) {
+                    continue;
+                }
+                if (!best || distSq < best.distSq) {
+                    best = { x, y, distSq };
+                }
+            }
+        }
+
+        return best ? { x: best.x, y: best.y } : null;
     }
 
     getActiveEffects(): { player: RunicEffect[]; ai: RunicEffect[] } {
