@@ -252,6 +252,9 @@
         @if (inventoryLoading) {
           <div class="loading-msg">Carregando inventário…</div>
         } @else {
+          @if (inventoryError) {
+            <div class="inventory-feedback">{{ inventoryError }}</div>
+          }
           <div class="inventory-modal-body">
             <app-equipment-slots
               [equippedItems]="equippedItems"

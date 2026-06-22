@@ -19,6 +19,7 @@ import { PvpModule } from './pvp/pvp.module';
 import { ConsumableInventoryModule } from './consumable-inventory/consumable-inventory.module';
 import { AdminModule } from './admin/admin.module';
 import { HealthController } from './health.controller';
+import { PortalModule } from './dungeon-rewards/portal.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { HealthController } from './health.controller';
     VaultModule,
     PvpModule,
     ConsumableInventoryModule,
+    PortalModule,
     AdminModule,
   ],
   controllers: [HealthController],

@@ -39,6 +39,16 @@
   font-size: 14px;
 }
 
+.inventory-feedback {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 120, 120, 0.45);
+  border-radius: 6px;
+  background: rgba(120, 24, 32, 0.32);
+  color: #ffc8c8;
+  font-size: 12px;
+}
+
 // ── Host ─────────────────────────────────────────────────────────────────
 :host {
   display: flex !important;
@@ -85,7 +95,7 @@
 
 .equipment-panel {
   flex: 1;
-  min-width: 280px;
+  min-width: min(100%, 440px);
 }
 
 // ── Inventory section (full width below) ──────────────────────────────────

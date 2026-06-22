@@ -47,4 +47,18 @@ export class CharacterService {
     const char = await this.findOne(id, userId);
     return this.repo.remove(char);
   }
+
+  async addGold(id: string, amount: number): Promise<Character> {
+    await this.repo.increment({ id }, 'gold', amount);
+    return this.findOneById(id);
+  }
+
+  async spendGold(id: string, amount: number): Promise<Character> {
+    const character = await this.findOneById(id);
+    if (character.gold < amount) {
+      throw new BadRequestException('Saldo de ouro insuficiente');
+    }
+    await this.repo.decrement({ id }, 'gold', amount);
+    return this.findOneById(id);
+  }
 }

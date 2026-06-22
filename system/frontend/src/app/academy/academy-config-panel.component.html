@@ -1,0 +1,50 @@
+<div class="config-panel">
+    <h1 class="title">Academia de Treino</h1>
+    <p class="subtitle">
+        Configure sua sessão de treino antes de entrar no campo de batalha.
+    </p>
+
+    <div class="form-group">
+        <label for="map-select">Mapa</label>
+        <select id="map-select" [(ngModel)]="selectedMapId">
+            <option *ngFor="let m of maps" [value]="m.id">{{ m.name }}</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="weapon-select">Arma</label>
+        <select id="weapon-select" [(ngModel)]="selectedWeaponId">
+            <option *ngFor="let w of weapons" [value]="w.id">
+                {{ w.name }}
+            </option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="target-select">Tipo de Alvo</label>
+        <select id="target-select" [(ngModel)]="selectedTargetType">
+            <option value="fixed">Fixo (parado)</option>
+            <option value="mobile">Móvel (vai-e-vem)</option>
+            <option value="dummy_player">
+                Boneco Jogador (CPU atira de volta)
+            </option>
+        </select>
+    </div>
+
+    @if (selectedTargetType === "dummy_player") {
+        <div class="form-group">
+            <label for="difficulty-select">Dificuldade do Adversário</label>
+            <select id="difficulty-select" [(ngModel)]="selectedDifficulty">
+                <option value="easy">Fácil</option>
+                <option value="normal">Normal</option>
+                <option value="hard">Difícil</option>
+            </select>
+        </div>
+    }
+
+    <button class="btn-train" (click)="onTrain()">Treinar →</button>
+
+    <button type="button" class="back-link" (click)="onLeave()">
+        ← Voltar ao Hub
+    </button>
+</div>

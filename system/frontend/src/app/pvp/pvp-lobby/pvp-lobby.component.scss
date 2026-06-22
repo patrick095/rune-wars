@@ -1,114 +1,160 @@
 .pvp-lobby {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: #1a1a2e;
-  color: #e0e0e0;
-  padding: 2rem;
-  box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 2rem;
+    box-sizing: border-box;
 }
 
 .lobby-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
 
-  h2 {
-    margin: 0;
-    color: #e94560;
-    font-size: 1.5rem;
-  }
+    h2 {
+        margin: 0;
+        color: #e94560;
+        font-size: 1.5rem;
+    }
 }
 
 button {
-  cursor: pointer;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  padding: 0.5rem 1.25rem;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    padding: 0.5rem 1.25rem;
 }
 
 .btn-back {
-  background: transparent;
-  border: 1px solid #4a4a6a;
-  color: #a0a0c0;
+    background: transparent;
+    border: 1px solid #4a4a6a;
+    color: #a0a0c0;
 
-  &:hover {
-    border-color: #e94560;
-    color: #e94560;
-  }
+    &:hover {
+        border-color: #e94560;
+        color: #e94560;
+    }
 }
 
 .btn-create {
-  background: #e94560;
-  color: #fff;
+    background: #e94560;
+    color: #fff;
 
-  &:hover {
-    background: #c73550;
-  }
+    &:hover {
+        background: #c73550;
+    }
 }
 
 .btn-join {
-  background: #0f3460;
-  color: #a0d0ff;
-  border: 1px solid #1a4a7a;
+    background: #0f3460;
+    color: #a0d0ff;
+    border: 1px solid #1a4a7a;
 
-  &:hover {
-    background: #1a4a7a;
-  }
+    &:hover {
+        background: #1a4a7a;
+    }
 }
 
 .error-banner {
-  background: #3a1020;
-  border: 1px solid #e94560;
-  color: #ffa0a0;
-  border-radius: 4px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
+    background: #3a1020;
+    border: 1px solid #e94560;
+    color: #ffa0a0;
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
 }
 
 .rooms-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #16213e;
-  border-radius: 8px;
-  overflow: hidden;
+    width: 100%;
+    border-collapse: collapse;
+    background: #16213e;
+    border-radius: 8px;
+    overflow: hidden;
 
-  thead {
-    background: #0f1a30;
+    thead {
+        background: #0f1a30;
 
-    th {
-      padding: 0.75rem 1rem;
-      text-align: left;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      color: #6080b0;
-      letter-spacing: 0.05em;
+        th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #6080b0;
+            letter-spacing: 0.05em;
+        }
     }
-  }
 
-  tbody {
-    tr {
-      border-top: 1px solid #1a2a4a;
+    tbody {
+        tr {
+            border-top: 1px solid #1a2a4a;
 
-      &:hover {
-        background: #1e2d50;
-      }
+            &:hover {
+                background: #1e2d50;
+            }
 
-      td {
-        padding: 0.75rem 1rem;
-        font-size: 0.9rem;
-        color: #c0c8e0;
-      }
+            td {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+                color: #c0c8e0;
+            }
+        }
     }
-  }
 }
 
 .empty-row {
-  text-align: center;
-  color: #505070 !important;
-  font-style: italic;
-  padding: 2rem !important;
+    text-align: center;
+    color: #505070 !important;
+    font-style: italic;
+    padding: 2rem !important;
+}
+
+.room-in-battle {
+    background: rgba(233, 69, 96, 0.1) !important;
+
+    &:hover {
+        background: rgba(233, 69, 96, 0.15) !important;
+    }
+}
+
+.status-label {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: #0f3460;
+    color: #a0d0ff;
+
+    &.in-battle {
+        background: #e94560;
+        color: #fff;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.btn-join:disabled {
+    background: #0a1a30;
+    color: #5080a0;
+    border-color: #0a1a30;
+    cursor: not-allowed;
+    opacity: 0.6;
+
+    &:hover {
+        background: #0a1a30;
+    }
 }

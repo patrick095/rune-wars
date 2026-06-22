@@ -10,9 +10,12 @@ import { PvpLobbyComponent } from './pvp/pvp-lobby/pvp-lobby.component';
 import { PvpRoomComponent } from './pvp/pvp-room/pvp-room.component';
 import { BattleHostComponent } from './battle/battle-host.component';
 import { DungeonComponent } from './dungeon/dungeon.component';
+import { DungeonLobbyComponent } from './dungeon/dungeon-lobby/dungeon-lobby.component';
+import { DungeonRoomComponent } from './dungeon/dungeon-room/dungeon-room.component';
 import { AcademyComponent } from './academy/academy.component';
 import { CraftComponent } from './craft/craft.component';
 import { UpgradeComponent } from './upgrade/upgrade.component';
+import { FerreiroComponent } from './ferreiro/ferreiro.component';
 import { MarketComponent } from './market/market.component';
 import { GuildComponent } from './guild/guild.component';
 import { RankingsComponent } from './rankings/rankings.component';
@@ -33,9 +36,12 @@ import { Subscription, filter } from 'rxjs';
     PvpRoomComponent,
     BattleHostComponent,
     DungeonComponent,
+    DungeonLobbyComponent,
+    DungeonRoomComponent,
     AcademyComponent,
     CraftComponent,
     UpgradeComponent,
+    FerreiroComponent,
     MarketComponent,
     GuildComponent,
     RankingsComponent,

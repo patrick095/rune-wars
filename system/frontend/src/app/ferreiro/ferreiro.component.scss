@@ -1,0 +1,128 @@
+:host {
+  display: block;
+  min-height: 100%;
+  color: #f4efe1;
+  background: #141210;
+}
+
+.blacksmith-shell {
+  min-height: 100vh;
+  padding: 20px;
+  background:
+    linear-gradient(180deg, rgba(20, 18, 16, 0.92), rgba(15, 16, 20, 0.96)),
+    radial-gradient(circle at 18% 20%, rgba(189, 62, 42, 0.18), transparent 28%),
+    radial-gradient(circle at 80% 12%, rgba(60, 135, 150, 0.16), transparent 24%);
+}
+
+.blacksmith-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  max-width: 1180px;
+  margin: 0 auto 14px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+p {
+  margin: 2px 0 0;
+  color: #c7bdad;
+  font-size: 14px;
+}
+
+.icon-button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(244, 239, 225, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4efe1;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.gold-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(232, 184, 82, 0.35);
+  border-radius: 6px;
+  background: rgba(232, 184, 82, 0.1);
+}
+
+.gold-pill span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e8b852;
+  box-shadow: inset -2px -3px 0 rgba(0, 0, 0, 0.22);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  max-width: 1180px;
+  margin: 0 auto 16px;
+  overflow-x: auto;
+}
+
+.tabs button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(244, 239, 225, 0.16);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d9d1c3;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tabs button.active {
+  border-color: rgba(232, 184, 82, 0.72);
+  color: #fff4d0;
+  background: rgba(181, 74, 44, 0.32);
+}
+
+.status,
+.future-panel {
+  max-width: 1180px;
+  margin: 0 auto;
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(244, 239, 225, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #c7bdad;
+}
+
+.status.error {
+  color: #ff8a78;
+}
+
+.future-panel span {
+  font-size: 36px;
+  color: #857969;
+}
+
+@media (max-width: 720px) {
+  .blacksmith-shell {
+    padding: 12px;
+  }
+
+  .blacksmith-header {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .gold-pill {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}

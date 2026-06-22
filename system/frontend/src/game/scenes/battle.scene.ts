@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { TurnManager } from "../../app/shared/game-core/turn-manager";
 import { WindSystem } from "../../app/shared/game-core/wind-system";
+import type { WindState } from "../../app/shared/game-core/wind-system";
 import { ProjectilePhysics } from "../../app/shared/game-core/projectile-physics";
 import { DamageCalculator } from "../../app/shared/game-core/damage-calculator";
 import { Difficulty } from "../../app/shared/game-core/ai-local";
@@ -9,7 +10,10 @@ import {
     AiStrategyType,
 } from "../../app/shared/game-core/ai-strategy";
 import { ProjectileConfig } from "../../app/shared/game-core/projectile-config";
-import { AiDecisionMaker, aiLogger } from "../../app/shared/game-core/ai-decision-maker";
+import {
+    AiDecisionMaker,
+    aiLogger,
+} from "../../app/shared/game-core/ai-decision-maker";
 import { BattleSnapshot } from "../../app/shared/game-core/ai-battle-types";
 
 interface BattleCharacterState {
@@ -36,17 +40,27 @@ interface BattleLaunchData {
     aiMaxHp?: number;
     aiAgility?: number;
     playerWeaponId?: string;
+    playerWeaponUpgradeLevel?: number;
+    playerWeaponRarity?: string;
     aiWeaponId?: string;
+    aiWeaponUpgradeLevel?: number;
+    aiWeaponRarity?: string;
     playerConsumables?: string[];
     playerStrength?: number;
+    playerDefense?: number;
     playerLuck?: number;
     aiStrength?: number;
+    aiDefense?: number;
     aiLuck?: number;
+    dungeonFloor?: number;
+    dungeonStage?: number;
     /** If set, overrides random difficulty selection for this battle. */
     difficulty?: Difficulty;
     /** Player level used to redistribute AI stats according to the chosen strategy. */
     playerLevel?: number;
 }
+
+type BattleFinishReason = "victory" | "defeat" | "surrender";
 import {
     TerrainEngine,
     MapMeta,
@@ -60,6 +74,8 @@ import {
     spawnToWorld,
     moveSpeed,
     moveBudget,
+    normalizeSpawns,
+    WorldSpawnPoint,
 } from "../terrain/spawn-selector";
 import type { SpawnNormalizationContext } from "../terrain/spawn-selector";
 import {
@@ -74,6 +90,7 @@ import { CharacterFall } from "../terrain/character-fall";
 import { TrajectoryIndicator } from "../ui/trajectory-indicator";
 import { ResultOverlay } from "../ui/result-overlay";
 import { WeaponSystem } from "../../app/shared/game-core/weapon-system";
+import type { ProjectilePhysicsProfile } from "../../app/shared/game-core/weapon-definition";
 import {
     WeaponDefinition,
     getWeaponAngleLimits,
@@ -126,6 +143,18 @@ import mapRunicForest from "../../app/shared/game-core/maps/map-runic-forest.jso
 import mapDungeonCaveEntrance from "../../app/shared/game-core/maps/dungeon-cave-entrance.json";
 import mapDungeonCaveHall from "../../app/shared/game-core/maps/dungeon-cave-hall.json";
 import mapDungeonCaveBoss from "../../app/shared/game-core/maps/dungeon-cave-boss.json";
+import mapDungeonF1S1 from "../../app/shared/game-core/maps/dungeon-f1-s1.json";
+import mapDungeonF1S2 from "../../app/shared/game-core/maps/dungeon-f1-s2.json";
+import {
+    DungeonBattleStageConfig,
+    DungeonMonsterBehavior,
+    DungeonMonsterDefinition,
+    dungeonMonsterAssetPath,
+    dungeonMonsterFrameKey,
+    getDungeonBattleStage,
+    scaleDungeonDamage,
+    scaleDungeonHp,
+} from "../dungeon/dungeon-battle-config";
 
 const WEAPON_COLORS: Record<string, number> = {
     cannon: 0xffaa00,
@@ -144,6 +173,8 @@ export type MapName =
     | "deep_mines"
     | "arcane_ruins"
     | "runic_forest"
+    | "dungeon_f1_s1"
+    | "dungeon_f1_s2"
     | "dungeon_cave_entrance"
     | "dungeon_cave_hall"
     | "dungeon_cave_boss";
@@ -160,6 +191,16 @@ export const BATTLE_MAPS: BattleMapOption[] = [
     { id: "deep_mines", label: "Minas Profundas", mode: "pvp" },
     { id: "arcane_ruins", label: "Ruínas Arcanas", mode: "pvp" },
     { id: "runic_forest", label: "Floresta Rúnica", mode: "pvp" },
+    {
+        id: "dungeon_f1_s1",
+        label: "Dungeon: Andar 1 - Estágio 1",
+        mode: "dungeon",
+    },
+    {
+        id: "dungeon_f1_s2",
+        label: "Dungeon: Andar 1 - Estágio 2",
+        mode: "dungeon",
+    },
     {
         id: "dungeon_cave_entrance",
         label: "Dungeon: Entrada da Caverna",
@@ -189,6 +230,11 @@ const MAP_ASSET_FOLDER: Record<string, string> = {
     runic_forest: "runic-forest",
 };
 
+const DUNGEON_MAP_ASSETS: Partial<Record<MapName, string>> = {
+    dungeon_f1_s1: "assets/dungeon/floor1/stage1/map",
+    dungeon_f1_s2: "assets/dungeon/floor1/stage2/map",
+};
+
 const MAP_WORLD_WIDTH = WORLD_WIDTH;
 const MIN_SHOT_POWER = 5;
 const POWER_STEP = 2;
@@ -206,10 +252,10 @@ const AI_SEARCH_BY_DIFFICULTY: Record<
         forceError: number;
     }
 > = {
-    easy:   { angleStep: 8, forceStep: 12, angleError: 14, forceError: 14 },
-    medium: { angleStep: 5, forceStep: 8,  angleError: 7,  forceError: 8  },
-    hard:   { angleStep: 3, forceStep: 5,  angleError: 3,  forceError: 4  },
-    heroic: { angleStep: 2, forceStep: 3,  angleError: 1,  forceError: 2  },
+    easy: { angleStep: 8, forceStep: 12, angleError: 14, forceError: 14 },
+    medium: { angleStep: 5, forceStep: 8, angleError: 7, forceError: 8 },
+    hard: { angleStep: 3, forceStep: 5, angleError: 3, forceError: 4 },
+    heroic: { angleStep: 2, forceStep: 3, angleError: 1, forceError: 2 },
 };
 const AI_REPOSITION_THRESHOLD = 70;
 
@@ -223,6 +269,42 @@ interface ProjectileAnimationOptions {
     onComplete?: (gameEnded: boolean) => void;
     /** Skip pre-clipping; check terrain per-frame so concurrent shots see live terrain state. */
     realtimeCollision?: boolean;
+}
+
+interface ProjectileImpactResult {
+    hitTerrain: boolean;
+    hitTarget: boolean;
+    targetStats: BattleCharacterState;
+    dungeonMonster?: DungeonMonsterRuntime;
+}
+
+interface TargetDamageBounds {
+    halfWidth: number;
+    halfHeight: number;
+}
+
+interface OpeningFocusTarget {
+    x: number;
+    y: number;
+    label: string;
+}
+
+interface DungeonMonsterRuntime {
+    id: string;
+    type: DungeonMonsterDefinition["type"];
+    name: string;
+    behavior: DungeonMonsterBehavior;
+    stats: BattleCharacterState;
+    baseDamage: number;
+    patrolMinX: number;
+    patrolMaxX: number;
+    patrolDirection: -1 | 1;
+    width: number;
+    height: number;
+    container: Phaser.GameObjects.Container;
+    body: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
+    hpText: Phaser.GameObjects.Text;
+    animationTimer?: Phaser.Time.TimerEvent;
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -239,13 +321,15 @@ export class BattleScene extends Phaser.Scene {
     // v0.6.0 runic effects
     private playerLuck = 10;
     private playerStrength = 0;
+    private playerDefense = 0;
     private aiStrength = 0;
+    private aiDefense = 0;
     private aiLuck = 10;
     // v1.7.0 AI strategy engine
     private readonly aiStrategyEngine = new AiStrategyEngine();
     // v1.7.0 tactical AI decision maker
     private readonly aiDecisionMaker = new AiDecisionMaker();
-    private aiStrategy: AiStrategyType = 'mixed';
+    private aiStrategy: AiStrategyType = "mixed";
     private aiExcavScore = 0;
     private aiLastImpactX: number | null = null;
     private teleportShotArmed = false;
@@ -299,8 +383,12 @@ export class BattleScene extends Phaser.Scene {
     private playerInitialMaxHp = 100;
     private aiInitialMaxHp = 100;
     private playerWeaponId: string | null = null;
+    private playerWeaponUpgradeLevel = 0;
+    private playerWeaponRarity = "common";
     private aiWeaponId: string | null = null;
-    private opponentRace = 'human';
+    private aiWeaponUpgradeLevel = 0;
+    private aiWeaponRarity = "common";
+    private opponentRace = "human";
     private moveBudgetTotal = 0;
     private moveBudgetUsed = 0;
     private movementBudgetHUD!: MovementBudgetHUD;
@@ -309,6 +397,11 @@ export class BattleScene extends Phaser.Scene {
     private isAnimating = false;
     private currentMap: MapName = "plains";
     private battleMode: BattleMode = "pvp";
+    private dungeonFloor = 1;
+    private dungeonStage = 1;
+    private dungeonStageConfig: DungeonBattleStageConfig | null = null;
+    private dungeonMonsters: DungeonMonsterRuntime[] = [];
+    private dungeonPortal?: Phaser.GameObjects.Container;
     private playerName = "Jogador";
     private opponentName = "Inimigo";
     private roomName = "";
@@ -393,7 +486,6 @@ export class BattleScene extends Phaser.Scene {
     private cameraStartScrollX = 0;
     private cameraStartScrollY = 0;
 
-
     // Set to true when started from playground (BootScene) — disables ghost trace
     private isPlayground = false;
 
@@ -415,37 +507,65 @@ export class BattleScene extends Phaser.Scene {
         this.battleMode = data?.mode ?? "pvp";
         this.currentMap =
             data?.mapName ??
-            (this.battleMode === "dungeon"
-                ? "dungeon_cave_entrance"
-                : "plains");
+            (this.battleMode === "dungeon" ? "dungeon_f1_s1" : "plains");
+        this.dungeonFloor = data?.dungeonFloor ?? 1;
+        this.dungeonStage = data?.dungeonStage ?? 1;
+        this.dungeonStageConfig =
+            this.battleMode === "dungeon"
+                ? getDungeonBattleStage(
+                      this.currentMap,
+                      this.dungeonFloor,
+                      this.dungeonStage,
+                  )
+                : null;
         this.playerAgility = data?.agility ?? 50;
         this.aiAgility = data?.aiAgility ?? 50;
         this.playerInitialMaxHp = data?.playerMaxHp ?? 100;
         this.aiInitialMaxHp = data?.aiMaxHp ?? 100;
         this.playerWeaponId = data?.playerWeaponId ?? null;
+        this.playerWeaponUpgradeLevel = data?.playerWeaponUpgradeLevel ?? 0;
+        this.playerWeaponRarity = data?.playerWeaponRarity ?? "common";
         this.aiWeaponId = data?.aiWeaponId ?? null;
+        this.aiWeaponUpgradeLevel = data?.aiWeaponUpgradeLevel ?? 0;
+        this.aiWeaponRarity = data?.aiWeaponRarity ?? "common";
         this.playerConsumables = data?.playerConsumables ?? [];
         this.playerStrength = data?.playerStrength ?? 0;
+        this.playerDefense = Phaser.Math.Clamp(
+            data?.playerDefense ?? 0,
+            0,
+            0.6,
+        );
         this.playerLuck = data?.playerLuck ?? 10;
         this.aiStrength = data?.aiStrength ?? 0;
+        this.aiDefense = Phaser.Math.Clamp(data?.aiDefense ?? 0, 0, 0.6);
         this.aiLuck = data?.aiLuck ?? 10;
         this.playerRace = data?.playerRace ?? "human";
         this.opponentRace = data?.opponentRace ?? "human";
         this.playerName = data?.playerName?.trim() || "Jogador";
         this.vsAI = data?.vsAI ?? true;
-        this.opponentName =
-            data?.opponentName?.trim() || (this.vsAI ? "Inimigo" : "Oponente");
-        this.roomName = data?.roomName?.trim() || "";
-
         // Pick difficulty randomly each match unless explicitly provided
         this.difficulty = data?.difficulty ?? this.pickRandomDifficulty();
+        this.opponentName =
+            data?.opponentName?.trim() || (this.vsAI ? "Inimigo" : "Oponente");
+        if (this.dungeonStageConfig?.monsters[0]) {
+            this.aiInitialMaxHp = scaleDungeonHp(
+                this.dungeonStageConfig.monsters[0].baseHp,
+                this.difficulty,
+            );
+            this.opponentName = this.dungeonStageConfig.monsters[0].name;
+        }
+        this.roomName = data?.roomName?.trim() || "";
 
         // Pick AI strategy for this battle based on difficulty
         this.aiStrategy = this.aiStrategyEngine.pickStrategy(this.difficulty);
 
         // Redistribute AI stats according to strategy when player level is known
         const playerLevel = data?.playerLevel;
-        if (playerLevel && (this.vsAI ?? true)) {
+        if (
+            playerLevel &&
+            (this.vsAI ?? true) &&
+            this.battleMode !== "dungeon"
+        ) {
             const stats = this.aiStrategyEngine.computeAiStats(
                 playerLevel,
                 this.aiStrategy,
@@ -460,6 +580,7 @@ export class BattleScene extends Phaser.Scene {
     preload(): void {
         // Terrain PNG background: only load the selected map. Each full background is several MB.
         this.preloadCurrentMapBackground();
+        this.preloadDungeonMonsters();
         // Terrain tile textures (override programmatic generation when present)
         this.load.image(
             "terrain_destructible",
@@ -567,6 +688,18 @@ export class BattleScene extends Phaser.Scene {
     }
 
     private preloadCurrentMapBackground(): void {
+        const dungeonAssetPath = DUNGEON_MAP_ASSETS[this.currentMap];
+        if (dungeonAssetPath) {
+            this.load.image(
+                `map_${this.currentMap}_bg`,
+                `${dungeonAssetPath}/background.png`,
+            );
+            this.load.image(
+                `map_${this.currentMap}_terrain`,
+                `${dungeonAssetPath}/terrain.png`,
+            );
+            return;
+        }
         if (this.currentMap.startsWith("dungeon")) {
             this.load.image(
                 "terrain_dungeon_bg",
@@ -583,6 +716,25 @@ export class BattleScene extends Phaser.Scene {
             `map_${this.currentMap}_terrain`,
             `assets/maps/${folder}/terrain.png`,
         );
+    }
+
+    private preloadDungeonMonsters(): void {
+        if (!this.dungeonStageConfig) return;
+        const monsterTypes = new Set(
+            this.dungeonStageConfig.monsters.map((monster) => monster.type),
+        );
+        for (const type of monsterTypes) {
+            for (let frame = 0; frame < 4; frame += 1) {
+                const key = dungeonMonsterFrameKey(type, frame);
+                if (this.textures.exists(key)) continue;
+                const path = dungeonMonsterAssetPath(
+                    this.currentMap,
+                    type,
+                    frame,
+                );
+                if (path) this.load.image(key, path);
+            }
+        }
     }
 
     private resetRuntimeState(): void {
@@ -654,6 +806,8 @@ export class BattleScene extends Phaser.Scene {
         this.battleEnded = false;
         this.aiExcavScore = 0;
         this.aiLastImpactX = null;
+        this.dungeonMonsters = [];
+        this.dungeonPortal = undefined;
     }
 
     create(): void {
@@ -668,12 +822,30 @@ export class BattleScene extends Phaser.Scene {
         }
 
         // Initialize weapons — use configured IDs if provided, else default
-        this.playerWeapon = this.playerWeaponId
-            ? (this.weaponSystem.getById(this.playerWeaponId) ?? this.weaponSystem.getDefault())
+        const playerWeaponBase = this.playerWeaponId
+            ? (this.weaponSystem.getById(this.playerWeaponId) ??
+              this.weaponSystem.getDefault())
             : this.weaponSystem.getDefault();
-        this.aiWeapon = this.aiWeaponId
-            ? (this.weaponSystem.getById(this.aiWeaponId) ?? this.weaponSystem.getDefault())
+        this.playerWeapon = {
+            ...playerWeaponBase,
+            baseDamage: this.applyWeaponUpgrade(
+                playerWeaponBase.baseDamage,
+                this.playerWeaponRarity,
+                this.playerWeaponUpgradeLevel,
+            ),
+        };
+        const aiWeaponBase = this.aiWeaponId
+            ? (this.weaponSystem.getById(this.aiWeaponId) ??
+              this.weaponSystem.getDefault())
             : this.weaponSystem.getDefault();
+        this.aiWeapon = {
+            ...aiWeaponBase,
+            baseDamage: this.applyWeaponUpgrade(
+                aiWeaponBase.baseDamage,
+                this.aiWeaponRarity,
+                this.aiWeaponUpgradeLevel,
+            ),
+        };
         this.projRenderer = new ProjectileRenderer(this);
 
         const { width, height } = this.scale;
@@ -681,11 +853,14 @@ export class BattleScene extends Phaser.Scene {
         const initialMap = this.getMapOption(this.currentMap);
         this.battleMode = initialMap.mode;
 
-        if (this.currentMap.startsWith("dungeon")) {
+        const currentTerrainKey = `map_${this.currentMap}_terrain`;
+        if (this.textures.exists(currentTerrainKey)) {
+            const imgData = this.getTerrainImageData(currentTerrainKey);
+            this.terrainEngine = TerrainEngine.fromImageData(imgData);
+        } else if (this.currentMap.startsWith("dungeon")) {
             this.terrainEngine = new TerrainEngine();
         } else {
-            const terrainKey = `map_${this.currentMap}_terrain`;
-            const imgData = this.getTerrainImageData(terrainKey);
+            const imgData = this.getTerrainImageData(currentTerrainKey);
             this.terrainEngine = TerrainEngine.fromImageData(imgData);
         }
 
@@ -700,7 +875,17 @@ export class BattleScene extends Phaser.Scene {
             )
             .setDepth(-20);
 
-        if (this.currentMap.startsWith("dungeon")) {
+        const currentBgKey = `map_${this.currentMap}_bg`;
+        if (
+            this.textures.exists(currentBgKey) &&
+            this.textures.exists(currentTerrainKey)
+        ) {
+            this.terrainRenderer = new TerrainRenderer(
+                this,
+                currentBgKey,
+                currentTerrainKey,
+            );
+        } else if (this.currentMap.startsWith("dungeon")) {
             this.terrainRenderer = new TerrainRenderer(
                 this,
                 "terrain_dungeon_bg",
@@ -735,7 +920,12 @@ export class BattleScene extends Phaser.Scene {
         const fallbackAiX = WORLD_WIDTH * 0.9;
 
         if (spawns[0]) {
-            const p = spawnToWorld(spawns[0], 1, charHeight, this.terrainEngine);
+            const p = spawnToWorld(
+                spawns[0],
+                1,
+                charHeight,
+                this.terrainEngine,
+            );
             this.playerStats.x = p.x;
             this.playerStats.y = p.y;
         } else {
@@ -748,7 +938,12 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (spawns[1]) {
-            const a = spawnToWorld(spawns[1], 1, charHeight, this.terrainEngine);
+            const a = spawnToWorld(
+                spawns[1],
+                1,
+                charHeight,
+                this.terrainEngine,
+            );
             this.aiStats.x = a.x;
             this.aiStats.y = a.y;
         } else {
@@ -868,7 +1063,10 @@ export class BattleScene extends Phaser.Scene {
         );
 
         // [v1.5.0] CharacterSprite for enemy — use configured race or fallback
-        const aiRace: Race = this.battleMode === "dungeon" ? "dwarf" : (this.opponentRace as Race) ?? "elf";
+        const aiRace: Race =
+            this.battleMode === "dungeon"
+                ? "dwarf"
+                : ((this.opponentRace as Race) ?? "elf");
         this.aiCharacterSprite = CharacterSprite.create(
             this,
             aiRace,
@@ -901,6 +1099,10 @@ export class BattleScene extends Phaser.Scene {
                 aiBaseSprite,
                 aiRace,
             );
+        }
+
+        if (this.dungeonStageConfig) {
+            this.createDungeonStageObjects(mapMeta, spawnContext);
         }
 
         // Ghost trace: only in real battles (not playground)
@@ -938,7 +1140,11 @@ export class BattleScene extends Phaser.Scene {
 
         // Auto-pass player's turn when the timer expires
         this.events.on("turn:expired", () => {
-            if (this.turnManager.isPlayerTurn && !this.isAnimating && !this.isChargingPower) {
+            if (
+                this.turnManager.isPlayerTurn &&
+                !this.isAnimating &&
+                !this.isChargingPower
+            ) {
                 this.passTurn();
             }
         });
@@ -958,6 +1164,209 @@ export class BattleScene extends Phaser.Scene {
 
         // Handle resize
         this.scale.on("resize", this.onResize, this);
+
+        this.startOpeningBattleIntro();
+    }
+
+    private startOpeningBattleIntro(): void {
+        const targets = this.getOpeningFocusTargets();
+        if (targets.length === 0) {
+            this.finishOpeningBattleIntro();
+            return;
+        }
+
+        this.isAnimating = true;
+        this.movementBudgetHUD?.setVisible(false);
+        this.cameras.main.stopFollow();
+
+        let index = 0;
+        const focusNext = (): void => {
+            if (this.battleEnded) return;
+            const target = targets[index];
+            if (!target) {
+                this.showDungeonObjectiveIntro(() =>
+                    this.finishOpeningBattleIntro(),
+                );
+                return;
+            }
+
+            index += 1;
+            this.focusCameraOnOpeningTarget(target);
+            this.showOpeningFocusLabel(target);
+            this.scheduleTurnEvent(500, focusNext);
+        };
+
+        focusNext();
+    }
+
+    private getOpeningFocusTargets(): OpeningFocusTarget[] {
+        const targets: OpeningFocusTarget[] = [
+            {
+                x: this.playerStats.x,
+                y: this.playerStats.y,
+                label: this.playerName,
+            },
+        ];
+
+        if (this.dungeonStageConfig) {
+            for (const monster of this.getAliveDungeonMonsters()) {
+                targets.push({
+                    x: monster.stats.x,
+                    y: monster.stats.y,
+                    label: monster.name,
+                });
+            }
+            return targets;
+        }
+
+        targets.push({
+            x: this.aiStats.x,
+            y: this.aiStats.y,
+            label: this.opponentName,
+        });
+        return targets;
+    }
+
+    private focusCameraOnOpeningTarget(target: OpeningFocusTarget): void {
+        const camera = this.cameras.main;
+        const halfWidth = camera.width / 2;
+        const halfHeight = camera.height / 2;
+        const x = Phaser.Math.Clamp(
+            target.x,
+            halfWidth,
+            WORLD_WIDTH - halfWidth,
+        );
+        const y = Phaser.Math.Clamp(
+            target.y - 20,
+            halfHeight,
+            WORLD_HEIGHT - halfHeight,
+        );
+        camera.pan(x, y, 450, "Sine.easeInOut", true);
+    }
+
+    private showOpeningFocusLabel(target: OpeningFocusTarget): void {
+        const text = this.add
+            .text(this.scale.width / 2, 92, target.label, {
+                fontSize: "18px",
+                color: "#f9e7b0",
+                fontFamily: "Georgia, serif",
+                fontStyle: "bold",
+                stroke: "#101827",
+                strokeThickness: 4,
+            })
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(80)
+            .setAlpha(0);
+
+        this.tweens.add({
+            targets: text,
+            alpha: 1,
+            y: 82,
+            duration: 220,
+            ease: "Sine.easeOut",
+            yoyo: true,
+            hold: 1200,
+            onComplete: () => text.destroy(),
+        });
+    }
+
+    private showDungeonObjectiveIntro(onComplete: () => void): void {
+        if (!this.dungeonStageConfig) {
+            onComplete();
+            return;
+        }
+
+        const message = this.getDungeonObjectiveMessage();
+        const panelWidth = Math.min(this.scale.width - 48, 560);
+        const panelHeight = 138;
+        const panel = this.add
+            .rectangle(0, 0, panelWidth, panelHeight, 0x101827, 0.94)
+            .setStrokeStyle(2, 0xd9a441, 0.95);
+        const accent = this.add.rectangle(
+            0,
+            -panelHeight / 2 + 8,
+            panelWidth - 28,
+            3,
+            0x47d5ff,
+            0.85,
+        );
+        const title = this.add
+            .text(0, -38, "Objetivo da dungeon", {
+                fontSize: "18px",
+                color: "#f7d77f",
+                fontFamily: "Georgia, serif",
+                fontStyle: "bold",
+                stroke: "#05070c",
+                strokeThickness: 3,
+            })
+            .setOrigin(0.5);
+        const body = this.add
+            .text(0, 20, message, {
+                fontSize: "16px",
+                color: "#f7fbff",
+                fontFamily: "Georgia, serif",
+                align: "center",
+                wordWrap: { width: panelWidth - 56 },
+                lineSpacing: 6,
+            })
+            .setOrigin(0.5);
+        const container = this.add
+            .container(this.scale.width / 2, this.scale.height / 2, [
+                panel,
+                accent,
+                title,
+                body,
+            ])
+            .setScrollFactor(0)
+            .setDepth(90)
+            .setAlpha(0);
+
+        this.tweens.add({
+            targets: container,
+            alpha: 1,
+            y: this.scale.height / 2 - 8,
+            duration: 260,
+            ease: "Sine.easeOut",
+        });
+        this.scheduleTurnEvent(3200, () => {
+            this.tweens.add({
+                targets: container,
+                alpha: 0,
+                y: this.scale.height / 2 - 22,
+                duration: 220,
+                ease: "Sine.easeIn",
+                onComplete: () => {
+                    container.destroy(true);
+                    onComplete();
+                },
+            });
+        });
+    }
+
+    private getDungeonObjectiveMessage(): string {
+        if (!this.dungeonStageConfig) return "";
+        if (this.dungeonStageConfig.objective === "TRAVERSE") {
+            return "Seu objetivo é atravessar a caverna e alcançar o portal para vencer este estágio.";
+        }
+        if (this.dungeonStageConfig.objective === "DEFEAT_BOSS") {
+            return "Derrote o chefe para conquistar este andar e liberar as recompensas.";
+        }
+        return "Elimine todos os monstros da sala para vencer este estágio.";
+    }
+
+    private finishOpeningBattleIntro(): void {
+        if (this.battleEnded) return;
+        this.isAnimating = false;
+        this.cameras.main.startFollow(
+            this.turnManager.isPlayerTurn ? this.playerSprite : this.aiSprite,
+            true,
+            0.08,
+            0.08,
+        );
+        this.movementBudgetHUD?.setVisible(this.turnManager.isPlayerTurn);
+        this.refreshHud();
+        this.updateTrajectoryPreview();
     }
 
     override update(time: number, delta: number): void {
@@ -974,11 +1383,9 @@ export class BattleScene extends Phaser.Scene {
                 this.terrainEngine,
                 delta,
             );
-            const aiFallState = this.aiFall.update(
-                this.aiSprite,
-                this.terrainEngine,
-                delta,
-            );
+            const aiFallState = this.dungeonStageConfig
+                ? null
+                : this.aiFall.update(this.aiSprite, this.terrainEngine, delta);
 
             if (playerFallState === "dead" && this.playerStats.hp > 0) {
                 this.playerStats.hp = 0;
@@ -993,8 +1400,12 @@ export class BattleScene extends Phaser.Scene {
 
             this.playerStats.x = this.playerSprite.x;
             this.playerStats.y = this.playerSprite.y;
-            this.aiStats.x = this.aiSprite.x;
-            this.aiStats.y = this.aiSprite.y;
+            if (this.dungeonStageConfig) {
+                this.syncPrimaryDungeonMonster();
+            } else {
+                this.aiStats.x = this.aiSprite.x;
+                this.aiStats.y = this.aiSprite.y;
+            }
             this.syncActorAssets();
         }
 
@@ -1026,6 +1437,13 @@ export class BattleScene extends Phaser.Scene {
             const angleLimits = getWeaponAngleLimits(
                 this.playerWeapon?.id ?? "default",
             );
+            const dungeonEnemyTeam = this.buildDungeonEnemyTeam();
+            const enemyHud = dungeonEnemyTeam[0] ?? {
+                name: this.opponentName,
+                hp: this.aiStats.hp,
+                maxHp: this.aiStats.maxHp,
+                active: !this.turnManager.isPlayerTurn,
+            };
             const hudState: BattleHudState = {
                 player: {
                     name: this.playerName,
@@ -1035,9 +1453,9 @@ export class BattleScene extends Phaser.Scene {
                     maxStamina: this.moveBudgetTotal,
                 },
                 enemy: {
-                    name: this.opponentName,
-                    hp: this.aiStats.hp,
-                    maxHp: this.aiStats.maxHp,
+                    name: enemyHud.name,
+                    hp: enemyHud.hp,
+                    maxHp: enemyHud.maxHp,
                     stamina: 100,
                     maxStamina: 100,
                 },
@@ -1050,14 +1468,16 @@ export class BattleScene extends Phaser.Scene {
                             active: this.turnManager.isPlayerTurn,
                         },
                     ],
-                    right: [
-                        {
-                            name: this.opponentName,
-                            hp: this.aiStats.hp,
-                            maxHp: this.aiStats.maxHp,
-                            active: !this.turnManager.isPlayerTurn,
-                        },
-                    ],
+                    right: this.dungeonStageConfig
+                        ? dungeonEnemyTeam
+                        : [
+                              {
+                                  name: this.opponentName,
+                                  hp: this.aiStats.hp,
+                                  maxHp: this.aiStats.maxHp,
+                                  active: !this.turnManager.isPlayerTurn,
+                              },
+                          ],
                 },
                 roomName: this.roomName,
                 mapName: this.getMapOption(this.currentMap).label,
@@ -1093,12 +1513,18 @@ export class BattleScene extends Phaser.Scene {
 
     private snapCharactersToGround(): void {
         this.playerFall.snapToGround(this.playerSprite, this.terrainEngine);
-        this.aiFall.snapToGround(this.aiSprite, this.terrainEngine);
+        if (!this.dungeonStageConfig) {
+            this.aiFall.snapToGround(this.aiSprite, this.terrainEngine);
+        }
         this.ensureCharactersOutsideTerrain();
         this.playerStats.x = this.playerSprite.x;
         this.playerStats.y = this.playerSprite.y;
-        this.aiStats.x = this.aiSprite.x;
-        this.aiStats.y = this.aiSprite.y;
+        if (this.dungeonStageConfig) {
+            this.syncPrimaryDungeonMonster();
+        } else {
+            this.aiStats.x = this.aiSprite.x;
+            this.aiStats.y = this.aiSprite.y;
+        }
         this.syncActorAssets();
     }
 
@@ -1118,9 +1544,10 @@ export class BattleScene extends Phaser.Scene {
     private getMapTerrainSourceSize(
         mapName: MapName,
     ): { width: number; height: number } | undefined {
-        if (mapName.startsWith("dungeon")) return undefined;
+        const terrainKey = `map_${mapName}_terrain`;
+        if (!this.textures.exists(terrainKey)) return undefined;
 
-        const texture = this.textures.get(`map_${mapName}_terrain`);
+        const texture = this.textures.get(terrainKey);
         const source = texture?.getSourceImage() as
             | { width?: number; height?: number }
             | undefined;
@@ -1152,20 +1579,326 @@ export class BattleScene extends Phaser.Scene {
             searchRadiusX?: number;
         },
     ): { x: number; y: number } | null {
-        return findSafeGroundedPosition(
-            this.terrainEngine,
-            desiredX,
-            startY,
+        return findSafeGroundedPosition(this.terrainEngine, desiredX, startY, {
+            halfWidth: options?.halfWidth ?? CHARACTER_BODY_HALF_WIDTH,
+            height: options?.height ?? CHARACTER_BODY_HEIGHT,
+            minX: 72,
+            maxX: MAP_WORLD_WIDTH - 72,
+            searchUp: options?.searchUp ?? WORLD_HEIGHT,
+            searchDown: options?.searchDown ?? WORLD_HEIGHT,
+            searchRadiusX: options?.searchRadiusX ?? 240,
+        });
+    }
+
+    private createDungeonStageObjects(
+        mapMeta: MapMeta | undefined,
+        spawnContext: SpawnNormalizationContext,
+    ): void {
+        if (!this.dungeonStageConfig) return;
+
+        this.aiAvatar?.setVisible(false);
+        this.aiWeaponIcon?.setVisible(false);
+        this.aiNameLabel?.setVisible(false);
+        this.aiCharacterSprite?.container.setVisible(false);
+
+        const spawnPoints = normalizeSpawns(
+            mapMeta?.spawnPoints ?? [],
+            spawnContext,
+        );
+        const playerSpawn = spawnPoints[0];
+        const monsterSpawnPoints =
+            spawnPoints.length > 1 ? spawnPoints.slice(1) : spawnPoints;
+        const searchY = playerSpawn?.y ?? WORLD_HEIGHT * 0.68;
+        const playerSafe = this.findSafeCharacterPosition(
+            playerSpawn?.x ?? this.dungeonStageConfig.playerStartX,
+            searchY,
             {
-                halfWidth: options?.halfWidth ?? CHARACTER_BODY_HALF_WIDTH,
-                height: options?.height ?? CHARACTER_BODY_HEIGHT,
-                minX: 72,
-                maxX: MAP_WORLD_WIDTH - 72,
-                searchUp: options?.searchUp ?? WORLD_HEIGHT,
-                searchDown: options?.searchDown ?? WORLD_HEIGHT,
-                searchRadiusX: options?.searchRadiusX ?? 240,
+                searchUp: 520,
+                searchDown: 620,
+                searchRadiusX: 220,
             },
         );
+        if (playerSafe) {
+            this.playerSprite.setPosition(playerSafe.x, playerSafe.y);
+            this.playerStats.x = playerSafe.x;
+            this.playerStats.y = playerSafe.y;
+        }
+
+        if (this.dungeonStageConfig.objective === "TRAVERSE") {
+            this.createDungeonPortal(searchY);
+        }
+
+        let monsterIndex = 0;
+        for (const monsterDef of this.dungeonStageConfig.monsters) {
+            for (let i = 0; i < monsterDef.count; i += 1) {
+                this.dungeonMonsters.push(
+                    this.createDungeonMonster(
+                        monsterDef,
+                        monsterIndex,
+                        monsterSpawnPoints,
+                        searchY,
+                    ),
+                );
+                monsterIndex += 1;
+            }
+        }
+
+        this.syncPrimaryDungeonMonster();
+        this.syncActorAssets();
+    }
+
+    private createDungeonPortal(searchY: number): void {
+        if (!this.dungeonStageConfig?.portalX) return;
+        const safe = this.findSafeCharacterPosition(
+            this.dungeonStageConfig.portalX,
+            searchY,
+            {
+                searchUp: 520,
+                searchDown: 620,
+                searchRadiusX: 180,
+            },
+        );
+        const x = safe?.x ?? this.dungeonStageConfig.portalX;
+        const y = (safe?.y ?? searchY) - 16;
+        const portal = this.add
+            .circle(0, 0, 42, 0x5fd9ff, 0.34)
+            .setStrokeStyle(4, 0xb8fbff)
+            .setDepth(8);
+        const label = this.add
+            .text(0, 56, "Portal", {
+                fontSize: "12px",
+                color: "#d8fbff",
+                fontFamily: "monospace",
+                stroke: "#082332",
+                strokeThickness: 3,
+            })
+            .setOrigin(0.5)
+            .setDepth(9);
+        this.dungeonPortal = this.add
+            .container(x, y, [portal, label])
+            .setDepth(8);
+    }
+
+    private createDungeonMonster(
+        monsterDef: DungeonMonsterDefinition,
+        index: number,
+        spawnPoints: WorldSpawnPoint[],
+        searchY: number,
+    ): DungeonMonsterRuntime {
+        const preferred = spawnPoints[index % Math.max(1, spawnPoints.length)];
+        const spawnCycleOffset =
+            spawnPoints.length > 0
+                ? Math.floor(index / spawnPoints.length) * 74
+                : 0;
+        const desiredX =
+            (preferred?.x ?? MAP_WORLD_WIDTH - 420 - index * 90) +
+            spawnCycleOffset;
+        const floorSafe = this.findSafeCharacterPosition(
+            desiredX,
+            preferred?.y ?? searchY,
+            {
+                searchUp: 560,
+                searchDown: 620,
+                searchRadiusX: 140,
+            },
+        );
+        const floorY = floorSafe?.y ?? preferred?.y ?? searchY;
+        const isFlyer =
+            monsterDef.behavior === "HORIZONTAL_FLYER" ||
+            monsterDef.behavior === "BOSS_FLYER";
+        const x = floorSafe?.x ?? desiredX;
+        const y = isFlyer
+            ? Math.max(
+                  120,
+                  floorY - monsterDef.height * 1.35 - (index % 3) * 36,
+              )
+            : floorY;
+        const maxHp = scaleDungeonHp(monsterDef.baseHp, this.difficulty);
+        const textureKey = dungeonMonsterFrameKey(monsterDef.type, 0);
+        const body = this.textures.exists(textureKey)
+            ? this.add
+                  .image(0, 0, textureKey)
+                  .setDisplaySize(monsterDef.width, monsterDef.height)
+            : this.add
+                  .rectangle(
+                      0,
+                      0,
+                      monsterDef.width,
+                      monsterDef.height,
+                      0x9a5cff,
+                  )
+                  .setStrokeStyle(2, 0x1a1028);
+        const hpText = this.add
+            .text(0, -monsterDef.height / 2 - 14, `${maxHp}/${maxHp}`, {
+                fontSize: "11px",
+                color: "#f6d26f",
+                fontFamily: "monospace",
+                stroke: "#000000",
+                strokeThickness: 3,
+            })
+            .setOrigin(0.5);
+        const nameText = this.add
+            .text(0, monsterDef.height / 2 + 14, monsterDef.name, {
+                fontSize: "10px",
+                color: "#ffffff",
+                fontFamily: "monospace",
+                stroke: "#000000",
+                strokeThickness: 3,
+            })
+            .setOrigin(0.5);
+        const container = this.add
+            .container(x, y, [body, hpText, nameText])
+            .setDepth(11);
+        const runtime: DungeonMonsterRuntime = {
+            id: `${monsterDef.type.toLowerCase()}-${index + 1}`,
+            type: monsterDef.type,
+            name: monsterDef.name,
+            behavior: monsterDef.behavior,
+            stats: {
+                hp: maxHp,
+                maxHp,
+                x,
+                y,
+                isPlayer: false,
+                facing: "left",
+            },
+            baseDamage: monsterDef.baseDamage,
+            patrolMinX: Math.max(72, x - monsterDef.patrolRange),
+            patrolMaxX: Math.min(
+                MAP_WORLD_WIDTH - 72,
+                x + monsterDef.patrolRange,
+            ),
+            patrolDirection: index % 2 === 0 ? 1 : -1,
+            width: monsterDef.width,
+            height: monsterDef.height,
+            container,
+            body,
+            hpText,
+        };
+        this.attachDungeonMonsterAnimation(runtime);
+        return runtime;
+    }
+
+    private attachDungeonMonsterAnimation(
+        monster: DungeonMonsterRuntime,
+    ): void {
+        if (!(monster.body instanceof Phaser.GameObjects.Image)) return;
+        const frames = [0, 1, 2, 3]
+            .map((frame) => dungeonMonsterFrameKey(monster.type, frame))
+            .filter((key) => this.textures.exists(key));
+        if (frames.length < 2) return;
+
+        let frameIndex = 0;
+        monster.animationTimer = this.time.addEvent({
+            delay: monster.behavior === "BOSS_FLYER" ? 160 : 110,
+            loop: true,
+            callback: () => {
+                frameIndex = (frameIndex + 1) % frames.length;
+                if (monster.body instanceof Phaser.GameObjects.Image) {
+                    monster.body.setTexture(frames[frameIndex]);
+                }
+            },
+        });
+        monster.container.once("destroy", () =>
+            monster.animationTimer?.remove(false),
+        );
+    }
+
+    private syncPrimaryDungeonMonster(): void {
+        if (!this.dungeonStageConfig) return;
+        const firstAlive = this.dungeonMonsters.find(
+            (monster) => monster.stats.hp > 0,
+        );
+        const primary = firstAlive ?? this.dungeonMonsters[0];
+        if (!primary) return;
+        this.aiStats = primary.stats;
+        this.aiSprite.setPosition(primary.stats.x, primary.stats.y);
+        this.aiSprite.setSize(primary.width, primary.height);
+        this.aiSprite.setAlpha(0.001);
+        this.opponentName = primary.name;
+    }
+
+    private updateDungeonMonsterVisual(monster: DungeonMonsterRuntime): void {
+        monster.stats.x = monster.container.x;
+        monster.stats.y = monster.container.y;
+        monster.hpText.setText(`${monster.stats.hp}/${monster.stats.maxHp}`);
+        monster.container.setVisible(monster.stats.hp > 0);
+        if (monster.stats.hp <= 0) {
+            monster.animationTimer?.remove(false);
+        }
+    }
+
+    private getAliveDungeonMonsters(): DungeonMonsterRuntime[] {
+        return this.dungeonMonsters.filter((monster) => monster.stats.hp > 0);
+    }
+
+    private buildDungeonEnemyTeam(): Array<{
+        name: string;
+        hp: number;
+        maxHp: number;
+        active: boolean;
+    }> {
+        if (!this.dungeonStageConfig) return [];
+        const alive = this.getAliveDungeonMonsters();
+        const source = alive.length > 0 ? alive : this.dungeonMonsters;
+        return source.slice(0, 6).map((monster, index) => ({
+            name:
+                source.length > 1
+                    ? `${monster.name} ${index + 1}`
+                    : monster.name,
+            hp: monster.stats.hp,
+            maxHp: monster.stats.maxHp,
+            active:
+                !this.turnManager.isPlayerTurn &&
+                monster.stats.hp > 0 &&
+                index === 0,
+        }));
+    }
+
+    private getDungeonTargetAt(point: {
+        x: number;
+        y: number;
+    }): DungeonMonsterRuntime | undefined {
+        return this.getAliveDungeonMonsters().find((monster) => {
+            const dx = Math.abs(point.x - monster.stats.x);
+            const dy = Math.abs(point.y - monster.stats.y);
+            return (
+                dx <= Math.max(30, monster.width * 0.45) &&
+                dy <= Math.max(36, monster.height * 0.45)
+            );
+        });
+    }
+
+    private getNearestDungeonTarget(point: {
+        x: number;
+        y: number;
+    }): DungeonMonsterRuntime | undefined {
+        let best: { monster: DungeonMonsterRuntime; distance: number } | null =
+            null;
+        for (const monster of this.getAliveDungeonMonsters()) {
+            const dx = point.x - monster.stats.x;
+            const dy = point.y - monster.stats.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (!best || distance < best.distance) best = { monster, distance };
+        }
+        return best?.monster;
+    }
+
+    private checkDungeonPortalReached(): void {
+        if (
+            this.battleEnded ||
+            this.dungeonStageConfig?.objective !== "TRAVERSE" ||
+            !this.dungeonPortal
+        ) {
+            return;
+        }
+        const distance = Phaser.Math.Distance.Between(
+            this.playerStats.x,
+            this.playerStats.y,
+            this.dungeonPortal.x,
+            this.dungeonPortal.y,
+        );
+        if (distance <= 82) this.finishBattle(true);
     }
 
     private ensureCharactersOutsideTerrain(): void {
@@ -1180,7 +1913,10 @@ export class BattleScene extends Phaser.Scene {
                 maxX: MAP_WORLD_WIDTH - 72,
             },
         );
-        if (playerSafe) this.playerSprite.setPosition(playerSafe.x, playerSafe.y);
+        if (playerSafe)
+            this.playerSprite.setPosition(playerSafe.x, playerSafe.y);
+
+        if (this.dungeonStageConfig) return;
 
         const aiSafe = resolveCharacterTerrainOverlap(
             this.terrainEngine,
@@ -1423,7 +2159,9 @@ export class BattleScene extends Phaser.Scene {
         this.surrenderButton.on("pointerout", () =>
             this.surrenderButton?.setFillStyle(0x4e1414, 0.94),
         );
-        this.surrenderButton.on("pointerdown", () => this.confirmSurrenderBattle());
+        this.surrenderButton.on("pointerdown", () =>
+            this.confirmSurrenderBattle(),
+        );
 
         this.layoutBattleMenuButton();
     }
@@ -1444,9 +2182,17 @@ export class BattleScene extends Phaser.Scene {
         const panelWidth = 156;
         const panelX = width - panelWidth - 16;
         const panelY = 64;
+        const showExitButton = this.battleMode !== "dungeon";
 
         const bg = this.add
-            .rectangle(0, 0, panelWidth, 112, 0x111827, 0.95)
+            .rectangle(
+                0,
+                0,
+                panelWidth,
+                showExitButton ? 112 : 64,
+                0x111827,
+                0.95,
+            )
             .setOrigin(0, 0)
             .setStrokeStyle(1, 0x7dd3fc, 0.75);
         const surrenderBtn = this.add
@@ -1481,18 +2227,28 @@ export class BattleScene extends Phaser.Scene {
             surrenderBtn.setFillStyle(0x7f1d1d, 0.95),
         );
         surrenderBtn.on("pointerdown", () => this.surrenderBattle());
-        exitBtn.on("pointerover", () => exitBtn.setFillStyle(0x475569, 0.98));
-        exitBtn.on("pointerout", () => exitBtn.setFillStyle(0x334155, 0.95));
-        exitBtn.on("pointerdown", () => this.exitBattle());
+
+        const menuItems: Phaser.GameObjects.GameObject[] = [
+            bg,
+            surrenderBtn,
+            surrenderText,
+        ];
+        if (showExitButton) {
+            exitBtn.on("pointerover", () =>
+                exitBtn.setFillStyle(0x475569, 0.98),
+            );
+            exitBtn.on("pointerout", () =>
+                exitBtn.setFillStyle(0x334155, 0.95),
+            );
+            exitBtn.on("pointerdown", () => this.exitBattle());
+            menuItems.push(exitBtn, exitText);
+        } else {
+            exitBtn.destroy();
+            exitText.destroy();
+        }
 
         this.battleMenuPanel = this.add
-            .container(panelX, panelY, [
-                bg,
-                surrenderBtn,
-                surrenderText,
-                exitBtn,
-                exitText,
-            ])
+            .container(panelX, panelY, menuItems)
             .setDepth(30)
             .setScrollFactor(0);
     }
@@ -1520,7 +2276,9 @@ export class BattleScene extends Phaser.Scene {
 
     private confirmSurrenderBattle(): void {
         if (this.battleEnded) return;
-        const confirmed = window.confirm("Deseja realmente desistir da partida?");
+        const confirmed = window.confirm(
+            "Deseja realmente desistir da partida?",
+        );
         if (!confirmed) return;
         this.surrenderBattle();
     }
@@ -1531,27 +2289,38 @@ export class BattleScene extends Phaser.Scene {
         this.leaveChargePerformanceMode();
         this.battleHud?.setCharging(false);
         this.isAnimating = true;
-        this.finishBattle(false);
+        this.finishBattle(false, "surrender");
     }
 
     private exitBattle(): void {
+        if (this.battleMode === "dungeon") {
+            this.surrenderBattle();
+            return;
+        }
         window.dispatchEvent(new CustomEvent("rune-wars:battle-exit"));
     }
 
-    private finishBattle(victory: boolean): void {
+    private finishBattle(
+        victory: boolean,
+        reason: BattleFinishReason = victory ? "victory" : "defeat",
+    ): void {
         this.toggleBattleMenu(false);
         this.isAnimating = true;
         this.battleEnded = true;
         this.resultOverlay.show(this, victory, {
             showRestartButton: this.isPlayground,
-            subtitle: this.isPlayground ? undefined : "Voltando para a sala...",
+            subtitle: this.isPlayground
+                ? undefined
+                : this.battleMode === "dungeon" && !victory
+                  ? "Voltando para a sala..."
+                  : "Voltando para a sala...",
         });
 
         if (!this.isPlayground) {
             this.time.delayedCall(1600, () => {
                 window.dispatchEvent(
                     new CustomEvent("rune-wars:battle-finished", {
-                        detail: { victory },
+                        detail: { victory, reason },
                     }),
                 );
             });
@@ -1837,6 +2606,7 @@ export class BattleScene extends Phaser.Scene {
         this.playerStats.x = result.newX;
         this.playerStats.y = result.newY;
         this.syncActorAssets();
+        this.checkDungeonPortalReached();
     }
 
     private clampInitialX(mapX: number, viewportWidth: number): number {
@@ -1869,7 +2639,11 @@ export class BattleScene extends Phaser.Scene {
     }
 
     private updateChargePowerFrame(time: number): void {
-        if (this.battleEnded || this.isAnimating || !this.turnManager.isPlayerTurn) {
+        if (
+            this.battleEnded ||
+            this.isAnimating ||
+            !this.turnManager.isPlayerTurn
+        ) {
             this.isChargingPower = false;
             this.leaveChargePerformanceMode();
             this.battleHud?.setCharging(false);
@@ -2135,8 +2909,10 @@ export class BattleScene extends Phaser.Scene {
             !this.aiUsedConsumableIds.has("__shield") &&
             this.aiShieldReduction === 0 &&
             this.aiStats.hp < this.aiStats.maxHp * 0.55 &&
-            (this.aiStrategy === "excavation" || this.aiStrategy === "mixed" ||
-             (this.aiStrategy === "damage" && this.aiStats.hp < this.aiStats.maxHp * 0.35))
+            (this.aiStrategy === "excavation" ||
+                this.aiStrategy === "mixed" ||
+                (this.aiStrategy === "damage" &&
+                    this.aiStats.hp < this.aiStats.maxHp * 0.35))
         ) {
             this.aiUsedConsumableIds.add("__shield");
             this.useDebugSecondaryItem("ai", "shield");
@@ -2287,35 +3063,52 @@ export class BattleScene extends Phaser.Scene {
 
         // ── Tactical AI decision ──────────────────────────────────────────────
         const aiSnapshot = this.buildAiBattleSnapshot();
-        const aiDecision = this.aiDecisionMaker.decide(aiSnapshot, this.difficulty);
+        const aiDecision = this.aiDecisionMaker.decide(
+            aiSnapshot,
+            this.difficulty,
+        );
         const decidedAction = aiDecision.action;
 
         // If the decision is a non-shot item that was NOT already handled by
         // aiDecideItemsBeforeTurn, apply it now.
-        if (decidedAction.type === 'use_heal' && !this.aiUsedConsumableIds.has('heal')) {
-            this.aiUsedConsumableIds.add('heal');
-            this.useDebugConsumable('ai', 'heal');
+        if (
+            decidedAction.type === "use_heal" &&
+            !this.aiUsedConsumableIds.has("heal")
+        ) {
+            this.aiUsedConsumableIds.add("heal");
+            this.useDebugConsumable("ai", "heal");
         }
-        if (decidedAction.type === 'use_shield' && this.aiShieldReduction === 0 && !this.aiUsedConsumableIds.has('__shield')) {
-            this.aiUsedConsumableIds.add('__shield');
-            this.useDebugSecondaryItem('ai', 'shield');
+        if (
+            decidedAction.type === "use_shield" &&
+            this.aiShieldReduction === 0 &&
+            !this.aiUsedConsumableIds.has("__shield")
+        ) {
+            this.aiUsedConsumableIds.add("__shield");
+            this.useDebugSecondaryItem("ai", "shield");
         }
-        if (decidedAction.type === 'use_ice_throw' && !this.aiUsedConsumableIds.has('ice-throw')) {
-            this.aiUsedConsumableIds.add('ice-throw');
-            this.useDebugConsumable('ai', 'ice-throw');
+        if (
+            decidedAction.type === "use_ice_throw" &&
+            !this.aiUsedConsumableIds.has("ice-throw")
+        ) {
+            this.aiUsedConsumableIds.add("ice-throw");
+            this.useDebugConsumable("ai", "ice-throw");
         }
 
         // Extract fire params from decision (direct fire or heal+fire combo)
         const fireAction =
-            decidedAction.type === 'fire' ? decidedAction :
-            (decidedAction.type === 'use_heal' || decidedAction.type === 'use_shield' || decidedAction.type === 'use_ice_throw')
-              && decidedAction.thenFire ? decidedAction.thenFire :
-            null;
+            decidedAction.type === "fire"
+                ? decidedAction
+                : (decidedAction.type === "use_heal" ||
+                        decidedAction.type === "use_shield" ||
+                        decidedAction.type === "use_ice_throw") &&
+                    decidedAction.thenFire
+                  ? decidedAction.thenFire
+                  : null;
 
         // Fall back to calculateAiShot if decision didn't yield a fire action
         const legacyShot = fireAction ? null : this.calculateAiShot();
-        const shotAngle  = fireAction?.angle  ?? legacyShot!.angle;
-        const shotForce  = fireAction?.force  ?? legacyShot!.force;
+        const shotAngle = fireAction?.angle ?? legacyShot!.angle;
+        const shotForce = fireAction?.force ?? legacyShot!.force;
         const legacyScore = legacyShot?.score ?? 0;
 
         // Shot quality: prefer tactical hitChance when new AI chose a fire action,
@@ -2402,57 +3195,463 @@ export class BattleScene extends Phaser.Scene {
         }
     }
 
+    private runDungeonMonsterTurn(turnToken: number): void {
+        if (
+            !this.dungeonStageConfig ||
+            this.battleEnded ||
+            this.turnManager.isPlayerTurn ||
+            this.turnManager.turnNumber !== turnToken
+        ) {
+            return;
+        }
+
+        const aliveMonsters = this.getAliveDungeonMonsters();
+        if (aliveMonsters.length === 0) {
+            if (this.dungeonStageConfig.objective === "TRAVERSE") {
+                this.endTurn(false, false);
+            } else {
+                this.finishBattle(true);
+            }
+            return;
+        }
+
+        const movementDelay = Math.max(
+            0,
+            ...aliveMonsters.map((monster) =>
+                this.moveDungeonMonsterForTurn(monster),
+            ),
+        );
+
+        const maxAttackers =
+            this.dungeonStageConfig.objective === "TRAVERSE"
+                ? aliveMonsters.length
+                : 1;
+        const attackers = aliveMonsters.slice(0, maxAttackers);
+        let index = 0;
+
+        const runNext = (): void => {
+            if (
+                this.battleEnded ||
+                this.turnManager.isPlayerTurn ||
+                this.turnManager.turnNumber !== turnToken
+            ) {
+                return;
+            }
+            const monster = attackers[index];
+            index += 1;
+            if (!monster) {
+                this.scheduleTurnEvent(450, () => {
+                    if (
+                        !this.battleEnded &&
+                        !this.turnManager.isPlayerTurn &&
+                        this.turnManager.turnNumber === turnToken
+                    ) {
+                        this.endTurn(false, true);
+                    }
+                });
+                return;
+            }
+            if (monster.stats.hp <= 0) {
+                runNext();
+                return;
+            }
+            this.scheduleTurnEvent(260, () =>
+                this.fireDungeonMonsterShot(monster, turnToken, runNext),
+            );
+        };
+
+        this.scheduleTurnEvent(movementDelay + 120, runNext);
+    }
+
+    private moveDungeonMonsterForTurn(monster: DungeonMonsterRuntime): number {
+        if (monster.behavior === "BOSS_FLYER") {
+            return this.moveDungeonBossFreely(monster);
+        }
+        this.moveDungeonMonsterHorizontal(monster);
+        return 0;
+    }
+
+    private moveDungeonMonsterHorizontal(monster: DungeonMonsterRuntime): void {
+        if (monster.stats.hp <= 0) return;
+        const distance = Phaser.Math.Between(52, 126);
+        let nextX = monster.stats.x + monster.patrolDirection * distance;
+        if (nextX > monster.patrolMaxX) {
+            monster.patrolDirection = -1;
+            nextX = monster.patrolMaxX;
+        } else if (nextX < monster.patrolMinX) {
+            monster.patrolDirection = 1;
+            nextX = monster.patrolMinX;
+        }
+
+        monster.stats.facing = monster.patrolDirection > 0 ? "right" : "left";
+        monster.container.setPosition(nextX, monster.stats.y);
+        if (monster.body instanceof Phaser.GameObjects.Image) {
+            monster.body.setFlipX(monster.stats.facing === "left");
+        }
+        this.updateDungeonMonsterVisual(monster);
+        this.syncPrimaryDungeonMonster();
+    }
+
+    private moveDungeonBossFreely(monster: DungeonMonsterRuntime): number {
+        if (monster.stats.hp <= 0) return 0;
+
+        const target = this.findBossFlyerMoveTarget(monster) ?? {
+            x: monster.stats.x,
+            y: monster.stats.y,
+        };
+        const dx = target.x - monster.stats.x;
+        const dy = target.y - monster.stats.y;
+        if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return 0;
+
+        monster.stats.facing = dx >= 0 ? "right" : "left";
+        if (monster.body instanceof Phaser.GameObjects.Image) {
+            monster.body.setFlipX(monster.stats.facing === "left");
+        }
+
+        const duration = Phaser.Math.Clamp(
+            Math.round(
+                Phaser.Math.Distance.Between(
+                    monster.stats.x,
+                    monster.stats.y,
+                    target.x,
+                    target.y,
+                ) * 1.8,
+            ),
+            520,
+            980,
+        );
+        this.tweens.add({
+            targets: monster.container,
+            x: target.x,
+            y: target.y,
+            duration,
+            ease: "Sine.easeInOut",
+            onUpdate: () => {
+                monster.stats.x = monster.container.x;
+                monster.stats.y = monster.container.y;
+                this.syncPrimaryDungeonMonster();
+            },
+            onComplete: () => {
+                monster.stats.x = target.x;
+                monster.stats.y = target.y;
+                monster.container.setPosition(target.x, target.y);
+                this.updateDungeonMonsterVisual(monster);
+                this.syncPrimaryDungeonMonster();
+            },
+        });
+
+        return duration;
+    }
+
+    private findBossFlyerMoveTarget(
+        monster: DungeonMonsterRuntime,
+    ): { x: number; y: number } | null {
+        const minX = 96 + monster.width / 2;
+        const maxX = MAP_WORLD_WIDTH - 96 - monster.width / 2;
+        const minY = 96 + monster.height / 2;
+        const maxY = WORLD_HEIGHT - 160 - monster.height / 2;
+
+        const tryCandidate = (
+            x: number,
+            y: number,
+        ): { x: number; y: number } | null => {
+            const candidate = {
+                x: Phaser.Math.Clamp(x, minX, maxX),
+                y: Phaser.Math.Clamp(y, minY, maxY),
+            };
+            return this.isDungeonMonsterAreaClear(
+                monster,
+                candidate.x,
+                candidate.y,
+            )
+                ? candidate
+                : null;
+        };
+
+        for (let attempt = 0; attempt < 18; attempt += 1) {
+            const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+            const distance = Phaser.Math.Between(240, 560);
+            const candidate = tryCandidate(
+                monster.stats.x + Math.cos(angle) * distance,
+                monster.stats.y + Math.sin(angle) * distance,
+            );
+            if (candidate) return candidate;
+        }
+
+        for (let attempt = 0; attempt < 36; attempt += 1) {
+            const candidate = tryCandidate(
+                Phaser.Math.Between(Math.round(minX), Math.round(maxX)),
+                Phaser.Math.Between(Math.round(minY), Math.round(maxY)),
+            );
+            if (candidate) return candidate;
+        }
+
+        return null;
+    }
+
+    private isDungeonMonsterAreaClear(
+        monster: DungeonMonsterRuntime,
+        x: number,
+        y: number,
+    ): boolean {
+        const halfWidth = Math.max(24, monster.width * 0.42);
+        const halfHeight = Math.max(24, monster.height * 0.42);
+        const samples = [
+            { x, y },
+            { x: x - halfWidth, y },
+            { x: x + halfWidth, y },
+            { x, y: y - halfHeight },
+            { x, y: y + halfHeight },
+            { x: x - halfWidth, y: y - halfHeight },
+            { x: x + halfWidth, y: y - halfHeight },
+            { x: x - halfWidth, y: y + halfHeight },
+            { x: x + halfWidth, y: y + halfHeight },
+        ];
+
+        return samples.every(
+            (point) =>
+                point.x >= 72 &&
+                point.x <= MAP_WORLD_WIDTH - 72 &&
+                point.y >= 72 &&
+                point.y <= WORLD_HEIGHT - 72 &&
+                this.terrainEngine.getMaterialAt(point.x, point.y) ===
+                    TerrainMaterial.EMPTY,
+        );
+    }
+
+    private fireDungeonMonsterShot(
+        monster: DungeonMonsterRuntime,
+        turnToken: number,
+        done: () => void,
+    ): void {
+        if (
+            this.battleEnded ||
+            this.turnManager.isPlayerTurn ||
+            this.turnManager.turnNumber !== turnToken ||
+            monster.stats.hp <= 0
+        ) {
+            done();
+            return;
+        }
+
+        this.aiStats = monster.stats;
+        this.aiSprite.setPosition(monster.stats.x, monster.stats.y);
+        this.opponentName = monster.name;
+        const shot = this.calculateDungeonMonsterShot(monster);
+        this.lastAiShot = { angle: shot.angle, force: shot.force };
+        const profile = this.aiWeapon.physicsProfile;
+        const baseDamage = scaleDungeonDamage(
+            monster.baseDamage,
+            this.difficulty,
+        );
+        const config: ProjectileConfig = {
+            angle: shot.angle,
+            force: shot.force,
+            gravityScale: profile.gravityScale,
+            windInfluence: profile.windInfluence,
+            baseDamage,
+        };
+        const path = this.computeProjectilePath(
+            monster.stats.x,
+            monster.stats.y,
+            config,
+            this.windSystem.getCurrent(),
+            this.aiWeapon,
+        );
+
+        if (path.length === 0) {
+            done();
+            return;
+        }
+
+        this.animateProjectileResolved(
+            path,
+            false,
+            baseDamage,
+            this.aiWeapon.excavationRadius,
+            {
+                turnToken,
+                endTurnOnComplete: false,
+                onComplete: (gameEnded) => {
+                    if (!gameEnded) done();
+                },
+            },
+        );
+    }
+
+    private calculateDungeonMonsterShot(monster: DungeonMonsterRuntime): {
+        angle: number;
+        force: number;
+        score: number;
+    } {
+        const profile = this.aiWeapon.physicsProfile;
+        const wind = this.windSystem.getCurrent();
+        const playerIsLeft = this.playerStats.x < monster.stats.x;
+        const angleMin = playerIsLeft ? 95 : 5;
+        const angleMax = playerIsLeft ? 175 : 85;
+        const defaultAngle = playerIsLeft ? 135 : 45;
+        const baseDamage = scaleDungeonDamage(
+            monster.baseDamage,
+            this.difficulty,
+        );
+        let best = {
+            angle: defaultAngle,
+            force: 58,
+            score: Number.POSITIVE_INFINITY,
+        };
+
+        best = this.searchDungeonMonsterShot(
+            monster,
+            profile,
+            wind,
+            baseDamage,
+            angleMin,
+            angleMax,
+            20,
+            100,
+            2,
+            3,
+            best,
+        );
+        best = this.searchDungeonMonsterShot(
+            monster,
+            profile,
+            wind,
+            baseDamage,
+            Math.max(angleMin, best.angle - 3),
+            Math.min(angleMax, best.angle + 3),
+            Math.max(20, best.force - 5),
+            Math.min(100, best.force + 5),
+            0.5,
+            0.5,
+            best,
+        );
+
+        return {
+            angle: best.angle,
+            force: best.force,
+            score: best.score,
+        };
+    }
+
+    private searchDungeonMonsterShot(
+        monster: DungeonMonsterRuntime,
+        profile: ProjectilePhysicsProfile,
+        wind: WindState,
+        baseDamage: number,
+        angleMin: number,
+        angleMax: number,
+        forceMin: number,
+        forceMax: number,
+        angleStep: number,
+        forceStep: number,
+        currentBest: { angle: number; force: number; score: number },
+    ): { angle: number; force: number; score: number } {
+        let best = currentBest;
+
+        for (let angle = angleMin; angle <= angleMax; angle += angleStep) {
+            for (let force = forceMin; force <= forceMax; force += forceStep) {
+                const config: ProjectileConfig = {
+                    angle,
+                    force,
+                    gravityScale: profile.gravityScale,
+                    windInfluence: profile.windInfluence,
+                    baseDamage,
+                };
+                const path = this.projectilePhysics.simulate(
+                    monster.stats.x,
+                    monster.stats.y,
+                    config,
+                    wind,
+                    profile,
+                );
+                const score = this.scoreDungeonMonsterPath(path);
+                if (score < best.score) best = { angle, force, score };
+            }
+        }
+
+        return best;
+    }
+
+    private scoreDungeonMonsterPath(
+        path: Array<{ x: number; y: number }>,
+    ): number {
+        let bestDistance = Number.POSITIVE_INFINITY;
+        for (const point of path) {
+            bestDistance = Math.min(
+                bestDistance,
+                this.getDistanceToTargetBounds(
+                    point.x,
+                    point.y,
+                    this.playerStats,
+                    this.getTargetDamageBounds(),
+                ),
+            );
+            if (bestDistance <= 0) break;
+            if (this.hasTerrainNearProjectile(point.x, point.y)) break;
+        }
+        return bestDistance;
+    }
+
     private buildAiBattleSnapshot(): BattleSnapshot {
         const aiConsumedIds = new Set(this.aiUsedConsumableIds);
         const availableConsumables: string[] = [];
-        if (!aiConsumedIds.has('heal') && this.consumableSystem.getById('heal'))
-            availableConsumables.push('heal');
-        if (!aiConsumedIds.has('ice-throw') && this.consumableSystem.getById('ice-throw'))
-            availableConsumables.push('ice-throw');
+        if (!aiConsumedIds.has("heal") && this.consumableSystem.getById("heal"))
+            availableConsumables.push("heal");
+        if (
+            !aiConsumedIds.has("ice-throw") &&
+            this.consumableSystem.getById("ice-throw")
+        )
+            availableConsumables.push("ice-throw");
 
-        const aiSecId = (this.aiShieldReduction === 0 && !aiConsumedIds.has('__shield'))
-            ? 'shield'
-            : null;
+        const aiSecId =
+            this.aiShieldReduction === 0 && !aiConsumedIds.has("__shield")
+                ? "shield"
+                : null;
 
         return {
             ai: {
-                id: 'ai',
-                x:              this.aiStats.x,
-                y:              this.aiStats.y,
-                hp:             this.aiStats.hp,
-                maxHp:          this.aiStats.maxHp,
-                facing:         this.aiStats.facing,
-                weapon:         this.aiWeapon,
+                id: "ai",
+                x: this.aiStats.x,
+                y: this.aiStats.y,
+                hp: this.aiStats.hp,
+                maxHp: this.aiStats.maxHp,
+                facing: this.aiStats.facing,
+                weapon: this.aiWeapon,
                 shieldReduction: this.aiShieldReduction,
-                effects:        this.statusEffects.getEffects('ai'),
-                strength:       this.aiStrength,
-                luck:           this.aiLuck,
+                effects: this.statusEffects.getEffects("ai"),
+                strength: this.aiStrength,
+                luck: this.aiLuck,
                 usedConsumableIds: aiConsumedIds,
                 invisibleTurns: 0,
-                frozenTurns:    this.statusEffects.hasEffect('ai', 'FREEZE') ? 1 : 0,
+                frozenTurns: this.statusEffects.hasEffect("ai", "FREEZE")
+                    ? 1
+                    : 0,
             },
             player: {
-                id: 'player',
-                x:              this.playerStats.x,
-                y:              this.playerStats.y,
-                hp:             this.playerStats.hp,
-                maxHp:          this.playerStats.maxHp,
-                facing:         this.playerStats.facing,
-                weapon:         this.playerWeapon,
+                id: "player",
+                x: this.playerStats.x,
+                y: this.playerStats.y,
+                hp: this.playerStats.hp,
+                maxHp: this.playerStats.maxHp,
+                facing: this.playerStats.facing,
+                weapon: this.playerWeapon,
                 shieldReduction: this.playerShieldReduction,
-                effects:        this.statusEffects.getEffects('player'),
-                strength:       this.playerStrength,
-                luck:           this.playerLuck,
+                effects: this.statusEffects.getEffects("player"),
+                strength: this.playerStrength,
+                luck: this.playerLuck,
                 usedConsumableIds: new Set<string>(),
                 invisibleTurns: this.playerInvisibleTurns,
-                frozenTurns:    this.statusEffects.hasEffect('player', 'FREEZE') ? 1 : 0,
+                frozenTurns: this.statusEffects.hasEffect("player", "FREEZE")
+                    ? 1
+                    : 0,
             },
-            wind:                    this.windSystem.getCurrent(),
-            turnNumber:              this.turnManager.turnNumber,
-            terrain:                 this.terrainEngine,
+            wind: this.windSystem.getCurrent(),
+            turnNumber: this.turnManager.turnNumber,
+            terrain: this.terrainEngine,
             availableConsumables,
             availableSecondaryItemId: aiSecId,
-            aiShieldActive:          this.aiShieldReduction > 0,
+            aiShieldActive: this.aiShieldReduction > 0,
         };
     }
 
@@ -2551,8 +3750,12 @@ export class BattleScene extends Phaser.Scene {
         };
         const checkMapModifier = (x: number, y: number): boolean => {
             if (this.mapModifierManager) {
-                const mod = this.mapModifierManager.checkProjectileCollision(x, y);
-                if (mod) this.mapModifierManager.applyEffect(mod, mapModProjState);
+                const mod = this.mapModifierManager.checkProjectileCollision(
+                    x,
+                    y,
+                );
+                if (mod)
+                    this.mapModifierManager.applyEffect(mod, mapModProjState);
             }
             return false;
         };
@@ -2565,8 +3768,13 @@ export class BattleScene extends Phaser.Scene {
             const animControl = this.projRenderer.animateAlongPath(
                 projectile,
                 path,
-                () => { /* path exhausted — projectile rests until timer */ },
-                (x, y) => { checkMapModifier(x, y); return false; },
+                () => {
+                    /* path exhausted — projectile rests until timer */
+                },
+                (x, y) => {
+                    checkMapModifier(x, y);
+                    return false;
+                },
             );
 
             this.scheduleTurnEvent(weapon.detonationDelay, () => {
@@ -2590,29 +3798,45 @@ export class BattleScene extends Phaser.Scene {
                 if (isPlayerShot) this.ghostTrace?.recordShot(path);
 
                 const resolvedBaseDamage = mapModProjState.baseDamage;
-                const resolvedExcavationRadius = mapModProjState.excavationRadius;
+                const resolvedExcavationRadius =
+                    mapModProjState.excavationRadius;
 
-                const explodeResult = this.terrainEngine.explode(detonX, detonY, resolvedExcavationRadius);
+                const explodeResult = this.terrainEngine.explode(
+                    detonX,
+                    detonY,
+                    resolvedExcavationRadius,
+                );
                 this.terrainRenderer.applyExplosion(
-                    explodeResult.center.x, explodeResult.center.y, explodeResult.radius,
+                    explodeResult.center.x,
+                    explodeResult.center.y,
+                    explodeResult.radius,
                 );
 
-                const impact = this.getProjectileImpact({ x: detonX, y: detonY }, isPlayerShot);
-                const tdx = detonX - impact.targetStats.x;
-                const tdy = detonY - impact.targetStats.y;
-                const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
-                // hitTarget detection allows dx<30 dy<40 (max dist≈50), so ensure
-                // effectiveRadius covers that when the projectile hits the target directly.
-                const effectiveRadius = impact.hitTarget
-                    ? Math.max(resolvedExcavationRadius, 60)
-                    : Math.max(resolvedExcavationRadius, 30);
+                const impact = this.getProjectileImpact(
+                    { x: detonX, y: detonY },
+                    isPlayerShot,
+                );
+                const effectiveRadius = resolvedExcavationRadius;
+                const distanceToTarget =
+                    this.getProjectileDistanceToTargetBounds(
+                        detonX,
+                        detonY,
+                        impact,
+                    );
+                const inSplashZone =
+                    impact.hitTarget || distanceToTarget <= effectiveRadius;
 
                 let gameEnded = false;
-                if (distToTarget <= effectiveRadius) {
+                if (inSplashZone) {
                     gameEnded = this.onProjectileImpact(
-                        detonX, detonY, isPlayerShot,
-                        impact.targetStats, resolvedBaseDamage, effectiveRadius,
+                        detonX,
+                        detonY,
+                        isPlayerShot,
+                        impact.targetStats,
+                        resolvedBaseDamage,
+                        effectiveRadius,
                         options.endTurnOnComplete ?? true,
+                        impact.dungeonMonster,
                     );
                 } else if (options.endTurnOnComplete ?? true) {
                     this.endTurn(isPlayerShot, true);
@@ -2628,7 +3852,9 @@ export class BattleScene extends Phaser.Scene {
             ? {
                   path,
                   impactPoint: null as { x: number; y: number } | null,
-                  impact: null as ReturnType<typeof this.getProjectileImpact> | null,
+                  impact: null as ReturnType<
+                      typeof this.getProjectileImpact
+                  > | null,
               }
             : this.clipPathToFirstImpact(path, isPlayerShot);
         const animationPath = clipped.path;
@@ -2681,7 +3907,11 @@ export class BattleScene extends Phaser.Scene {
                     impactPoint ??
                     animationPath[animationPath.length - 1];
                 const traveledPath = animationPath;
-                this.showProjectileImpactFx(weapon.id, resolvedImpact.x, resolvedImpact.y);
+                this.showProjectileImpactFx(
+                    weapon.id,
+                    resolvedImpact.x,
+                    resolvedImpact.y,
+                );
 
                 if (isPlayerShot) {
                     this.ghostTrace?.recordShot(traveledPath);
@@ -2691,18 +3921,24 @@ export class BattleScene extends Phaser.Scene {
                     clipped.impact ??
                     realtimeImpact ??
                     this.getProjectileImpact(resolvedImpact, isPlayerShot);
-                const teleportUtilityShot = isPlayerShot && this.teleportShotArmed;
-                const explodeOnImpact = options.explodeOnImpact ?? !teleportUtilityShot;
+                const teleportUtilityShot =
+                    isPlayerShot && this.teleportShotArmed;
+                const explodeOnImpact =
+                    options.explodeOnImpact ?? !teleportUtilityShot;
                 const applyDamage = options.applyDamage ?? !teleportUtilityShot;
 
                 const resolvedBaseDamage = mapModProjState.baseDamage;
-                const resolvedExcavationRadius = mapModProjState.excavationRadius;
+                const resolvedExcavationRadius =
+                    mapModProjState.excavationRadius;
 
                 // Volley shots (realtimeCollision) always explode at their endpoint:
                 // the second shot of a shot_plus1 can fly through a crater already
                 // created by the first shot and would otherwise fizzle silently.
                 const forceExplode = realtimeCollision;
-                if (explodeOnImpact && (impact.hitTerrain || impact.hitTarget || forceExplode)) {
+                if (
+                    explodeOnImpact &&
+                    (impact.hitTerrain || impact.hitTarget || forceExplode)
+                ) {
                     const explosionCenter = impact.hitTerrain
                         ? (this.findNearestTerrainPoint(
                               resolvedImpact,
@@ -2721,22 +3957,17 @@ export class BattleScene extends Phaser.Scene {
                     );
                 }
 
-                // Bug 3: For teleport, only allow terrain hits explicitly found during path
-                // clipping — avoids false positives from the last path-endpoint analysis.
-                const teleportHitTerrain = clipped.impact !== null
-                    ? impact.hitTerrain
-                    : false;
-                this.resolveTeleportShot(isPlayerShot, resolvedImpact, teleportHitTerrain);
+                this.resolveTeleportShot(isPlayerShot, resolvedImpact, impact);
 
-                const tdx = resolvedImpact.x - impact.targetStats.x;
-                const tdy = resolvedImpact.y - impact.targetStats.y;
-                const distToTarget = Math.sqrt(tdx * tdx + tdy * tdy);
-                // hitTarget detection allows dx<30 dy<40 (max dist≈50), so ensure
-                // effectiveRadius covers that when the projectile hits the target directly.
-                const effectiveRadius = impact.hitTarget
-                    ? Math.max(resolvedExcavationRadius, 60)
-                    : Math.max(resolvedExcavationRadius, 30);
-                const inSplashZone = distToTarget <= effectiveRadius;
+                const effectiveRadius = resolvedExcavationRadius;
+                const distanceToTarget =
+                    this.getProjectileDistanceToTargetBounds(
+                        resolvedImpact.x,
+                        resolvedImpact.y,
+                        impact,
+                    );
+                const inSplashZone =
+                    impact.hitTarget || distanceToTarget <= effectiveRadius;
 
                 let gameEnded = false;
                 if (applyDamage && inSplashZone) {
@@ -2748,6 +3979,7 @@ export class BattleScene extends Phaser.Scene {
                         resolvedBaseDamage,
                         effectiveRadius,
                         options.endTurnOnComplete ?? true,
+                        impact.dungeonMonster,
                     );
                 } else if (options.endTurnOnComplete ?? true) {
                     this.endTurn(isPlayerShot, true);
@@ -2766,7 +3998,13 @@ export class BattleScene extends Phaser.Scene {
     private computeProjectilePath(
         startX: number,
         startY: number,
-        config: { angle: number; force: number; gravityScale: number; windInfluence: number; baseDamage: number },
+        config: {
+            angle: number;
+            force: number;
+            gravityScale: number;
+            windInfluence: number;
+            baseDamage: number;
+        },
         wind: ReturnType<WindSystem["getCurrent"]>,
         weapon: WeaponDefinition,
     ): Array<{ x: number; y: number; time: number }> {
@@ -2800,11 +4038,7 @@ export class BattleScene extends Phaser.Scene {
     ): {
         path: Array<{ x: number; y: number }>;
         impactPoint: { x: number; y: number } | null;
-        impact: {
-            hitTerrain: boolean;
-            hitTarget: boolean;
-            targetStats: BattleCharacterState;
-        } | null;
+        impact: ProjectileImpactResult | null;
     } {
         if (path.length <= 1) return { path, impactPoint: null, impact: null };
 
@@ -2860,11 +4094,19 @@ export class BattleScene extends Phaser.Scene {
     private getProjectileImpact(
         point: { x: number; y: number },
         isPlayerShot: boolean,
-    ): {
-        hitTerrain: boolean;
-        hitTarget: boolean;
-        targetStats: BattleCharacterState;
-    } {
+    ): ProjectileImpactResult {
+        if (isPlayerShot && this.dungeonStageConfig) {
+            const hitMonster = this.getDungeonTargetAt(point);
+            const targetMonster =
+                hitMonster ?? this.getNearestDungeonTarget(point);
+            return {
+                hitTerrain: this.hasTerrainNearProjectile(point.x, point.y),
+                hitTarget: !!hitMonster,
+                targetStats: targetMonster?.stats ?? this.aiStats,
+                dungeonMonster: targetMonster,
+            };
+        }
+
         const targetStats = isPlayerShot ? this.aiStats : this.playerStats;
         const dx = Math.abs(point.x - targetStats.x);
         const dy = Math.abs(point.y - targetStats.y);
@@ -2873,6 +4115,52 @@ export class BattleScene extends Phaser.Scene {
             hitTerrain: this.hasTerrainNearProjectile(point.x, point.y),
             hitTarget: dx < 30 && dy < 40,
             targetStats,
+        };
+    }
+
+    private getProjectileDistanceToTargetBounds(
+        impactX: number,
+        impactY: number,
+        impact: ProjectileImpactResult,
+    ): number {
+        return this.getDistanceToTargetBounds(
+            impactX,
+            impactY,
+            impact.targetStats,
+            this.getTargetDamageBounds(impact.dungeonMonster),
+        );
+    }
+
+    private getDistanceToTargetBounds(
+        impactX: number,
+        impactY: number,
+        targetStats: BattleCharacterState,
+        bounds: TargetDamageBounds,
+    ): number {
+        const dx = Math.max(
+            Math.abs(impactX - targetStats.x) - bounds.halfWidth,
+            0,
+        );
+        const dy = Math.max(
+            Math.abs(impactY - targetStats.y) - bounds.halfHeight,
+            0,
+        );
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    private getTargetDamageBounds(
+        dungeonMonster?: DungeonMonsterRuntime,
+    ): TargetDamageBounds {
+        if (dungeonMonster) {
+            return {
+                halfWidth: Math.max(30, dungeonMonster.width * 0.45),
+                halfHeight: Math.max(36, dungeonMonster.height * 0.45),
+            };
+        }
+
+        return {
+            halfWidth: Math.max(30, CHARACTER_BODY_HALF_WIDTH),
+            halfHeight: Math.max(40, CHARACTER_BODY_HEIGHT / 2),
         };
     }
 
@@ -2964,7 +4252,7 @@ export class BattleScene extends Phaser.Scene {
             const errorX = this.aiLastImpactX - this.playerStats.x;
             const absError = Math.abs(errorX);
             if (absError > 15) {
-                const corrK = this.difficulty === "hard" ? 0.065 : 0.040;
+                const corrK = this.difficulty === "hard" ? 0.065 : 0.04;
                 const dirSign = playerIsLeft ? 1 : -1;
                 const forceCorr = dirSign * errorX * corrK;
                 best = {
@@ -3106,12 +4394,24 @@ export class BattleScene extends Phaser.Scene {
         baseDamage: number,
         excavationRadius: number,
         shouldEndTurn = true,
+        dungeonMonster?: DungeonMonsterRuntime,
     ): boolean {
-        let damage = this.damageCalc.calculate(
+        const targetMonster =
+            isPlayerShot && this.dungeonStageConfig
+                ? (dungeonMonster ??
+                  this.dungeonMonsters.find(
+                      (monster) => monster.stats === targetStats,
+                  ))
+                : undefined;
+        const damageTargetStats = targetMonster?.stats ?? targetStats;
+        const distanceToTarget = this.getDistanceToTargetBounds(
             impactX,
             impactY,
-            targetStats.x,
-            targetStats.y,
+            damageTargetStats,
+            this.getTargetDamageBounds(targetMonster),
+        );
+        let damage = this.damageCalc.calculateByDistance(
+            distanceToTarget,
             baseDamage,
             excavationRadius,
         );
@@ -3135,23 +4435,35 @@ export class BattleScene extends Phaser.Scene {
             damage = Math.round(damage * 1.5);
         }
 
+        if (!targetMonster) {
+            damage = this.applyDefenseReduction(targetId, damage);
+        }
+
         // FREEZE breaks when the frozen target receives damage
-        const targetWasFrozen = this.statusEffects.hasEffect(targetId, "FREEZE");
+        const targetWasFrozen = this.statusEffects.hasEffect(
+            targetId,
+            "FREEZE",
+        );
 
         if (isPlayerShot) {
             damage = this.applyShieldReduction("ai", damage);
-            this.aiStats.hp = Math.max(0, this.aiStats.hp - damage);
+            damageTargetStats.hp = Math.max(0, damageTargetStats.hp - damage);
             this.showDamageText(
-                this.aiStats.x,
-                this.aiStats.y,
+                damageTargetStats.x,
+                damageTargetStats.y,
                 damage,
                 "#ff4444",
             );
-            // [v1.5.0] CharacterAnimator: AI damage/die animation
-            if (this.aiStats.hp <= 0) {
-                this.aiCharacterAnimator?.transition("die");
+            if (targetMonster) {
+                this.updateDungeonMonsterVisual(targetMonster);
+                this.syncPrimaryDungeonMonster();
             } else {
-                this.aiCharacterAnimator?.transition("damage");
+                // [v1.5.0] CharacterAnimator: AI damage/die animation
+                if (this.aiStats.hp <= 0) {
+                    this.aiCharacterAnimator?.transition("die");
+                } else {
+                    this.aiCharacterAnimator?.transition("damage");
+                }
             }
         } else {
             damage = this.applyShieldReduction("player", damage);
@@ -3183,19 +4495,24 @@ export class BattleScene extends Phaser.Scene {
             if (runicEffect) {
                 this.statusEffects.apply(targetId, runicEffect);
                 this.showEffectFloatingText(
-                    isPlayerShot ? this.aiStats.x : this.playerStats.x,
-                    isPlayerShot ? this.aiStats.y : this.playerStats.y,
+                    isPlayerShot ? damageTargetStats.x : this.playerStats.x,
+                    isPlayerShot ? damageTargetStats.y : this.playerStats.y,
                     runicEffect.type,
                 );
 
                 // RANDOM_TELEPORT: move target sprite to random X position
-                if (runicEffect.type === "RANDOM_TELEPORT") {
+                if (runicEffect.type === "RANDOM_TELEPORT" && !targetMonster) {
                     const newX = Phaser.Math.Between(72, MAP_WORLD_WIDTH - 72);
-                    this.teleportActor(isPlayerShot ? "ai" : "player", newX, 0, {
-                        searchUp: 0,
-                        searchDown: WORLD_HEIGHT,
-                        searchRadiusX: 180,
-                    });
+                    this.teleportActor(
+                        isPlayerShot ? "ai" : "player",
+                        newX,
+                        0,
+                        {
+                            searchUp: 0,
+                            searchDown: WORLD_HEIGHT,
+                            searchRadiusX: 180,
+                        },
+                    );
                 }
             }
         }
@@ -3206,6 +4523,25 @@ export class BattleScene extends Phaser.Scene {
         this.refreshHud();
 
         // Check game over
+        if (this.dungeonStageConfig) {
+            if (this.playerStats.hp <= 0) {
+                this.finishBattle(false);
+                return true;
+            }
+            const aliveMonsters = this.getAliveDungeonMonsters();
+            if (
+                this.dungeonStageConfig.objective !== "TRAVERSE" &&
+                aliveMonsters.length === 0
+            ) {
+                this.finishBattle(true);
+                return true;
+            }
+            if (shouldEndTurn) {
+                this.endTurn(isPlayerShot, true);
+            }
+            return false;
+        }
+
         if (this.aiStats.hp <= 0) {
             this.finishBattle(true);
             return true;
@@ -3233,7 +4569,9 @@ export class BattleScene extends Phaser.Scene {
 
         // Refresh fall state — it may be stale if isAnimating was true since last update()
         this.playerFall.update(this.playerSprite, this.terrainEngine, 0);
-        this.aiFall.update(this.aiSprite, this.terrainEngine, 0);
+        if (!this.dungeonStageConfig) {
+            this.aiFall.update(this.aiSprite, this.terrainEngine, 0);
+        }
 
         // Unlock and advance turn only once all characters have landed.
         this.waitForFallsToSettle(() => {
@@ -3250,9 +4588,13 @@ export class BattleScene extends Phaser.Scene {
         }, requestedAt);
     }
 
-    private waitForFallsToSettle(callback: () => void, startedAt: number): void {
+    private waitForFallsToSettle(
+        callback: () => void,
+        startedAt: number,
+    ): void {
         if (this.battleEnded) return;
-        if (!this.playerFall.isFalling && !this.aiFall.isFalling) {
+        const aiSettled = this.dungeonStageConfig || !this.aiFall.isFalling;
+        if (!this.playerFall.isFalling && aiSettled) {
             callback();
             return;
         }
@@ -3313,6 +4655,13 @@ export class BattleScene extends Phaser.Scene {
                 }
             }
         }
+        if (this.dungeonStageConfig && activePlayerId === "ai") {
+            const activeMonster = this.dungeonMonsters.find(
+                (monster) => monster.stats === activeStats,
+            );
+            if (activeMonster) this.updateDungeonMonsterVisual(activeMonster);
+            this.syncPrimaryDungeonMonster();
+        }
 
         // Update BLIND state for current turn
         this.updateBlindState();
@@ -3322,7 +4671,19 @@ export class BattleScene extends Phaser.Scene {
         this.refreshHud();
 
         // Check game over from BLEED
-        if (this.aiStats.hp <= 0) {
+        if (this.dungeonStageConfig) {
+            if (this.playerStats.hp <= 0) {
+                this.finishBattle(false);
+                return;
+            }
+            if (
+                this.dungeonStageConfig.objective !== "TRAVERSE" &&
+                this.getAliveDungeonMonsters().length === 0
+            ) {
+                this.finishBattle(true);
+                return;
+            }
+        } else if (this.aiStats.hp <= 0) {
             this.finishBattle(true);
             return;
         }
@@ -3332,12 +4693,19 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (!this.turnManager.isPlayerTurn) {
+            this.syncPrimaryDungeonMonster();
             this.cameras.main.startFollow(this.aiSprite, true, 0.08, 0.08);
             this.movementBudgetHUD?.setVisible(false);
             const aiTurnToken = this.turnManager.turnNumber;
-            const aiDelay = Phaser.Math.Between(3000, 7000);
+            const aiDelay = this.dungeonStageConfig
+                ? Phaser.Math.Between(650, 1200)
+                : Phaser.Math.Between(3000, 7000);
             this.scheduleTurnEvent(aiDelay, () => {
-                this.fireAiShot(aiTurnToken);
+                if (this.dungeonStageConfig) {
+                    this.runDungeonMonsterTurn(aiTurnToken);
+                } else {
+                    this.fireAiShot(aiTurnToken);
+                }
             });
         } else {
             this.cameras.main.startFollow(this.playerSprite, true, 0.08, 0.08);
@@ -3383,6 +4751,21 @@ export class BattleScene extends Phaser.Scene {
         this.scheduledTurnEvents = [];
     }
 
+    private applyWeaponUpgrade(
+        baseDamage: number,
+        rarity: string,
+        upgradeLevel: number,
+    ): number {
+        const RARITY_BONUS: Record<string, number> = {
+            common: 1.0,
+            uncommon: 1.02,
+            rare: 1.04,
+            heroic: 1.07,
+        };
+        const mult = RARITY_BONUS[rarity] ?? 1.0;
+        return Math.round(baseDamage * mult) + upgradeLevel;
+    }
+
     private applyShieldReduction(
         target: "player" | "ai",
         damage: number,
@@ -3394,6 +4777,16 @@ export class BattleScene extends Phaser.Scene {
         if (reduction <= 0) return damage;
         if (target === "player") this.playerShieldReduction = 0;
         else this.aiShieldReduction = 0;
+        return Math.max(0, Math.round(damage * (1 - reduction)));
+    }
+
+    private applyDefenseReduction(
+        target: "player" | "ai",
+        damage: number,
+    ): number {
+        const reduction =
+            target === "player" ? this.playerDefense : this.aiDefense;
+        if (reduction <= 0 || damage <= 0) return damage;
         return Math.max(0, Math.round(damage * (1 - reduction)));
     }
 
@@ -3686,18 +5079,15 @@ export class BattleScene extends Phaser.Scene {
     }
 
     setBattleMode(mode: BattleMode): void {
-        const fallbackMap =
-            mode === "dungeon" ? "dungeon_cave_entrance" : "plains";
+        const fallbackMap = mode === "dungeon" ? "dungeon_f1_s1" : "plains";
         this.switchMap(fallbackMap);
     }
 
     resetTerrain(): void {
-        if (!this.currentMap.startsWith("dungeon")) {
-            const terrainKey = `map_${this.currentMap}_terrain`;
-            if (this.textures.exists(terrainKey)) {
-                const imgData = this.getTerrainImageData(terrainKey);
-                this.terrainEngine = TerrainEngine.fromImageData(imgData);
-            }
+        const terrainKey = `map_${this.currentMap}_terrain`;
+        if (this.textures.exists(terrainKey)) {
+            const imgData = this.getTerrainImageData(terrainKey);
+            this.terrainEngine = TerrainEngine.fromImageData(imgData);
         }
     }
 
@@ -3706,11 +5096,11 @@ export class BattleScene extends Phaser.Scene {
         const map = this.getMapOption(mapName);
         this.battleMode = map.mode;
 
-        if (mapName.startsWith("dungeon")) {
-            this.terrainEngine = new TerrainEngine();
-        } else if (this.textures.exists(`map_${mapName}_terrain`)) {
+        if (this.textures.exists(`map_${mapName}_terrain`)) {
             const imgData = this.getTerrainImageData(`map_${mapName}_terrain`);
             this.terrainEngine = TerrainEngine.fromImageData(imgData);
+        } else if (mapName.startsWith("dungeon")) {
+            this.terrainEngine = new TerrainEngine();
         }
 
         this.aiAvatar?.setTexture(
@@ -3764,7 +5154,12 @@ export class BattleScene extends Phaser.Scene {
         const worldCenterY = WORLD_HEIGHT / 2;
 
         if (spawns[0]) {
-            const p = spawnToWorld(spawns[0], 1, charHeight, this.terrainEngine);
+            const p = spawnToWorld(
+                spawns[0],
+                1,
+                charHeight,
+                this.terrainEngine,
+            );
             this.playerSprite.setPosition(p.x, p.y);
         } else {
             const fallbackX = WORLD_WIDTH * 0.1;
@@ -3779,7 +5174,12 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (spawns[1]) {
-            const a = spawnToWorld(spawns[1], 1, charHeight, this.terrainEngine);
+            const a = spawnToWorld(
+                spawns[1],
+                1,
+                charHeight,
+                this.terrainEngine,
+            );
             this.aiSprite.setPosition(a.x, a.y);
         } else {
             const fallbackX = WORLD_WIDTH * 0.9;
@@ -3821,6 +5221,16 @@ export class BattleScene extends Phaser.Scene {
                 };
             case "runic_forest":
                 return mapRunicForest as unknown as {
+                    meta?: unknown;
+                    grid: number[][];
+                };
+            case "dungeon_f1_s1":
+                return mapDungeonF1S1 as unknown as {
+                    meta?: unknown;
+                    grid: number[][];
+                };
+            case "dungeon_f1_s2":
+                return mapDungeonF1S2 as unknown as {
                     meta?: unknown;
                     grid: number[][];
                 };
@@ -4009,13 +5419,13 @@ export class BattleScene extends Phaser.Scene {
     private resolveTeleportShot(
         isPlayerShot: boolean,
         impactPoint: { x: number; y: number },
-        hitTerrain: boolean,
+        impact: ProjectileImpactResult,
     ): void {
         if (!isPlayerShot || !this.teleportShotArmed) return;
 
         this.teleportShotArmed = false;
 
-        if (!hitTerrain) {
+        if (!impact.hitTerrain && !impact.hitTarget) {
             this.showItemFloatingText(
                 this.playerStats.x,
                 this.playerStats.y,
@@ -4026,16 +5436,20 @@ export class BattleScene extends Phaser.Scene {
         }
 
         const teleportAnchor =
-            this.findNearestTerrainPoint(impactPoint, PROJECTILE_COLLISION_RADIUS) ??
-            impactPoint;
+            (impact.hitTerrain
+                ? this.findNearestTerrainPoint(
+                      impactPoint,
+                      PROJECTILE_COLLISION_RADIUS,
+                  )
+                : null) ?? impactPoint;
         const teleported = this.teleportActor(
             "player",
             teleportAnchor.x,
             teleportAnchor.y,
             {
-                searchUp: 120,
-                searchDown: 180,
-                searchRadiusX: 56,
+                searchUp: 180,
+                searchDown: WORLD_HEIGHT,
+                searchRadiusX: 96,
             },
         );
         if (teleported) {
@@ -4061,14 +5475,25 @@ export class BattleScene extends Phaser.Scene {
             this.iceShotArmed = false;
             if (hitEnemy) {
                 this.statusEffects.apply("ai", { type: "FREEZE", duration: 2 });
-                this.showEffectFloatingText(this.aiStats.x, this.aiStats.y, "FREEZE");
+                this.showEffectFloatingText(
+                    this.aiStats.x,
+                    this.aiStats.y,
+                    "FREEZE",
+                );
             }
         }
         if (!isPlayerShot && this.aiIceShotArmed) {
             this.aiIceShotArmed = false;
             if (hitEnemy) {
-                this.statusEffects.apply("player", { type: "FREEZE", duration: 2 });
-                this.showEffectFloatingText(this.playerStats.x, this.playerStats.y, "FREEZE");
+                this.statusEffects.apply("player", {
+                    type: "FREEZE",
+                    duration: 2,
+                });
+                this.showEffectFloatingText(
+                    this.playerStats.x,
+                    this.playerStats.y,
+                    "FREEZE",
+                );
             }
         }
     }
@@ -4102,7 +5527,10 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (minForce === null || maxForce === null) return null;
-        return { min: Math.max(0, minForce - 1), max: Math.min(100, maxForce + 1) };
+        return {
+            min: Math.max(0, minForce - 1),
+            max: Math.min(100, maxForce + 1),
+        };
     }
 
     private teleportActor(

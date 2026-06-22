@@ -9,7 +9,7 @@
   padding: 8px 12px;
   min-width: 220px;
   max-width: 280px;
-  z-index: 1000;
+  z-index: 100000;
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
 
@@ -23,9 +23,14 @@
   }
 
   .item-name {
-    color: #c9a227;
     font-size: 13px;
     font-weight: bold;
+  }
+
+  .item-rarity-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
   }
 
   .item-type {
@@ -49,6 +54,25 @@
     .stat-value {
       color: #ffffff;
       white-space: nowrap;
+    }
+  }
+
+  .tooltip-upgrade {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid #3a3a5c;
+    gap: 8px;
+
+    .upgrade-label {
+      color: #9a9ab8;
+    }
+
+    .upgrade-value {
+      color: #4caf50;
+      font-weight: bold;
     }
   }
 

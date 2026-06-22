@@ -7,9 +7,12 @@ export type GameScreen =
   | 'pvp-room'
   | 'battle'
   | 'dungeon'
+  | 'dungeon-lobby'
+  | 'dungeon-room'
   | 'character'
   | 'craft'
   | 'upgrade'
+  | 'ferreiro'
   | 'market'
   | 'guild'
   | 'rankings'
@@ -17,23 +20,37 @@ export type GameScreen =
   | 'vault';
 
 export interface BattleConfig {
+  roomId?: string;
   mapName: string;
+  mode?: 'pvp' | 'dungeon';
   vsAI: boolean;
   roomName?: string;
+  returnScreen?: GameScreen;
+  rewardMode?: 'pvp' | 'dungeon' | 'none';
+  completeBattle?: boolean;
+  difficulty?: 'easy' | 'medium' | 'hard' | 'heroic';
+  dungeonFloor?: number;
+  dungeonStage?: number;
   playerName?: string;
   playerRace?: string;
   playerMaxHp?: number;
   playerAgility?: number;
   playerWeaponId?: string;
+  playerWeaponUpgradeLevel?: number;
+  playerWeaponRarity?: string;
   playerConsumables?: string[];
   playerStrength?: number;
+  playerDefense?: number;
   playerLuck?: number;
   opponentName?: string;
   opponentRace?: string;
   aiMaxHp?: number;
   aiAgility?: number;
   aiWeaponId?: string;
+  aiWeaponUpgradeLevel?: number;
+  aiWeaponRarity?: string;
   aiStrength?: number;
+  aiDefense?: number;
   aiLuck?: number;
 }
 
@@ -67,6 +84,11 @@ export class GameNavigatorService {
   }
 
   launchBattle(config: BattleConfig): void {
+    this._battleConfig.set(config);
+    this._screen.set('battle');
+  }
+
+  launchDungeon(config: BattleConfig): void {
     this._battleConfig.set(config);
     this._screen.set('battle');
   }

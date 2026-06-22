@@ -1,0 +1,100 @@
+<div class="tab-layout">
+  <section class="workbench upgrade-bench">
+    <div class="upgrade-grid">
+      <div class="stone-row">
+        @for (stone of stones; track $index) {
+          <button type="button" class="slot-button" (click)="clearStone($index)" [attr.aria-label]="'Pedra ' + ($index + 1)">
+            <app-item-slot [item]="stone" [slotIndex]="$index"></app-item-slot>
+          </button>
+        }
+      </div>
+
+      <button type="button" class="slot-button item-target" (click)="clearItem()" aria-label="Item">
+        <app-item-slot [item]="selectedItem" [slotIndex]="10"></app-item-slot>
+      </button>
+
+      <div class="result-slot" [class.success]="result?.success">
+        @if (result) {
+          <span>+{{ result.newLevel ?? result.newStoneLevel ?? currentLevel }}</span>
+        } @else {
+          <span>?</span>
+        }
+      </div>
+    </div>
+
+    <div class="chance-panel">
+      <span>{{ mode === 'item' ? 'Item' : 'Pedra' }} +{{ currentLevel }} -&gt; +{{ chance?.targetLevel ?? currentLevel + 1 }}</span>
+      <strong>{{ ((chance?.chanceFinal ?? 0) * 100) | number:'1.0-1' }}%</strong>
+      <small>{{ (chance?.goldCost || 0) | number:'1.0-0' }} ouro</small>
+    </div>
+
+    <div class="action-row">
+      <button type="button" class="primary" (click)="upgrade()" [disabled]="!canSubmit">
+        {{ loading ? 'Aprimorando...' : 'Aprimorar' }}
+      </button>
+      @if (validationError) {
+        <p class="inline-error">{{ validationError }}</p>
+      } @else if (message) {
+        <p class="inline-note">{{ message }}</p>
+      }
+    </div>
+  </section>
+
+  <aside class="inventory-panel split">
+    <div>
+      <h2>Pedras</h2>
+      <div class="inventory-list compact">
+        @for (item of stoneItems; track item.id) {
+          <button
+            type="button"
+            class="inventory-item"
+            (click)="selectStone(item)"
+            (mouseenter)="showTooltip(item, $event)"
+            (mousemove)="moveTooltip($event)"
+            (mouseleave)="hideTooltip()"
+            (focus)="focusTooltip(item)"
+            (blur)="hideTooltip()"
+            [disabled]="stones[0]?.id === item.id || stones[1]?.id === item.id || stones[2]?.id === item.id"
+          >
+            <img [src]="item.iconPath || item.icon" [alt]="item.name" onerror="this.style.display='none'">
+            <span>{{ item.name }}</span>
+            <small>+{{ item.upgrade_level || 0 }}</small>
+          </button>
+        } @empty {
+          <div class="empty">Sem pedras.</div>
+        }
+      </div>
+    </div>
+
+    <div>
+      <h2>Itens</h2>
+      <div class="inventory-list compact">
+        @for (item of upgradeItems; track item.id) {
+          <button
+            type="button"
+            class="inventory-item"
+            (click)="selectItem(item)"
+            (mouseenter)="showTooltip(item, $event)"
+            (mousemove)="moveTooltip($event)"
+            (mouseleave)="hideTooltip()"
+            (focus)="focusTooltip(item)"
+            (blur)="hideTooltip()"
+            [class.selected]="selectedItem?.id === item.id"
+          >
+            <img [src]="item.iconPath || item.icon" [alt]="item.name" onerror="this.style.display='none'">
+            <span>{{ item.name }}</span>
+            <small [style.color]="color(item)">{{ item.rarity || 'common' }} +{{ item.upgrade_level || 0 }}</small>
+          </button>
+        } @empty {
+          <div class="empty">Sem itens.</div>
+        }
+      </div>
+    </div>
+  </aside>
+
+  @if (hoveredItem) {
+    <div class="floating-tooltip-layer" [style.left.px]="tooltipX" [style.top.px]="tooltipY">
+      <app-item-tooltip [item]="hoveredItem"></app-item-tooltip>
+    </div>
+  }
+</div>

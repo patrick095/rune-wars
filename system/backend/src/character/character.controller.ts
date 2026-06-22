@@ -22,6 +22,12 @@ export class CharacterController {
     return this.service.findOne(id, req.user.userId);
   }
 
+  @Get(':id/gold')
+  async getGold(@Param('id') id: string, @Request() req: any) {
+    const char = await this.service.findOne(id, req.user.userId);
+    return { gold: char.gold };
+  }
+
   @Put(':id')
   update(@Param('id') id: string, @Request() req: any, @Body() dto: any) {
     return this.service.update(id, req.user.userId, dto);

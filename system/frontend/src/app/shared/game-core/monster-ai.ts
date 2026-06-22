@@ -49,6 +49,45 @@ export const MONSTER_AI_CONFIGS: Record<AiLevel, MonsterAi> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Acid Bat AI
+// ---------------------------------------------------------------------------
+
+export interface BatAcidAction {
+  type: 'MOVE' | 'ACID_SPIT';
+  direction?: 'LEFT' | 'RIGHT';
+  targetId?: string;
+}
+
+/** Move a cada 2 turnos; cospe ácido no turno ímpar se houver alvo próximo. */
+export function resolveAcidBatAction(enemy: EnemyState, players: PlayerState[], turn: number): BatAcidAction {
+  if (turn % 2 === 1 && players.length > 0) {
+    const target = players[0];
+    return { type: 'ACID_SPIT', targetId: target.id };
+  }
+  return { type: 'MOVE', direction: turn % 4 < 2 ? 'LEFT' : 'RIGHT' };
+}
+
+// ---------------------------------------------------------------------------
+// Corrupted Beetle AI
+// ---------------------------------------------------------------------------
+
+export interface BeetleAction {
+  type: 'ADVANCE' | 'LANCE_THROW';
+  targetId?: string;
+}
+
+export function resolveCorruptedBeetleAction(enemy: EnemyState, players: PlayerState[], turn: number): BeetleAction {
+  if (turn % 3 === 0 && players.length > 0) {
+    return { type: 'LANCE_THROW', targetId: players[0].id };
+  }
+  return { type: 'ADVANCE' };
+}
+
+// ---------------------------------------------------------------------------
+// MonsterAiSystem
+// ---------------------------------------------------------------------------
+
 export class MonsterAiSystem {
   getConfig(level: AiLevel | keyof typeof AiLevel): MonsterAi {
     return MONSTER_AI_CONFIGS[level as AiLevel];

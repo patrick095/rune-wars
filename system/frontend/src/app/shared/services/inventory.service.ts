@@ -4,6 +4,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { InventoryItem, EquipmentSlotType } from '../game-core/types';
 import { getItemDefinition } from '../game-core/item-catalog';
+import { getEnhancementStoneIcon } from '../game-core/item-display';
 import { environment } from '../../../environments/environment';
 
 const BASE = environment.apiUrl;
@@ -82,6 +83,10 @@ export class InventoryService {
    */
   private resolveItem(instance: ItemInstance): InventoryItem {
     const def = getItemDefinition(instance.item_base_id);
+    const iconPath = instance.item_base_id === 'enhancement_stone'
+      ? getEnhancementStoneIcon(instance.upgrade_level ?? 0)
+      : def.iconPath;
+
     return {
       id: instance.id,
       item_base_id: instance.item_base_id,
@@ -91,7 +96,7 @@ export class InventoryService {
       // From ITEM_CATALOG:
       name: def.name,
       category: def.category,
-      iconPath: def.iconPath,
+      iconPath,
       description: def.description,
       stats: def.stats as InventoryItem['stats'],
       // Legacy alias kept for backward compat with components using `definitionId`

@@ -72,9 +72,9 @@
               @for (item of inventory; track item.id) {
                 <div class="admin-inv-slot" [title]="getItemName(item.item_base_id) + ' (' + item.rarity + ')'">
                   <div class="slot-icon">
-                    @if (getItemIconPath(item.item_base_id)) {
+                    @if (getItemIconPath(item)) {
                       <img
-                        [src]="getItemIconPath(item.item_base_id)"
+                        [src]="getItemIconPath(item)"
                         [alt]="getItemName(item.item_base_id)"
                         onerror="this.style.opacity='0.2'"
                       />
@@ -116,6 +116,18 @@
               </select>
             </label>
 
+            <label class="admin-form-label">Raridade:
+              <select class="admin-select" [(ngModel)]="selectedRarity">
+                @for (r of rarities; track r) {
+                  <option [value]="r">{{ r }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="admin-form-label">Aprim. (+):
+              <input class="admin-input admin-input-qty" type="number" min="0" max="10" [(ngModel)]="itemUpgradeLevel" />
+            </label>
+
             <label class="admin-form-label">Qtd:
               <input class="admin-input admin-input-qty" type="number" min="1" [(ngModel)]="itemQuantity" />
             </label>
@@ -133,29 +145,21 @@
 
         <div class="admin-panel-divider"></div>
 
-        <!-- ADICIONAR CONSUMÍVEL -->
+        <!-- ADICIONAR OURO -->
         <section class="admin-section">
-          <div class="admin-section-label">ADICIONAR CONSUMÍVEL:</div>
+          <div class="admin-section-label">ADICIONAR OURO:</div>
           <div class="admin-form-row">
-            <label class="admin-form-label">Consumível:
-              <select class="admin-select" [(ngModel)]="selectedConsumableId">
-                @for (cons of consumableList; track cons.id) {
-                  <option [value]="cons.id">{{ cons.name }}</option>
-                }
-              </select>
-            </label>
-
-            <label class="admin-form-label">Qtd:
-              <input class="admin-input admin-input-qty" type="number" min="1" [(ngModel)]="consumableQuantity" />
+            <label class="admin-form-label">Quantidade:
+              <input class="admin-input admin-input-qty" type="number" min="1" [(ngModel)]="goldAmount" />
             </label>
 
             <button
               class="admin-btn admin-btn-add"
               type="button"
-              (click)="addConsumable()"
-              [disabled]="addingConsumable || !selectedConsumableId"
+              (click)="addGold()"
+              [disabled]="addingGold || goldAmount < 1"
             >
-              {{ addingConsumable ? 'Adicionando...' : 'Adicionar' }}
+              {{ addingGold ? 'Adicionando...' : 'Adicionar Ouro' }}
             </button>
           </div>
         </section>

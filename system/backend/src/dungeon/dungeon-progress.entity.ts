@@ -22,6 +22,9 @@ export class DungeonProgress {
   @Column({ default: false })
   completed: boolean;
 
+  @Column({ type: 'jsonb', default: { easy: 0, medium: 0, hard: 0, heroic: 0 } })
+  cleared_by_difficulty: { easy: number; medium: number; hard: number; heroic: number };
+
   @UpdateDateColumn()
   updated_at: Date;
 }

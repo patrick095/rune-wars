@@ -14,10 +14,8 @@ import { HttpClient } from "@angular/common/http";
 import { Subject, Subscription } from "rxjs";
 import { debounceTime, distinctUntilChanged } from "rxjs/operators";
 import { ITEM_CATALOG, ItemCategory } from "../shared/game-core/item-catalog";
-import {
-    CONSUMABLE_CATALOG,
-    ConsumableDefinition,
-} from "../shared/services/consumable-inventory.service";
+import { getEnhancementStoneIcon } from "../shared/game-core/item-display";
+import { ItemRarity } from "../shared/game-core/rarity";
 import { environment } from "../../environments/environment";
 
 export interface AdminCharacterSummary {
@@ -33,6 +31,7 @@ export interface AdminInventoryItem {
     item_base_id: string;
     rarity: string;
     quantity: number;
+    upgrade_level?: number;
     equipped_slot?: string | null;
 }
 
@@ -68,20 +67,20 @@ export class AdminInventoryPanelComponent
         "legs",
         "secondary",
         "accessory",
-        "consumable",
         "material",
     ];
     selectedCategory: ItemCategory = "weapon";
     filteredItems: { id: string; name: string }[] = [];
     selectedItemId = "";
     itemQuantity = 1;
+    selectedRarity: ItemRarity = "common";
+    itemUpgradeLevel = 0;
+    rarities: ItemRarity[] = ["common", "uncommon", "rare", "heroic"];
     addingItem = false;
 
-    // Add consumable form
-    consumableList: ConsumableDefinition[] = Object.values(CONSUMABLE_CATALOG);
-    selectedConsumableId = "";
-    consumableQuantity = 1;
-    addingConsumable = false;
+    // Add gold form
+    goldAmount = 100;
+    addingGold = false;
 
     private searchSubject = new Subject<string>();
     private subs = new Subscription();
@@ -191,8 +190,9 @@ export class AdminInventoryPanelComponent
                 `${this.API}/admin/characters/${this.selectedCharacter.id}/inventory/add`,
                 {
                     item_base_id: this.selectedItemId,
-                    rarity: "common",
+                    rarity: this.selectedRarity,
                     quantity: this.itemQuantity,
+                    upgrade_level: this.itemUpgradeLevel,
                 },
             )
             .subscribe({
@@ -210,33 +210,22 @@ export class AdminInventoryPanelComponent
             });
     }
 
-    addConsumable(): void {
-        if (
-            !this.selectedCharacter ||
-            !this.selectedConsumableId ||
-            this.consumableQuantity < 1
-        )
-            return;
-        this.addingConsumable = true;
+    addGold(): void {
+        if (!this.selectedCharacter || this.goldAmount < 1) return;
+        this.addingGold = true;
         this.http
             .post(
-                `${this.API}/admin/characters/${this.selectedCharacter.id}/consumables/add`,
-                {
-                    consumableId: this.selectedConsumableId,
-                    quantity: this.consumableQuantity,
-                },
+                `${this.API}/admin/characters/${this.selectedCharacter.id}/gold/add`,
+                { amount: this.goldAmount },
             )
             .subscribe({
                 next: () => {
-                    this.addingConsumable = false;
-                    window.alert(
-                        `Consumível "${this.selectedConsumableId}" adicionado com sucesso!`,
-                    );
-                    this.loadInventory(this.selectedCharacter!.id);
+                    this.addingGold = false;
+                    window.alert(`${this.goldAmount} ouro adicionado com sucesso!`);
                 },
                 error: () => {
-                    this.addingConsumable = false;
-                    window.alert("Erro ao adicionar consumível.");
+                    this.addingGold = false;
+                    window.alert("Erro ao adicionar ouro.");
                 },
             });
     }
@@ -245,8 +234,11 @@ export class AdminInventoryPanelComponent
         return ITEM_CATALOG[itemBaseId]?.name ?? itemBaseId;
     }
 
-    getItemIconPath(itemBaseId: string): string {
-        return ITEM_CATALOG[itemBaseId]?.iconPath ?? '';
+    getItemIconPath(item: AdminInventoryItem): string {
+        if (item.item_base_id === "enhancement_stone") {
+            return getEnhancementStoneIcon(item.upgrade_level ?? 0);
+        }
+        return ITEM_CATALOG[item.item_base_id]?.iconPath ?? '';
     }
 
     removeItem(itemId: string): void {

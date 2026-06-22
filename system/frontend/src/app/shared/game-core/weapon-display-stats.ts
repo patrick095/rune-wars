@@ -1,5 +1,6 @@
 import { PROJECTILE_GRAVITY } from './projectile-physics';
 import { InventoryItem, ItemStats } from './types';
+import { getEffectiveItemStats } from './combat-loadout';
 import { WeaponDefinition } from './weapon-definition';
 import { WeaponSystem } from './weapon-system';
 
@@ -25,14 +26,23 @@ export function getWeaponDefinitionByItemId(
   return itemBaseId ? weaponSystem.getById(itemBaseId) : undefined;
 }
 
+const RARITY_BONUS_MAP: Record<string, number> = { common: 1.00, uncommon: 1.02, rare: 1.04, heroic: 1.07 };
+
+function effectiveDamage(baseDamage: number, rarity?: string, upgradeLevel?: number): number {
+  const mult = RARITY_BONUS_MAP[rarity ?? 'common'] ?? 1.00;
+  return Math.round(baseDamage * mult) + (upgradeLevel ?? 0);
+}
+
 export function getWeaponDisplayStatsByItemId(
   itemBaseId?: string,
+  rarity?: string,
+  upgradeLevel?: number,
 ): DisplayStatEntry[] {
   const weapon = getWeaponDefinitionByItemId(itemBaseId);
   if (!weapon) return [];
 
   return [
-    { key: 'Dano', value: weapon.baseDamage },
+    { key: 'Dano', value: effectiveDamage(weapon.baseDamage, rarity, upgradeLevel) },
     { key: 'Alcance', value: `${getFullForceRange(weapon)} px` },
     { key: 'Vento', value: `${formatMultiplier(weapon.physicsProfile.windInfluence)}x` },
     { key: 'Escava\u00e7\u00e3o', value: `${weapon.excavationRadius} px` },
@@ -45,10 +55,17 @@ export function getItemDisplayStats(item: InventoryItem | null): DisplayStatEntr
 
   const weaponStats = getWeaponDisplayStatsByItemId(
     item.item_base_id ?? item.definitionId,
+    item.rarity,
+    item.upgrade_level,
   );
   if (weaponStats.length) return weaponStats;
 
-  return getGenericDisplayStats(item.stats);
+  const effectiveStats = getEffectiveItemStats(item);
+  const displayStats: ItemStats = {};
+  for (const key of Object.keys(item.stats ?? {})) {
+    displayStats[key] = effectiveStats[key] ?? item.stats?.[key];
+  }
+  return getGenericDisplayStats(displayStats);
 }
 
 export function getFullForceRange(weapon: WeaponDefinition): number {

@@ -1,0 +1,40 @@
+<div class="tab-layout">
+  <section class="workbench dismantle-bench">
+    <div class="line-slots">
+      <button type="button" class="slot-button" (click)="selected = null" aria-label="Item">
+        <app-item-slot [item]="selected" [slotIndex]="0"></app-item-slot>
+      </button>
+      <span class="arrow">-&gt;</span>
+      <div class="result-slot" [class.success]="result?.success">
+        @if (result?.resultFragment) {
+          <app-item-slot [item]="result!.resultFragment" [slotIndex]="99"></app-item-slot>
+        } @else {
+          <span>?</span>
+        }
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button type="button" class="primary" (click)="dismantle()" [disabled]="!selected || loading">
+        {{ loading ? 'Desmontando...' : 'Desmontar' }}
+      </button>
+      @if (message) {
+        <p class="inline-note">{{ message }}</p>
+      }
+    </div>
+  </section>
+
+  <aside class="inventory-panel">
+    <div class="inventory-list">
+      @for (item of items; track item.id) {
+        <button type="button" class="inventory-item" (click)="selectItem(item)" [class.selected]="selected?.id === item.id">
+          <img [src]="item.iconPath || item.icon" [alt]="item.name" onerror="this.style.display='none'">
+          <span>{{ item.name }}</span>
+          <small [style.color]="color(item)">{{ item.rarity || 'common' }} +{{ item.upgrade_level || 0 }}</small>
+        </button>
+      } @empty {
+        <div class="empty">Sem itens desmontaveis.</div>
+      }
+    </div>
+  </aside>
+</div>

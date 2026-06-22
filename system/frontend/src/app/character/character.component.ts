@@ -9,6 +9,8 @@ import { InventoryService } from '../shared/services/inventory.service';
 import { ActiveCharacterService } from '../shared/services/active-character.service';
 import { GameNavigatorService } from '../shared/services/game-navigator.service';
 import { InventoryItem, EquipmentSlotType } from '../shared/game-core/types';
+import { sumEffectiveEquipmentStat } from '../shared/game-core/combat-loadout';
+import { isItemAllowedInEquipmentSlot } from '../shared/game-core/equipment-slot-rules';
 import { EquipmentSlotsComponent } from '../shared/components/equipment-slots/equipment-slots.component';
 import { InventoryGridComponent } from '../shared/components/inventory-grid/inventory-grid.component';
 import { VaultGridComponent } from '../shared/components/vault-grid/vault-grid.component';
@@ -33,6 +35,7 @@ export class CharacterComponent implements OnInit {
   inventoryItems: (InventoryItem | null)[] = [];
   equippedItems: Partial<Record<EquipmentSlotType, InventoryItem>> = {};
   inventoryLoading = false;
+  inventoryError = '';
 
   private activeCharacter = inject(ActiveCharacterService);
 
@@ -82,27 +85,19 @@ export class CharacterComponent implements OnInit {
   // ── Derived stats with equipment bonuses ──────────────────────────────────
 
   get equipmentBonusHp(): number {
-    return Object.values(this.equippedItems).reduce(
-      (sum, item) => sum + ((item?.stats?.['hp'] as number | undefined) ?? 0), 0,
-    );
+    return sumEffectiveEquipmentStat(this.equippedItems, 'hp');
   }
 
   get equipmentBonusAttack(): number {
-    return Object.values(this.equippedItems).reduce(
-      (sum, item) => sum + ((item?.stats?.['attack'] as number | undefined) ?? 0), 0,
-    );
+    return sumEffectiveEquipmentStat(this.equippedItems, 'attack');
   }
 
   get equipmentBonusDefense(): number {
-    return Object.values(this.equippedItems).reduce(
-      (sum, item) => sum + ((item?.stats?.['defense'] as number | undefined) ?? 0), 0,
-    );
+    return sumEffectiveEquipmentStat(this.equippedItems, 'defense');
   }
 
   get equipmentBonusSpeed(): number {
-    return Object.values(this.equippedItems).reduce(
-      (sum, item) => sum + ((item?.stats?.['speed'] as number | undefined) ?? 0), 0,
-    );
+    return sumEffectiveEquipmentStat(this.equippedItems, 'speed');
   }
 
   get effectiveMaxHp(): number {
@@ -230,8 +225,13 @@ export class CharacterComponent implements OnInit {
   onEquip(event: { slot: EquipmentSlotType; item: InventoryItem }): void {
     const charId = this.characterId;
     if (!charId) return;
+    if (!isItemAllowedInEquipmentSlot(event.item, event.slot)) {
+      this.showInventoryError('Este item não pode ser equipado neste slot.');
+      return;
+    }
     this.inventoryService.equipItem(charId, event.item.id, event.slot).subscribe({
       next: () => this.loadInventory(true),
+      error: err => this.showInventoryError(err.error?.message || 'Falha ao equipar item.'),
     });
   }
 
@@ -264,4 +264,10 @@ export class CharacterComponent implements OnInit {
   }
 
   onItemClick(_event: { item: InventoryItem; index: number }): void { /* no-op */ }
+
+  private showInventoryError(message: string): void {
+    this.inventoryError = message;
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(() => { this.inventoryError = ''; }, 2200);
+  }
 }

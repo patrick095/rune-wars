@@ -29,13 +29,14 @@ export class AdminController {
   @Post('characters/:id/inventory/add')
   addItemToInventory(
     @Param('id') id: string,
-    @Body() body: { item_base_id: string; rarity?: string; quantity?: number },
+    @Body() body: { item_base_id: string; rarity?: string; quantity?: number; upgrade_level?: number },
   ) {
     return this.adminService.addItemToInventory(
       id,
       body.item_base_id,
       body.rarity ?? 'common',
       body.quantity ?? 1,
+      body.upgrade_level ?? 0,
     );
   }
 
@@ -44,11 +45,11 @@ export class AdminController {
     return this.adminService.removeItem(itemId);
   }
 
-  @Post('characters/:id/consumables/add')
-  addConsumable(
+  @Post('characters/:id/gold/add')
+  addGold(
     @Param('id') id: string,
-    @Body() body: { consumableId: string; quantity: number },
+    @Body() body: { amount: number },
   ) {
-    return this.adminService.addConsumable(id, body.consumableId, body.quantity);
+    return this.adminService.addGold(id, body.amount);
   }
 }

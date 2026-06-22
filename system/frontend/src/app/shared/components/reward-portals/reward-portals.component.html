@@ -1,0 +1,52 @@
+<div class="reward-overlay">
+  <section class="reward-panel">
+    <header>
+      <div>
+        <h1>Portais</h1>
+        <p>{{ selected.size }}/{{ picks }}</p>
+      </div>
+      <div class="timer">
+        <strong>{{ remaining }}</strong>
+        <span><i [style.width.%]="progress"></i></span>
+      </div>
+    </header>
+
+    @if (error) {
+      <div class="message error">{{ error }}</div>
+    } @else if (loading && gains.length === 0) {
+      <div class="message">Carregando...</div>
+    } @else if (gains.length > 0) {
+      <div class="gains">
+        @for (gain of gains; track gain.portalIndex) {
+          <article class="gain" [style.borderColor]="portalColor()">
+            <span>{{ gain.kind === 'gold' ? 'Ouro' : gain.kind === 'stone' ? 'Pedra' : 'Item' }}</span>
+            <strong>{{ gainLabel(gain) }}</strong>
+          </article>
+        }
+      </div>
+      <button type="button" class="primary" (click)="close.emit()">OK</button>
+    } @else {
+      <div class="portal-grid" [class.boss-grid]="portalList.length > 8">
+        @for (portal of portalList; track portal.index) {
+          <button
+            type="button"
+            class="portal"
+            [class.selected]="selected.has(portal.index)"
+            [style.--portal-color]="portalColor()"
+            (click)="togglePortal(portal)"
+          >
+            <span class="portal-arch"></span>
+            @if (reveal.length > 0) {
+              <small>{{ portalLabel(portal) }}</small>
+            }
+          </button>
+        }
+      </div>
+
+      <footer>
+        <button type="button" class="secondary" (click)="autoPick()">Auto</button>
+        <button type="button" class="primary" (click)="submit()" [disabled]="!selectionComplete || loading">Abrir</button>
+      </footer>
+    }
+  </section>
+</div>

@@ -112,6 +112,7 @@
       <div class="equipment-panel">
         <h2>Equipamentos</h2>
         <div *ngIf="inventoryLoading" class="loading-msg">Carregando…</div>
+        <div *ngIf="inventoryError" class="inventory-feedback">{{ inventoryError }}</div>
         <ng-container *ngIf="!inventoryLoading">
           <app-equipment-slots
             [equippedItems]="equippedItems"

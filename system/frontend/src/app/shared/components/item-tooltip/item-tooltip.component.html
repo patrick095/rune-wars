@@ -1,6 +1,7 @@
 <div class="item-tooltip" *ngIf="item" role="tooltip">
   <div class="tooltip-header">
-    <span class="item-name">{{ item.name }}</span>
+    <span class="item-name" [style.color]="rarityColor">{{ formattedName }}</span>
+    <span class="item-rarity-label" [style.color]="rarityColor">{{ rarityLabel }}</span>
     <span class="item-type">{{ item.category }}</span>
   </div>
   <div class="tooltip-stats" *ngIf="statEntries.length">
@@ -8,6 +9,24 @@
       <span class="stat-key">{{ stat.key }}</span>
       <span class="stat-value">{{ stat.value }}</span>
     </div>
+  </div>
+  <div class="tooltip-stats" *ngIf="isEnhancementStone">
+    <div class="stat-row">
+      <span class="stat-key">Nível da Pedra</span>
+      <span class="stat-value">+{{ enhancementStoneLevel }}</span>
+    </div>
+    <div class="stat-row" *ngIf="hasStackQuantity">
+      <span class="stat-key">Quantidade</span>
+      <span class="stat-value">{{ item.quantity }}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-key">Uso</span>
+      <span class="stat-value">Aprimoramento</span>
+    </div>
+  </div>
+  <div class="tooltip-upgrade" *ngIf="!isEnhancementStone && item.upgrade_level && item.upgrade_level > 0">
+    <span class="upgrade-label">Nível de Melhoria:</span>
+    <span class="upgrade-value">+{{ item.upgrade_level }}</span>
   </div>
   <div class="tooltip-description" *ngIf="item.description">{{ item.description }}</div>
 </div>

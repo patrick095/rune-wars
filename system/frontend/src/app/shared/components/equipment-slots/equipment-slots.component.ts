@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ItemSlotComponent } from '../item-slot/item-slot.component';
 import { InventoryItem, EquipmentSlotType } from '../../game-core/types';
+import { RARITY_COLORS, normalizeRarity, formatItemName } from '../../game-core/rarity';
 
 interface EquipmentSlot {
   type: EquipmentSlotType;
@@ -53,5 +54,20 @@ export class EquipmentSlotsComponent {
   onDrop(event: { fromIndex: number; toIndex: number }, slot: EquipmentSlot): void {
     // Drag-drop from inventory grid into an equipment slot — emit so parent can perform equip
     this.itemDropped.emit({ fromInventoryIndex: event.fromIndex, targetSlot: slot.type });
+  }
+
+  /** Returns the rarity color for a slot's equipped item, or null if no item / common. */
+  rarityColorForSlot(slot: EquipmentSlot): string | null {
+    if (!slot.item) return null;
+    const rarity = normalizeRarity(slot.item.rarity ?? 'common');
+    if (rarity === 'common') return null;
+    return RARITY_COLORS[rarity];
+  }
+
+  /** Returns formatted item name with rarity suffix for a slot's equipped item. */
+  formattedSlotItemName(slot: EquipmentSlot): string {
+    if (!slot.item) return slot.label;
+    const rarity = normalizeRarity(slot.item.rarity ?? 'common');
+    return formatItemName(slot.item.name, rarity);
   }
 }

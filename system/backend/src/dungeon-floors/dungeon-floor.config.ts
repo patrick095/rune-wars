@@ -1,4 +1,5 @@
 export type DifficultyTrack = 'initiates' | 'adventurers' | 'champions' | 'heroes';
+export type DungeonDifficulty = 'easy' | 'medium' | 'hard' | 'heroic';
 
 export interface FloorConfig {
   floor: number;
@@ -11,14 +12,14 @@ export interface FloorConfig {
 
 export const FLOOR_CONFIGS: FloorConfig[] = [
   {
-    floor: 1, name: 'Cavernas dos Iniciados', phases: 3, boss: 'Golem Menor',
+    floor: 1, name: 'Entrada da Caverna', phases: 2, boss: 'Morcego Gigante',
     xpRange: [50, 200],
-    rarityByTrack: { initiates: 'common', adventurers: 'uncommon', champions: 'rare', heroes: 'epic' },
+    rarityByTrack: { initiates: 'common', adventurers: 'uncommon', champions: 'rare', heroes: 'rare' },
   },
   {
-    floor: 2, name: 'Minas Perdidas', phases: 3, boss: 'Mestre Escavador',
+    floor: 2, name: 'Raiz da Corrupção', phases: 3, boss: 'Treant da Corrupção',
     xpRange: [100, 350],
-    rarityByTrack: { initiates: 'common', adventurers: 'uncommon', champions: 'rare', heroes: 'epic' },
+    rarityByTrack: { initiates: 'common', adventurers: 'uncommon', champions: 'rare', heroes: 'rare' },
   },
   {
     floor: 3, name: 'Floresta Corrompida', phases: 3, boss: 'Guardião Corrompido',
@@ -39,4 +40,21 @@ export const FLOOR_CONFIGS: FloorConfig[] = [
 
 export function getFloorConfig(floor: number): FloorConfig | undefined {
   return FLOOR_CONFIGS.find(f => f.floor === floor);
+}
+
+export const TRACK_BY_DIFFICULTY: Record<DungeonDifficulty, DifficultyTrack> = {
+  easy: 'initiates',
+  medium: 'adventurers',
+  hard: 'champions',
+  heroic: 'heroes',
+};
+
+export function normalizeDifficulty(difficulty: string | undefined): DungeonDifficulty {
+  const value = difficulty ?? 'easy';
+  if (value === 'easy' || value === 'medium' || value === 'hard' || value === 'heroic') return value;
+  if (value === 'initiates') return 'easy';
+  if (value === 'adventurers') return 'medium';
+  if (value === 'champions') return 'hard';
+  if (value === 'heroes') return 'heroic';
+  return 'easy';
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Put, Param, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DungeonService } from './dungeon.service';
 
@@ -15,5 +15,14 @@ export class DungeonController {
   @Put()
   save(@Param('characterId') cid: string, @Body() body: any, @Request() req: any) {
     return this.service.save(cid, req.user.userId, body);
+  }
+
+  @Get('floor/:floor/access')
+  canAccessFloor(
+    @Param('characterId') cid: string,
+    @Param('floor') floor: string,
+    @Query('difficulty') difficulty: string,
+  ) {
+    return this.service.canAccessFloor(cid, parseInt(floor, 10), difficulty ?? 'easy');
   }
 }

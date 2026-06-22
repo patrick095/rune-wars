@@ -1,63 +1,66 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+} from "typeorm";
 
-export type RoomStatus = 'waiting' | 'active' | 'closed';
-export type RoomMode = 'ranked' | 'free' | 'guild';
+export type RoomStatus = "waiting" | "in_battle" | "completed" | "closed";
+export type RoomMode = "ranked" | "free" | "guild";
 
 export interface SlotState {
-  playerId: string | null;
-  playerName: string | null;
-  closed: boolean;
-  ready?: boolean;
-  consumableSelection?: string[];
+    playerId: string | null;
+    playerName: string | null;
+    closed: boolean;
+    ready?: boolean;
+    consumableSelection?: string[];
 }
 
-@Entity('pvp_rooms')
+@Entity("pvp_rooms")
 export class PvpRoom {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+    @PrimaryGeneratedColumn("uuid")
+    id: string;
 
-  @Column()
-  name: string;
+    @Column()
+    name: string;
 
-  @Column({ nullable: true })
-  ownerCharacterId: string | null;
+    @Column({ nullable: true })
+    ownerCharacterId: string | null;
 
-  @Column('simple-array', { default: '' })
-  playerIds: string[];
+    @Column("simple-array", { default: "" })
+    playerIds: string[];
 
-  @Column({ default: 'plains' })
-  mapName: string;
+    @Column({ default: "plains" })
+    mapName: string;
 
-  @Column({ default: 1 })
-  playerCount: number;
+    @Column({ default: 1 })
+    playerCount: number;
 
-  @Column({ default: 2 })
-  maxPlayers: number;
+    @Column({ default: 2 })
+    maxPlayers: number;
 
-  @Column({ default: 'waiting' })
-  status: RoomStatus;
+    @Column({ default: "waiting" })
+    status: RoomStatus;
 
-  @Column({ type: 'jsonb', default: [] })
-  slots: SlotState[];
+    @Column({ type: "jsonb", default: [] })
+    slots: SlotState[];
 
-  @Column({ default: 'ranked' })
-  mode: string;
+    @Column({ default: "ranked" })
+    mode: string;
 
-  @Column({ default: 'random' })
-  map_slug: string;
+    @Column({ default: "random" })
+    map_slug: string;
 
-  @Column({ default: false })
-  vs_cpu: boolean;
+    @Column({ default: false })
+    vs_cpu: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+    @Column({ type: "jsonb", nullable: true })
+    reward_state: Record<string, unknown> | null;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
 }

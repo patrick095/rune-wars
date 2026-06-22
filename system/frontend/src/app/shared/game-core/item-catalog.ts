@@ -377,6 +377,66 @@ export const ITEM_CATALOG: Record<string, ItemDefinition> = {
     iconPath: 'assets/items/materials/strength_gem.png',
     description: 'Gema carregada com energia de força bruta. Usada para criar equipamentos de ataque.',
   },
+
+  // ── FRAGMENTOS (insumos de craft) ────────────────────────────────────────
+
+  fragment_weapon: {
+    id: 'fragment_weapon',
+    name: 'Fragmento de Arma',
+    category: 'material',
+    iconPath: 'assets/items/materials/fragment_weapon.png',
+    description: 'Fragmento de uma arma quebrada. Usado no Ferreiro para combinação.',
+  },
+
+  fragment_armor: {
+    id: 'fragment_armor',
+    name: 'Fragmento de Armadura',
+    category: 'material',
+    iconPath: 'assets/items/materials/fragment_armor.png',
+    description: 'Fragmento de armadura danificada.',
+  },
+
+  fragment_head: {
+    id: 'fragment_head',
+    name: 'Fragmento de Elmo',
+    category: 'material',
+    iconPath: 'assets/items/materials/fragment_head.png',
+    description: 'Fragmento de capacete quebrado.',
+  },
+
+  fragment_legs: {
+    id: 'fragment_legs',
+    name: 'Fragmento de Perneira',
+    category: 'material',
+    iconPath: 'assets/items/materials/fragment_legs.png',
+    description: 'Fragmento de perneira danificada.',
+  },
+
+  fragment_accessory: {
+    id: 'fragment_accessory',
+    name: 'Fragmento de Acessório',
+    category: 'material',
+    iconPath: 'assets/items/materials/fragment_accessory.png',
+    description: 'Fragmento de acessório mágico.',
+  },
+
+  fragment_secondary: {
+    id: 'fragment_secondary',
+    name: 'Fragmento de Item Secundário',
+    category: 'material',
+    iconPath: 'assets/items/materials/fragment_secondary.png',
+    description: 'Fragmento de item secundário.',
+  },
+
+  // ── PEDRA DE APRIMORAMENTO ───────────────────────────────────────────────
+
+  enhancement_stone: {
+    id: 'enhancement_stone',
+    name: 'Pedra de Aprimoramento',
+    category: 'material',
+    iconPath: 'assets/items/materials/enhancement_stone_0.png',
+    description: 'Pedra mágica para aprimorar equipamentos. O nível é determinado por upgrade_level.',
+  },
 };
 
 // ---------------------------------------------------------------------------

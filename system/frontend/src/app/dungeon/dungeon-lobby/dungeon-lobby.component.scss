@@ -1,0 +1,174 @@
+:host {
+    display: block;
+    min-height: 100%;
+}
+
+.dungeon-lobby-screen {
+    min-height: 100vh;
+    padding: 18px;
+    color: #f5f5f5;
+    background: #111522;
+}
+
+header {
+    max-width: 980px;
+    margin: 0 auto 16px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+}
+
+h1,
+h2 {
+    margin: 0;
+    letter-spacing: 0;
+}
+
+h1 {
+    text-align: center;
+    color: #f7d774;
+}
+
+button {
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid #465173;
+    border-radius: 6px;
+    background: #252d43;
+    color: #f5f5f5;
+    cursor: pointer;
+}
+
+button.primary {
+    background: #7b4a1f;
+    border-color: #a56b32;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.room-list {
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    gap: 10px;
+}
+
+.room-card {
+    min-height: 76px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid #333d5a;
+    border-radius: 8px;
+    background: #1b2235;
+}
+
+.room-card div {
+    display: grid;
+    gap: 5px;
+}
+
+.room-card span,
+.empty-state {
+    color: #aab2c8;
+}
+
+.empty-state,
+.error-banner {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 16px;
+    border-radius: 8px;
+    background: #1b2235;
+    text-align: center;
+}
+
+.error-banner {
+    margin-bottom: 12px;
+    color: #ff8a78;
+    border: 1px solid rgba(255, 138, 120, 0.35);
+}
+
+label {
+    display: grid;
+    gap: 6px;
+    color: #dce2f4;
+    font-size: 12px;
+}
+
+select {
+    min-height: 38px;
+    padding: 8px;
+    color: #f5f5f5;
+    background: #111522;
+    border: 1px solid #3d4867;
+    border-radius: 4px;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+@media (max-width: 640px) {
+    header {
+        grid-template-columns: 1fr;
+    }
+
+    h1 {
+        text-align: left;
+    }
+
+    .room-card {
+        grid-template-columns: 1fr;
+    }
+}
+
+.room-in-battle {
+    background: rgba(233, 69, 96, 0.1) !important;
+    border-color: #e94560 !important;
+
+    &:hover {
+        background: rgba(233, 69, 96, 0.15) !important;
+    }
+}
+
+.room-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #465173;
+    color: #a0b0d0;
+    text-transform: capitalize;
+
+    &.in-battle {
+        background: #e94560;
+        color: #fff;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}

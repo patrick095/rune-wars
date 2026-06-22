@@ -1,0 +1,57 @@
+<div class="tab-layout">
+  <section class="workbench craft-bench">
+    <div class="slot-triangle">
+      @for (slot of slots; track $index) {
+        <button type="button" class="slot-button" (click)="clearSlot($index)" [attr.aria-label]="'Slot ' + ($index + 1)">
+          <app-item-slot [item]="slot" [slotIndex]="$index"></app-item-slot>
+        </button>
+      }
+    </div>
+
+    <div class="result-slot" [class.success]="result?.success === true" [class.fail]="result?.success === false">
+      @if (result?.resultItem) {
+        <app-item-slot [item]="result!.resultItem" [slotIndex]="99"></app-item-slot>
+      } @else if (result?.success === false) {
+        <span class="fail-icon">✕</span>
+      } @else {
+        <span>?</span>
+      }
+    </div>
+
+    @if (successChance !== null) {
+      <div class="chance-panel">
+        <span>Chance de sucesso</span>
+        <strong>{{ successChance }}%</strong>
+      </div>
+    }
+
+    <div class="action-row">
+      <button type="button" class="primary" (click)="combine()" [disabled]="!canSubmit">
+        {{ loading ? 'Criando...' : 'Criar' }}
+      </button>
+      @if (compatibilityError) {
+        <p class="inline-error">{{ compatibilityError }}</p>
+      }
+    </div>
+  </section>
+
+  <aside class="inventory-panel">
+    <div class="inventory-list">
+      @for (item of fragments; track item.id) {
+        <button type="button" class="inventory-item" (click)="selectFragment(item)" [disabled]="slots[0]?.id === item.id || slots[1]?.id === item.id || slots[2]?.id === item.id">
+          <img [src]="item.iconPath || item.icon" [alt]="item.name" onerror="this.style.display='none'">
+          <span>{{ item.name }}</span>
+          <small [style.color]="color(item)">{{ item.rarity || 'common' }}</small>
+        </button>
+      } @empty {
+        <div class="empty">Sem fragmentos.</div>
+      }
+    </div>
+  </aside>
+</div>
+
+@if (toast) {
+  <div class="craft-toast" [class.toast-success]="toast.type === 'success'" [class.toast-error]="toast.type === 'error'">
+    {{ toast.message }}
+  </div>
+}

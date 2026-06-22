@@ -1,81 +1,51 @@
-import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import Phaser from 'phaser';
-import { AcademyScene } from '../../game/scenes/academy.scene';
-import { WeaponSystem } from '../shared/game-core/weapon-system';
-import { WeaponDefinition } from '../shared/game-core/weapon-definition';
+import { AcademyConfigPanelComponent } from './academy-config-panel.component';
+import { AcademyConfig } from './academy-config';
+import { ActiveCharacterService } from '../shared/services/active-character.service';
+import { GameNavigatorService } from '../shared/services/game-navigator.service';
+import { InventoryService } from '../shared/services/inventory.service';
+import { EquipmentSlotType, InventoryItem } from '../shared/game-core/types';
+import { buildAcademyBattleConfig } from '../shared/services/battle-config.factory';
 
 @Component({
   selector: 'app-academy',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, AcademyConfigPanelComponent],
   templateUrl: './academy.component.html',
   styleUrls: ['./academy.component.scss'],
 })
-export class AcademyComponent implements AfterViewInit, OnDestroy {
-  @ViewChild('gameContainer') containerRef!: ElementRef<HTMLDivElement>;
+export class AcademyComponent implements OnInit {
+  private equippedItems: Partial<Record<EquipmentSlotType, InventoryItem>> = {};
 
-  private game: Phaser.Game | null = null;
-  private hitPollInterval: ReturnType<typeof setInterval> | null = null;
+  constructor(
+    private readonly activeCharacter: ActiveCharacterService,
+    private readonly inventoryService: InventoryService,
+    private readonly navigator: GameNavigatorService,
+  ) {}
 
-  hitCount = 0;
-  weapons: WeaponDefinition[] = [];
-
-  constructor(private cdr: ChangeDetectorRef) {
-    this.weapons = new WeaponSystem().getAll();
-  }
-
-  ngAfterViewInit(): void {
-    const config: Phaser.Types.Core.GameConfig = {
-      type: Phaser.AUTO,
-      width: window.innerWidth - 200,
-      height: window.innerHeight,
-      backgroundColor: '#1a1a2e',
-      parent: this.containerRef.nativeElement,
-      scene: [AcademyScene],
-      scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-      },
-    };
-
-    this.game = new Phaser.Game(config);
-
-    // Poll hit count every 500ms and update view
-    this.hitPollInterval = setInterval(() => {
-      const scene = (window as unknown as Record<string, unknown>)['academyScene'] as AcademyScene | undefined;
-      const count = scene?.hitCount ?? 0;
-      if (count !== this.hitCount) {
-        this.hitCount = count;
-        this.cdr.detectChanges();
+  ngOnInit(): void {
+    const characterId = this.activeCharacter.characterId;
+    if (!characterId) return;
+    this.inventoryService.getInventory(characterId).subscribe(items => {
+      const equipped: Partial<Record<EquipmentSlotType, InventoryItem>> = {};
+      for (const item of items) {
+        if (item.equipped_slot) {
+          equipped[item.equipped_slot as EquipmentSlotType] = item;
+        }
       }
-    }, 500);
+      this.equippedItems = equipped;
+    });
   }
 
-  ngOnDestroy(): void {
-    if (this.hitPollInterval) {
-      clearInterval(this.hitPollInterval);
-      this.hitPollInterval = null;
-    }
-    this.game?.destroy(true);
-    this.game = null;
+  onStartTraining(cfg: AcademyConfig): void {
+    this.navigator.launchBattle(
+      buildAcademyBattleConfig(cfg, this.activeCharacter.character, this.equippedItems),
+    );
   }
 
-  setMode(event: Event): void {
-    const mode = (event.target as HTMLSelectElement).value;
-    const scene = (window as unknown as Record<string, unknown>)['academyScene'] as { setMode: (m: string) => void } | undefined;
-    scene?.setMode(mode);
-  }
-
-  setWeapon(event: Event): void {
-    const id = (event.target as HTMLSelectElement).value;
-    const scene = (window as unknown as Record<string, unknown>)['academyScene'] as { setWeapon: (id: string) => void } | undefined;
-    scene?.setWeapon(id);
-  }
-
-  resetTargets(): void {
-    const scene = (window as unknown as Record<string, unknown>)['academyScene'] as { resetTargets: () => void } | undefined;
-    scene?.resetTargets();
+  leaveAcademy(): void {
+    this.navigator.goTo('hub');
   }
 }

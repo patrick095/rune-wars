@@ -1,35 +1,58 @@
 <div class="pvp-lobby">
-  <div class="lobby-header">
-    <button class="btn-back" (click)="goHub()">← Hub</button>
-    <h2>Lobby PvP</h2>
-    <button class="btn-create" (click)="createRoom()">+ Criar Sala</button>
-  </div>
+    <div class="lobby-header">
+        <button class="btn-back" (click)="goHub()">← Hub</button>
+        <h2>Lobby PvP</h2>
+        <button class="btn-create" (click)="createRoom()">+ Criar Sala</button>
+    </div>
 
-  @if (error) {
-    <div class="error-banner">{{ error }}</div>
-  }
+    @if (error) {
+        <div class="error-banner">{{ error }}</div>
+    }
 
-  <table class="rooms-table">
-    <thead>
-      <tr>
-        <th>Nome</th>
-        <th>Mapa</th>
-        <th>Players</th>
-        <th>Ação</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (room of rooms; track room.id) {
-        <tr>
-          <td>{{ room.name }}</td>
-          <td>{{ room.mapName }}</td>
-          <td>{{ room.playerCount }}/{{ room.maxPlayers }}</td>
-          <td><button class="btn-join" (click)="joinRoom(room.id)">Entrar</button></td>
-        </tr>
-      }
-      @empty {
-        <tr><td colspan="4" class="empty-row">Nenhuma sala disponível</td></tr>
-      }
-    </tbody>
-  </table>
+    <table class="rooms-table">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Mapa</th>
+                <th>Status</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (room of rooms; track room.id) {
+                <tr [class.room-in-battle]="room.status === 'in_battle'">
+                    <td>{{ room.name }}</td>
+                    <td>{{ room.mapName }}</td>
+                    <td>
+                        <span
+                            class="status-label"
+                            [class.in-battle]="room.status === 'in_battle'"
+                        >
+                            {{ getRoomStatusLabel(room) }}
+                        </span>
+                    </td>
+                    <td>
+                        <button
+                            class="btn-join"
+                            (click)="joinRoom(room.id)"
+                            [disabled]="!canJoinRoom(room)"
+                            [title]="
+                                !canJoinRoom(room)
+                                    ? 'Sala não disponível'
+                                    : 'Entrar na sala'
+                            "
+                        >
+                            Entrar
+                        </button>
+                    </td>
+                </tr>
+            } @empty {
+                <tr>
+                    <td colspan="4" class="empty-row">
+                        Nenhuma sala disponível
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
 </div>

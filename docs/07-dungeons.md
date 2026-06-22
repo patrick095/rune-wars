@@ -2,185 +2,117 @@
 
 ## Conceito
 
-Rune Wars terá uma dungeon principal estruturada por andares e trilhas de dificuldade.
+Rune Wars possui uma dungeon principal estruturada por andares, estágios e dificuldades. O objetivo é concentrar os jogadores em um sistema expansível, com salas compartilhadas, progresso por dificuldade, portais de recompensa e batalhas client-side em Phaser.
 
-O foco é concentrar os jogadores em um único sistema expansível, evitando dezenas de dungeons abandonadas.
+## Arquitetura da v1.8.0
 
-## Estrutura geral
+Lobby, salas, progresso e portais são coordenados pelo backend. A batalha de cada estágio roda no cliente, usando `DungeonScene`, `DungeonEngine`, mapas de terreno e conteúdo local de monstros.
 
-- O jogador começa podendo entrar apenas no Andar 1.
-- Para acessar o Andar 2, precisa concluir o Andar 1.
-- Cada andar possui pelo menos duas fases: uma fase de objetivo e uma fase de chefão.
-- Andares mais altos podem ter subchefes e mais fases.
-- Grupo de até 8 jogadores.
-- Ao criar uma sala, os jogadores entram em um lobby da dungeon.
-- No lobby, podem trocar armas, armaduras, consumíveis, itens secundários e estratégia.
-- Ao iniciar uma fase, o grupo fica nela até vencer ou perder.
-- Ao final de cada fase, o grupo retorna ao lobby para se preparar para a próxima.
+Na v1.8.0 não há sincronização de combate co-op em tempo real; a sala e as recompensas são autoritativas no backend.
 
-## Trilhas de dificuldade
+## Salas
 
-As trilhas usam os mesmos andares, porém alteram força, inteligência dos monstros, mecânicas e recompensas.
+As salas de dungeon seguem o padrão do PvP:
 
-### Trilha dos Iniciados
+- Lista de salas com andar, dificuldade, status e quantidade de jogadores.
+- Criar sala escolhendo andar e dificuldade.
+- Até 4 jogadores por sala.
+- Entrada bloqueada quando a sala está cheia, em batalha ou em seleção de portal.
+- Dono da sala pode alterar andar e dificuldade antes do início.
+- Jogadores escolhem consumíveis e marcam PRONTO.
+- Dono inicia o estágio quando a party estiver preparada.
 
-- IA básica.
-- Chefes com poucas mecânicas.
-- Ideal para aprender.
+Entre estágios, a sala volta para estado de regroup para ajustes de equipamento, consumíveis e inventário.
 
-### Trilha dos Aventureiros
+## Gate de Andar
 
-- IA intermediária.
-- Chefes com mudança de padrão ao chegar em 50% de vida.
+O progresso é salvo por dificuldade.
 
-### Trilha dos Campeões
+Para acessar o Andar 2 em uma dificuldade, o personagem precisa ter vencido o Andar 1 naquela mesma dificuldade.
 
-- IA avançada.
-- Monstros priorizam alvos, usam terreno e combinam efeitos.
-- Chefes mudam em 50% e 10% de vida.
+O campo `cleared_by_difficulty` registra o maior andar concluído por trilha:
 
-### Trilha dos Heróis
+- `easy`
+- `medium`
+- `hard`
+- `heroic`
 
-- IA máxima.
-- Chefes com múltiplas fases, invocações, destruição de terreno e padrões adaptativos.
-- Recompensas superiores.
+## Dificuldades
 
-## Andares iniciais — v1.0
+As dificuldades atuais são:
 
-### Andar 1 — Cavernas dos Iniciados
+| Dificuldade | Multiplicador de HP/Dano | Padrão de boss |
+|---|---:|---|
+| Fácil | x1.0 | Fase 1 |
+| Médio | x1.5 | Fases 1 + 2 |
+| Difícil | x3.0 | Fases 1 + 2 + 3 |
+| Heroico | x7.0 | Começa em padrão avançado |
 
-Tema: caverna rúnica inicial.
+Internamente, elas mapeiam para as trilhas legadas `initiates`, `adventurers`, `champions` e `heroes`.
 
-Fases:
+## Andar 1 — Entrada da Caverna
 
-1. Entrada da Caverna
-   - Objetivo: derrotar criaturas simples e atravessar pequenos obstáculos.
-   - Ensina movimentação, vento, tiro e terreno destrutível.
+Tema: caverna rúnica em tons marrons, com obstáculos rochosos e ameaça de morcegos.
 
-2. Salão dos Morcegos
-   - Objetivo: proteger um cristal por alguns turnos.
-   - Estratégia: tank, controle de área e posicionamento.
+### Estágio 1 — Entrada da Caverna
 
-3. Covil do Golem Menor
-   - Chefão: Golem Menor.
-   - Mecânica: ataques lentos, pedras caindo e cobertura destrutível.
+- Tipo: travessia.
+- Objetivo: alcançar o portal de saída.
+- Função: ensinar leitura de terreno, deslocamento e obstáculos.
 
-Estratégia central: aprendizado das mecânicas base.
+### Estágio 2 — Salão dos Morcegos
 
-### Andar 2 — Minas Perdidas
+- Tipo: boss.
+- Boss: Morcego Gigante.
+- Mecânicas: padrões por dificuldade, ataques ácidos e pressão de posicionamento.
 
-Tema: minas antigas e cristais instáveis.
+## Andar 2 — Floresta Subterrânea
 
-Fases:
+Tema: transição de caverna para raízes corrompidas, cristais místicos e energia roxa/vermelha.
 
-1. Túneis Instáveis
-   - Objetivo: abrir caminho até uma saída bloqueada.
-   - Estratégia: escavador e TNT.
+### Estágio 1 — Besouro Místico
 
-2. Câmara de Cristais
-   - Objetivo: destruir cristais corrompidos enquanto monstros aparecem.
-   - Estratégia: divisão de funções e dano em área.
+- Tipo: proteção.
+- Objetivo: proteger o NPC Besouro Místico por 10 turnos.
+- Inimigos: morcegos ácidos em ondas.
 
-3. Mestre Escavador
-   - Chefão: criatura que escava e derruba plataformas.
-   - Em dificuldades altas, cria túneis e tenta separar o grupo.
+### Estágio 2 — Raízes Corrompidas
 
-Estratégia central: escavação e controle de mapa.
+- Tipo: derrotar todos.
+- Objetivo: eliminar 10 inimigos.
+- Inimigos: besouros corrompidos e morcegos ácidos.
 
-### Andar 3 — Floresta Corrompida
+### Estágio 3 — Câmara do Treant
 
-Tema: raízes, veneno e terreno vivo.
+- Tipo: boss.
+- Boss: Treant da Corrupção.
+- Mecânicas: stomp em área, explosões de raiz, invocação e golpe de alto impacto conforme fase/dificuldade.
 
-Fases:
+## Enemy Phase
 
-1. Bosque Envenenado
-   - Objetivo: sobreviver e destruir fontes de veneno.
-   - Estratégia: cura, vitalidade e posicionamento.
+Monstros agem em lote durante a fase inimiga. A resolução é sequencial rápida no cliente, com pequena cadência visual entre inimigos, e depois o turno volta ao jogador.
 
-2. Raízes Aprisionadoras
-   - Objetivo: escoltar um NPC preso por raízes.
-   - Estratégia: proteção, construção de terreno e cura.
+## Portais de Recompensa
 
-3. Guardião Corrompido
-   - Chefão: árvore viva que usa veneno, raízes e cobertura.
-   - Em 50%, espalha veneno no mapa.
-   - Em 10%, invoca raízes e reduz áreas seguras.
+Ao fim de cada estágio normal, a sala gera 8 portais e cada jogador escolhe 1.
 
-Estratégia central: suporte, antiveneno, cura e construção defensiva.
+Ao fim de boss, a sala gera 16 portais e cada jogador escolhe 2.
 
-### Andar 4 — Fortaleza Rúnica
+Ao fim de PvP, a sala gera 8 portais e cada jogador escolhe 1.
 
-Tema: castelo mágico antigo.
-
-Fases:
-
-1. Muralhas da Fortaleza
-   - Objetivo: invadir atravessando defesas e torres.
-   - Estratégia: precisão, cobertura e boomerangue.
-
-2. Pátio dos Sentinelas
-   - Objetivo: derrotar ondas de guardiões.
-   - Estratégia: tank e DPS coordenado.
-
-3. Comandante Rúnico
-   - Subchefe: usa escudo, desarme e bloqueio de itens.
-
-4. Trono Rúnico
-   - Chefão: alterna defesa física e mágica.
-   - Exige troca de armas/builds entre fases.
-
-Estratégia central: adaptação entre dano físico, mágico e misto.
-
-### Andar 5 — Núcleo do Caos
-
-Tema: magia instável, teleporte e runas caóticas.
-
-Fases:
-
-1. Portal Instável
-   - Objetivo: ativar cristais em ordem enquanto o mapa muda.
-   - Estratégia: mobilidade, teleporte e construção.
-
-2. Câmara das Runas
-   - Objetivo: sobreviver a padrões de ataques rúnicos.
-   - Estratégia: leitura, defesa e coordenação.
-
-3. Coração do Caos
-   - Subchefe: alterna debuffs, cegueira e deslocamentos.
-
-4. Avatar do Caos
-   - Chefão final do ciclo inicial.
-   - Em 50%, altera gravidade/vento.
-   - Em 10%, destrói partes do mapa e força reconstrução estratégica.
-
-Estratégia central: domínio completo de todas as mecânicas.
-
-## IA e fases dos monstros
-
-Monstros e chefes podem mudar comportamento por vida:
-
-- 100% a 50%: fase normal.
-- 50% a 10%: fase avançada.
-- 10% a 0%: fase desesperada.
-
-Em dificuldades mais altas, a IA pode:
-
-- Priorizar healer.
-- Usar cobertura.
-- Escavar.
-- Evitar áreas perigosas.
-- Forçar reposicionamento.
-- Reagir a estratégias repetidas.
+Há timer de 10 segundos e seleção automática quando o jogador não escolhe a tempo. O backend mantém o contexto autoritativo, concede ouro, itens ou pedras e retorna o reveal/ganhos.
 
 ## Recompensas
 
 Dungeons entregam:
 
-- XP individual.
-- XP de guilda quando houver membros suficientes da mesma guilda.
 - Ouro.
-- Materiais.
-- Equipamentos.
-- Armaduras para uso ou desmontagem.
-- Pedras/fragmentos indiretos via desmontagem.
-- Itens raros em dificuldades maiores.
+- Equipamentos de raridade por dificuldade.
+- Pedras de aprimoramento.
+- Progresso de gate por dificuldade.
+
+Heroico não dropa em portal; itens Heroicos vêm do craft.
+
+## Conteúdo Futuro
+
+Andares 3 a 5 permanecem no roadmap. A estrutura de sala, gate, conteúdo por estágio, mapas e portais já permite adicionar novos andares sem reescrever o fluxo base.

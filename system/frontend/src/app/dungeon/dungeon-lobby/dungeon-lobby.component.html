@@ -1,33 +1,117 @@
-<section class="panel lobby">
-  <div>
-    <p class="eyebrow">Fase concluida</p>
-    <h2>Preparar {{ nextPhase.name }}</h2>
-    <p>HP {{ player.hp }}/{{ player.maxHp }} · Vidas {{ lives }} · Recompensas {{ earnedXp }} XP / {{ earnedGold }} ouro</p>
-  </div>
+@if (prepMode) {
+    <section class="panel lobby">
+        <div>
+            <p class="eyebrow">Fase concluida</p>
+            <h2>Preparar {{ nextPhase!.name }}</h2>
+            <p>
+                HP {{ player!.hp }}/{{ player!.maxHp }} · Vidas {{ lives }} ·
+                Recompensas {{ earnedXp }} XP / {{ earnedGold }} ouro
+            </p>
+        </div>
 
-  <label>
-    Arma
-    <select [(ngModel)]="selectedWeaponId">
-      <option *ngFor="let weapon of weapons" [value]="weapon.id">{{ weapon.name }}</option>
-    </select>
-  </label>
+        <label>
+            Arma
+            <select [(ngModel)]="selectedWeaponId">
+                <option *ngFor="let weapon of weapons" [value]="weapon.id">
+                    {{ weapon.name }}
+                </option>
+            </select>
+        </label>
 
-  <label>
-    Item secundario
-    <select [(ngModel)]="selectedSecondaryId">
-      <option *ngFor="let item of secondaryItems" [value]="item.id">{{ item.name }}</option>
-    </select>
-  </label>
+        <label>
+            Item secundario
+            <select [(ngModel)]="selectedSecondaryId">
+                <option *ngFor="let item of secondaryItems" [value]="item.id">
+                    {{ item.name }}
+                </option>
+            </select>
+        </label>
 
-  <label>
-    Consumivel
-    <select [(ngModel)]="selectedConsumableId">
-      <option *ngFor="let item of consumables" [value]="item.id">{{ item.name }}</option>
-    </select>
-  </label>
+        <label>
+            Consumivel
+            <select [(ngModel)]="selectedConsumableId">
+                <option *ngFor="let item of consumables" [value]="item.id">
+                    {{ item.name }}
+                </option>
+            </select>
+        </label>
 
-  <div class="actions">
-    <button type="button" class="primary" (click)="continue()">Continuar</button>
-    <button type="button" (click)="abandon.emit()">Abandonar</button>
-  </div>
-</section>
+        <div class="actions">
+            <button type="button" class="primary" (click)="continue()">
+                Continuar
+            </button>
+            <button type="button" (click)="abandon.emit()">Abandonar</button>
+        </div>
+    </section>
+} @else {
+    <section class="dungeon-lobby-screen">
+        <header>
+            <button type="button" (click)="goHub()">Hub</button>
+            <h1>Dungeon</h1>
+            <button
+                type="button"
+                class="primary"
+                (click)="createRoom()"
+                [disabled]="loading"
+            >
+                {{ loading ? "Criando..." : "Criar Sala" }}
+            </button>
+        </header>
+
+        @if (error) {
+            <div class="error-banner">{{ error }}</div>
+        }
+
+        <div class="room-list">
+            @for (room of rooms; track room.id) {
+                <article
+                    class="room-card"
+                    [class.room-in-battle]="room.status === 'in_battle'"
+                >
+                    <div>
+                        <strong
+                            >Andar {{ room.floor }} ·
+                            {{ room.difficulty }}</strong
+                        >
+                        <span class="room-info">
+                            {{ room.member_character_ids.length }}/{{
+                                room.max_members
+                            }}
+                            ·
+                            <span
+                                class="status-tag"
+                                [class.in-battle]="room.status === 'in_battle'"
+                            >
+                                {{
+                                    room.status === "in_battle"
+                                        ? "em batalha"
+                                        : room.status
+                                }}
+                            </span>
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        (click)="joinRoom(room)"
+                        [disabled]="
+                            room.status === 'in_battle' ||
+                            room.status === 'portal' ||
+                            room.member_character_ids.length >= room.max_members
+                        "
+                        [title]="
+                            room.status === 'in_battle' ||
+                            room.status === 'portal' ||
+                            room.member_character_ids.length >= room.max_members
+                                ? 'Sala não disponível'
+                                : 'Entrar na sala'
+                        "
+                    >
+                        Entrar
+                    </button>
+                </article>
+            } @empty {
+                <div class="empty-state">Nenhuma sala aberta.</div>
+            }
+        </div>
+    </section>
+}

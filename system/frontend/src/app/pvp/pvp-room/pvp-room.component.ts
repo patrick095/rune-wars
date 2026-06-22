@@ -11,28 +11,8 @@ import { InventoryGridComponent } from '../../shared/components/inventory-grid/i
 import { InventoryItem, EquipmentSlotType } from '../../shared/game-core/types';
 import { environment } from '../../../environments/environment';
 import { EMPTY } from 'rxjs';
-
-interface BattlePlayerConfig {
-  characterId: string;
-  name: string;
-  race: string;
-  maxHp: number;
-  agility: number;
-  weaponId: string;
-  strength?: number;
-  luck?: number;
-  consumables?: string[];
-}
-
-interface BattleStartResult {
-  matched: boolean;
-  mapName: string;
-  roomName: string;
-  mode: string;
-  vsAI: boolean;
-  players: BattlePlayerConfig[];
-  opponents: BattlePlayerConfig[];
-}
+import { BattleStartResult, buildPvpBattleConfig } from '../../shared/services/battle-config.factory';
+import { isItemAllowedInEquipmentSlot } from '../../shared/game-core/equipment-slot-rules';
 
 interface SlotPlayer {
   characterId: string;
@@ -95,6 +75,7 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   inventoryItems: (InventoryItem | null)[] = [];
   equippedItems: Partial<Record<EquipmentSlotType, InventoryItem>> = {};
   inventoryLoading = false;
+  inventoryError = '';
 
   // Battle start flow
   searchingMatch = false;
@@ -323,34 +304,10 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   private launchBattle(roomId: string): void {
     this.api.post<BattleStartResult>(`/pvp/rooms/${roomId}/start-battle`, { characterId: this.currentCharacterId }).subscribe({
       next: (result) => {
-        // Backend always returns callerPlayers[0] as `me` when characterId is sent,
-        // but do a fallback find-by-id in case of a stale client.
-        const me = result.players.find(p => p.characterId === this.currentCharacterId) ?? result.players[0];
-        const opp = result.opponents[0];
         this.skipLeaveOnDestroy = true;
-        const playerConsumables = (me?.consumables ?? []).length > 0
-          ? me!.consumables!
-          : (this.consumableSelection.filter(Boolean) as string[]);
-        this.navigator.launchBattle({
-          mapName: result.mapName,
-          vsAI: result.vsAI,
-          roomName: result.roomName,
-          playerName: me?.name,
-          playerRace: me?.race,
-          playerMaxHp: me?.maxHp,
-          playerAgility: me?.agility,
-          playerWeaponId: me?.weaponId,
-          playerConsumables,
-          playerStrength: me?.strength,
-          playerLuck: me?.luck,
-          opponentName: opp?.name,
-          opponentRace: opp?.race,
-          aiMaxHp: opp?.maxHp,
-          aiAgility: opp?.agility,
-          aiWeaponId: opp?.weaponId,
-          aiStrength: opp?.strength,
-          aiLuck: opp?.luck,
-        });
+        this.navigator.launchBattle(
+          buildPvpBattleConfig(roomId, result, this.currentCharacterId, this.consumableSelection),
+        );
       },
       error: (err) => {
         this.searchingMatch = false;
@@ -551,8 +508,13 @@ export class PvpRoomComponent implements OnInit, OnDestroy {
   onEquip(event: { slot: EquipmentSlotType; item: InventoryItem }): void {
     const charId = this.currentCharacterId;
     if (!charId) return;
+    if (!isItemAllowedInEquipmentSlot(event.item, event.slot)) {
+      this.inventoryError = 'Este item não pode ser equipado neste slot.';
+      return;
+    }
     this.inventoryService.equipItem(charId, event.item.id, event.slot).subscribe({
       next: () => this.loadInventory(),
+      error: err => { this.inventoryError = err.error?.message || 'Falha ao equipar item.'; },
     });
   }
 

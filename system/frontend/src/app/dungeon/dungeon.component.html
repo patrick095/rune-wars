@@ -2,7 +2,7 @@
   <header class="topbar">
     <div>
       <h1>Dungeon</h1>
-      <span>Andar 1 · Iniciados · Fase {{ phaseIndex + 1 }}/{{ phases.length }}</span>
+      <span>Fase {{ phaseIndex + 1 }}/{{ phases.length }}</span>
     </div>
     <a routerLink="/playground">Voltar</a>
   </header>
@@ -31,6 +31,15 @@
       [gold]="earnedGold"
       (restart)="restart()"
       (leave)="abandon()"
+    />
+
+    <app-reward-portals
+      *ngIf="view === 'portals'"
+      mode="dungeon"
+      [roomId]="portalRoomId"
+      [portals]="rewardPortals"
+      [picks]="rewardPicks"
+      (close)="onPortalsClosed()"
     />
   </main>
 </div>

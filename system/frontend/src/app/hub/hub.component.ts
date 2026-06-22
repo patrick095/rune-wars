@@ -29,15 +29,21 @@ export class HubComponent implements AfterViewInit, OnDestroy {
     return this.activeCharacterService.character?.name ?? 'Aventureiro';
   }
 
+  get activeCharacterGold(): number {
+    return this.activeCharacterService.character?.gold ?? 0;
+  }
+
   private navigator = inject(GameNavigatorService);
 
   /** Maps legacy route paths to GameScreen values for single-screen navigation */
   private readonly ROUTE_TO_SCREEN: Partial<Record<string, GameScreen>> = {
     academy:    'academy',
-    dungeon:    'dungeon',
+    dungeon:    'dungeon-lobby',
+    'dungeon-lobby': 'dungeon-lobby',
     pvp:        'pvp-lobby',
-    craft:      'craft',
-    upgrade:    'upgrade',
+    craft:      'ferreiro',
+    upgrade:    'ferreiro',
+    ferreiro:   'ferreiro',
     market:     'market',
     guild:      'guild',
     rankings:   'rankings',

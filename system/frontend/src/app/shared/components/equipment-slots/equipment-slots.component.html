@@ -15,6 +15,10 @@
       (itemDrop)="onDrop($event, slot)"
       (itemClick)="onSlotClick(slot)"
     ></app-item-slot>
-    <span class="slot-label">{{ slot.label }}</span>
+    <span
+      class="slot-label"
+      [style.color]="rarityColorForSlot(slot) || undefined"
+      [title]="slot.item ? formattedSlotItemName(slot) : slot.label"
+    >{{ slot.item ? slot.item.name : slot.label }}</span>
   </div>
 </div>

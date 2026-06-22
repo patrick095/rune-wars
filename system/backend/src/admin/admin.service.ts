@@ -30,6 +30,7 @@ export class AdminService {
     itemBaseId: string,
     rarity: string = 'common',
     quantity: number = 1,
+    upgradeLevel: number = 0,
   ): Promise<ItemInstance[]> {
     const instances: ItemInstance[] = [];
     for (let i = 0; i < quantity; i++) {
@@ -37,13 +38,22 @@ export class AdminService {
         owner_id: characterId,
         item_base_id: itemBaseId,
         rarity,
+        upgrade_level: upgradeLevel,
       });
       instances.push(await this.items.save(instance));
     }
     this.logger.log(
-      `ADMIN_ADD_ITEM: character=${characterId} item=${itemBaseId} rarity=${rarity} quantity=${quantity}`,
+      `ADMIN_ADD_ITEM: character=${characterId} item=${itemBaseId} rarity=${rarity} upgrade_level=${upgradeLevel} quantity=${quantity}`,
     );
     return instances;
+  }
+
+  async addGold(characterId: string, amount: number): Promise<void> {
+    const character = await this.characters.findOne({ where: { id: characterId } });
+    if (!character) return;
+    character.gold = (character.gold ?? 0) + amount;
+    await this.characters.save(character);
+    this.logger.log(`ADMIN_ADD_GOLD: character=${characterId} amount=${amount}`);
   }
 
   async removeItem(itemId: string): Promise<void> {

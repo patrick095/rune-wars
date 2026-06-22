@@ -1,0 +1,206 @@
+<div
+  class="dungeon-room"
+  [style.backgroundImage]="'linear-gradient(rgba(0,0,0,0.74),rgba(0,0,0,0.78)), url(' + selectedFloor.thumbnail + ')'"
+>
+  <div class="room-header">
+    <button class="btn-back" type="button" (click)="goLobby()">← SALA DUNGEON</button>
+    <div class="header-status">
+      @if (room) {
+        <span>Andar {{ room.floor }} · {{ stageLabel }}</span>
+      } @else {
+        <span>Carregando sala</span>
+      }
+    </div>
+    <button class="btn-inventory" type="button" (click)="openInventory()">Inventário</button>
+  </div>
+
+  @if (error) {
+    <div class="error-banner">{{ error }}</div>
+  }
+
+  @if (consumableSlotsFull) {
+    <div class="warning-banner">Todos os 5 slots de consumíveis já estão preenchidos.</div>
+  }
+
+  @if (room) {
+    @if (room.status === 'regroup') {
+      <section class="regroup-panel">
+        <div>
+          <h2>Próximo estágio</h2>
+          <span>{{ stageLabel }}</span>
+        </div>
+        <div class="regroup-actions">
+          <button type="button" class="btn-secondary" (click)="ready()">PRONTO</button>
+          @if (isOwner) {
+            <button type="button" class="btn-primary" (click)="start()">INICIAR</button>
+          }
+        </div>
+      </section>
+    }
+
+    <div class="room-layout">
+      <div class="col-left">
+        <section class="panel">
+          <h3 class="panel-title">SUA EQUIPE</h3>
+          <div class="team-slots">
+            @for (slot of slots; track $index) {
+              <div
+                class="team-slot"
+                [class.team-slot--leader]="$index === 0"
+                [class.team-slot--filled]="slot.playerId !== null"
+                [class.team-slot--ready]="slot.ready"
+              >
+                @if (slot.playerId) {
+                  <span class="slot-name">{{ slot.playerName }}</span>
+                  @if (slot.ready) {
+                    <span class="slot-ready-badge">PRONTO</span>
+                  } @else {
+                    <span class="slot-state">Preparando</span>
+                  }
+                } @else {
+                  <span class="slot-empty-label">Aguardando...</span>
+                }
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3 class="panel-title">CONSUMÍVEIS SELECIONADOS</h3>
+          <div class="consumable-selected-slots">
+            @for (sel of consumableSelection; track $index) {
+              <button
+                type="button"
+                class="consumable-selected-slot"
+                [class.consumable-selected-slot--filled]="sel !== null"
+                (click)="removeConsumable($index)"
+                [title]="sel ? 'Remover' : 'Slot vazio'"
+              >
+                @if (sel !== null) {
+                  @let def = getConsumableDef(sel);
+                  @if (def) {
+                    <img [src]="def.iconPath" [alt]="def.name" class="consumable-icon" />
+                  }
+                }
+                <span class="consumable-slot-num">{{ $index + 1 }}</span>
+              </button>
+            }
+          </div>
+        </section>
+
+        <section class="panel panel--inventory">
+          <h3 class="panel-title">INVENTÁRIO DE CONSUMÍVEIS</h3>
+          <div class="consumable-inventory">
+            @for (item of consumableInventory; track item.id) {
+              <button
+                type="button"
+                class="consumable-item"
+                (click)="selectConsumable(item.id)"
+                [title]="item.name"
+              >
+                <img [src]="item.iconPath" [alt]="item.name" class="consumable-icon" />
+                <span class="consumable-name">{{ item.name }}</span>
+              </button>
+            }
+          </div>
+        </section>
+      </div>
+
+      <div class="col-right">
+        <section class="panel panel--map">
+          <h3 class="panel-title">SELEÇÃO DE ANDAR</h3>
+          <div class="map-carousel">
+            <button
+              class="carousel-btn carousel-btn--prev"
+              type="button"
+              (click)="prevFloor()"
+              [disabled]="!isOwner"
+            >‹</button>
+            <div class="map-thumbnail-wrap">
+              <img
+                [src]="selectedFloor.thumbnail"
+                [alt]="selectedFloor.name"
+                class="map-thumbnail"
+                onerror="this.style.opacity='0.32'"
+              />
+              <div class="map-thumbnail-overlay">{{ selectedFloor.name }}</div>
+            </div>
+            <button
+              class="carousel-btn carousel-btn--next"
+              type="button"
+              (click)="nextFloor()"
+              [disabled]="!isOwner"
+            >›</button>
+          </div>
+          <div class="map-dots">
+            @for (floor of floors; track floor.floor) {
+              <span
+                class="map-dot"
+                [class.map-dot--active]="floor.floor === selectedFloor.floor"
+              ></span>
+            }
+          </div>
+          <p class="map-name-label">{{ selectedFloor.name }}</p>
+        </section>
+
+        <section class="panel">
+          <h3 class="panel-title">SELEÇÃO DE DIFICULDADE</h3>
+          <div class="mode-buttons">
+            @for (difficulty of difficulties; track difficulty.id) {
+              <button
+                type="button"
+                class="btn-mode"
+                [class.btn-mode--active]="selectedDifficulty === difficulty.id"
+                (click)="selectDifficulty(difficulty.id)"
+                [disabled]="!isOwner"
+              >{{ difficulty.label }}</button>
+            }
+          </div>
+        </section>
+
+        <section class="panel panel--ready">
+          <button
+            type="button"
+            class="btn-ready"
+            (click)="ready()"
+            [disabled]="readyLoading || room.status === 'in_battle' || room.status === 'portal'"
+          >
+            {{ readyLoading ? '...' : 'PRONTO' }}
+          </button>
+          @if (isOwner) {
+            <button
+              type="button"
+              class="btn-start"
+              (click)="start()"
+              [disabled]="!canStart"
+            >INICIAR</button>
+          }
+        </section>
+      </div>
+    </div>
+  }
+
+  @if (showInventory) {
+    <div class="modal-overlay" (click)="closeInventory()">
+      <div class="inventory-modal" (click)="$event.stopPropagation()">
+        <div class="inventory-modal-header">
+          <span class="inventory-modal-title">Equipamentos</span>
+          <button class="btn-close-inventory" type="button" (click)="closeInventory()">×</button>
+        </div>
+        @if (inventoryLoading) {
+          <div class="loading-msg">Carregando inventário...</div>
+        } @else {
+          <div class="inventory-modal-body">
+            <app-equipment-slots
+              [equippedItems]="equippedItems"
+              (equip)="onEquip($event)"
+              (unequip)="onUnequip($event)"
+              (itemDropped)="onItemDroppedToSlot($event)"
+            ></app-equipment-slots>
+            <app-inventory-grid [items]="inventoryItems"></app-inventory-grid>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

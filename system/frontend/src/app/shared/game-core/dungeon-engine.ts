@@ -1,10 +1,12 @@
 import {
   DungeonPhase,
   DungeonState,
+  DungeonDifficulty,
   EnemyState,
   PlayerState,
   ProtectTargetState,
 } from './dungeon-types';
+import { createEnemy } from './dungeon-content';
 
 const FLOOR_1_LIVES = 3;
 
@@ -47,11 +49,15 @@ const DEFAULT_PLAYER: PlayerState = {
 export class DungeonEngine {
   private state: DungeonState;
 
-  constructor(playerState: Partial<PlayerState> = {}) {
+  constructor(
+    playerState: Partial<PlayerState> = {},
+    phases: DungeonPhase[] = FLOOR_1_PHASES,
+    private readonly difficulty: DungeonDifficulty = 'easy',
+  ) {
     this.state = {
       floorId: 'floor1',
       currentPhaseIndex: 0,
-      phases: FLOOR_1_PHASES.map(phase => ({ ...phase, reward: { ...phase.reward } })),
+      phases: phases.map(phase => ({ ...phase, reward: { ...phase.reward } })),
       playerState: { ...DEFAULT_PLAYER, ...playerState },
       enemies: [],
       protectTarget: undefined,
@@ -93,6 +99,22 @@ export class DungeonEngine {
     enemy.hp = Math.max(0, enemy.hp - Math.max(0, amount));
     enemy.alive = enemy.hp > 0;
     this.syncObjectiveStatus();
+  }
+
+  completeCurrentPhase(): void {
+    if (this.state.status === 'IN_PROGRESS') this.state.status = 'PHASE_COMPLETE';
+  }
+
+  addEnemy(enemy: EnemyState): void {
+    if (this.state.status !== 'IN_PROGRESS') return;
+    this.state.enemies.push({ ...enemy });
+  }
+
+  setEnemyPosition(enemyId: string, x: number, y: number): void {
+    const enemy = this.state.enemies.find(candidate => candidate.id === enemyId);
+    if (!enemy) return;
+    enemy.x = x;
+    enemy.y = y;
   }
 
   damagePlayer(amount: number): void {
@@ -144,7 +166,7 @@ export class DungeonEngine {
 
     if (objective.type === 'DEFEAT_BOSS') {
       return this.state.enemies
-        .filter(enemy => enemy.id === objective.bossId || enemy.type === 'GOLEM_MINOR')
+        .filter(enemy => enemy.id === objective.bossId || enemy.type === objective.bossId || enemy.type === 'GOLEM_MINOR')
         .every(enemy => !enemy.alive);
     }
 
@@ -200,15 +222,19 @@ export class DungeonEngine {
 
   private createEnemies(phase: DungeonPhase): EnemyState[] {
     return phase.enemies.flatMap(config => {
-      const maxHp = config.type === 'GOLEM_MINOR' ? 260 : config.type === 'BAT_SWARM' ? 45 : 60;
-      return Array.from({ length: config.count }, (_, index) => ({
-        id: config.type === 'GOLEM_MINOR' ? 'golem-minor' : `${phase.id}-${config.type.toLowerCase()}-${index + 1}`,
-        type: config.type,
-        hp: maxHp,
-        maxHp,
-        alive: true,
-        ai: config.ai,
-      }));
+      return Array.from({ length: config.count }, (_, index) => {
+        const enemy = createEnemy(config.type, this.difficulty);
+        enemy.id = config.type === 'GOLEM_MINOR' ? 'golem-minor' : `${phase.id}-${config.type.toLowerCase()}-${index + 1}`;
+        enemy.ai = config.ai;
+        if (config.type === 'GIANT_BAT_BOSS') {
+          enemy.maxHp = this.difficulty === 'heroic' ? 70000 : this.difficulty === 'hard' ? 30000 : this.difficulty === 'medium' ? 15000 : 10000;
+          enemy.hp = enemy.maxHp;
+        } else if (config.type === 'TREANT_BOSS') {
+          enemy.maxHp = this.difficulty === 'heroic' ? 1800 : this.difficulty === 'hard' ? 900 : this.difficulty === 'medium' ? 520 : 320;
+          enemy.hp = enemy.maxHp;
+        }
+        return enemy;
+      });
     });
   }
 
@@ -216,8 +242,8 @@ export class DungeonEngine {
     if (phase.objective.type !== 'PROTECT' || !phase.objective.targetId) return undefined;
     return {
       id: phase.objective.targetId,
-      hp: 120,
-      maxHp: 120,
+      hp: phase.objective.targetId === 'MYSTIC_BEETLE_NPC' ? 220 : 120,
+      maxHp: phase.objective.targetId === 'MYSTIC_BEETLE_NPC' ? 220 : 120,
     };
   }
 }

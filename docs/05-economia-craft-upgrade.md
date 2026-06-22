@@ -2,191 +2,133 @@
 
 ## Filosofia econômica
 
-Rune Wars deve ter uma economia forte entre jogadores.
+Rune Wars deve ter uma economia forte entre jogadores. O jogo não deve vender diretamente os melhores itens; eles devem vir de dungeons, PvP, rankings, craft e mercado entre jogadores.
 
-O jogo não deve vender diretamente os melhores itens.
+## Ouro
 
-Os melhores itens devem vir de:
+Cada personagem possui saldo de ouro persistido e começa com 0.
 
-- Dungeons
-- Eventos PvP
-- Rankings
+Ouro é ganho principalmente em portais de recompensa de PvP e dungeon. Ouro é gasto no Ferreiro, especialmente nas tentativas de aprimoramento de itens e pedras.
+
+Saldo insuficiente bloqueia a tentativa antes de consumir insumos.
+
+## Raridades
+
+A v1.8.0 padroniza quatro tiers de raridade:
+
+| Raridade | id | Bonus do status primário |
+|---|---:|---:|
+| Comum | `common` | 0% |
+| Incomum | `uncommon` | 2% |
+| Raro | `rare` | 4% |
+| Heroico | `heroic` | 7% |
+
+O bonus é aplicado ao status primário do item e aparece no combate. Itens Heroicos são exclusivos de craft; portais não dropam Heroico.
+
+Valores legados `epic` e `legendary` são normalizados para o modelo atual.
+
+## Ferreiro
+
+O Ferreiro é a tela única para craft, desmontagem e aprimoramento. Ele usa sempre o personagem ativo, o inventário real e o ouro real do personagem.
+
+As abas funcionais da v1.8.0 são:
+
 - Craft
-- Mercado entre jogadores
+- Desmontagem
+- Aprimoramento
 
-## Mercado
+A tela mantém espaço para abas futuras.
 
-Jogadores podem negociar:
+## Fragmentos
 
-- Equipamentos transferíveis
-- Materiais
-- Pedras de aprimoramento transferíveis
-- Consumíveis
-- Itens raros
+Fragmentos são materiais gerados pela desmontagem e usados no craft.
 
-## Tipos de item por vínculo
+Tipos:
 
-### Transferível
+- `fragment_weapon`
+- `fragment_armor`
+- `fragment_head`
+- `fragment_legs`
+- `fragment_accessory`
+- `fragment_secondary`
 
-Pode ser vendido/trocado livremente.
-
-### Vinculado ao equipar
-
-Pode ser negociado até ser equipado.
-Depois de equipado, fica vinculado.
-
-### Não transferível
-
-Não pode ser negociado.
-
-Exemplos:
-
-- Alguns itens lendários
-- Itens finais de craft
-- Recompensas especiais
-- Recompensas de ranking
+Cada fragmento carrega uma raridade (`common`, `uncommon` ou `rare`) e representa a categoria do equipamento desmontado.
 
 ## Craft
 
-Craft será parte central do endgame.
+Craft combina 3 fragmentos da mesma categoria e mesma raridade para tentar criar um equipamento aleatório daquela categoria com raridade superior.
 
-Objetivo:
+| Insumo | Resultado em sucesso | Chance |
+|---|---|---:|
+| 3 fragmentos Comuns | Item Incomum | 30% |
+| 3 fragmentos Incomuns | Item Raro | 20% |
+| 3 fragmentos Raros | Item Heroico | 10% |
 
-- Criar os melhores itens do jogo.
-- Gerar demanda por materiais.
-- Criar função para jogadores artesãos.
+Em sucesso, o equipamento é criado. Em falha, os 3 fragmentos são consumidos. Fragmentos Heroicos não são combináveis.
 
-Materiais vêm de:
+## Desmontagem
 
-- Dungeons
-- Eventos
-- PvP
-- Bosses
-- Recompensas de guilda
-- Mercado
+Desmontagem consome um equipamento e tenta gerar 1 fragmento da mesma categoria e raridade.
 
-## Sorte no craft
+| Raridade do item | Chance de fragmento |
+|---|---:|
+| Comum | 70% |
+| Incomum | 60% |
+| Raro | 50% |
 
-Sorte influencia:
+Itens Heroicos não podem ser desmontados na v1.8.0.
 
-- Chance de sucesso
-- Chance de obter qualidade maior
-- Chance de obter item raro
-- Chance de aprimoramento
+Em sucesso, o fragmento é criado. Em falha, o item ainda é consumido.
 
-A raça e os acessórios também podem aumentar essas taxas.
+## Pedras de Aprimoramento
 
-## Desmontagem de equipamentos
+Existe um tipo principal de pedra: `enhancement_stone`. Ela pode ter nível +0 a +5, armazenado em `upgrade_level`.
 
-Equipamentos podem ser desmontados para chance de gerar pedras.
+Pedras podem ser obtidas em portais e também podem ser aprimoradas no Ferreiro.
 
-Chances base:
+## Aprimoramento de Pedras
 
-- Comum: 50%
-- Raro: 65%
-- Épico: 80%
-
-Lendário: pendente de definição.
-
-Ao desmontar:
-
-- Item transferível gera pedra transferível.
-- Item vinculado gera pedra vinculada.
-- Item não transferível gera pedra não transferível.
-
-## Pedras de aprimoramento
-
-Existe apenas um tipo principal de pedra, mas ela pode ter nível:
-
-- Pedra normal
-- Pedra +1
-- Pedra +2
-- Pedra +3
-- Pedra +4
-- Pedra +5
-
-Não devem existir muitos tipos paralelos de pedras.
-
-## Upgrade de pedras
-
-Pedras podem ser aprimoradas.
-
-Ao falhar o upgrade da pedra:
-
-- As pedras usadas são perdidas.
-
-Essa perda é intencional para manter valor econômico.
-
-## Upgrade de equipamentos
-
-Equipamentos podem ir até +10.
-
-Ao falhar o upgrade do equipamento:
-
-- O item não quebra.
-- O item não perde nível.
-- As pedras usadas são perdidas.
-
-## Tentativas com até 3 pedras
-
-Para upar uma arma/equipamento, o jogador pode usar até 3 pedras por tentativa.
-
-A chance máxima do nível considera a pedra ideal.
-
-Exemplo:
-
-- Para +1, 3 pedras normais dão a porcentagem máxima.
-- Para +10, 3 pedras +5 dão a porcentagem máxima.
-
-## Chances máximas sugeridas
-
-| Upgrade | Pedra ideal | Chance máxima base |
+| Resultado | Chance base | Custo |
 |---|---:|---:|
-| +1 | 3x Pedra normal | 80% |
-| +2 | 3x Pedra normal | 75% |
-| +3 | 3x Pedra +1 | 70% |
-| +4 | 3x Pedra +1 | 60% |
-| +5 | 3x Pedra +2 | 50% |
-| +6 | 3x Pedra +2 | 40% |
-| +7 | 3x Pedra +3 | 30% |
-| +8 | 3x Pedra +4 | 20% |
-| +9 | 3x Pedra +5 | 15% |
-| +10 | 3x Pedra +5 | 10% |
+| Pedra +1 | 80% | 1.000 ouro |
+| Pedra +2 | 65% | 2.000 ouro |
+| Pedra +3 | 50% | 4.000 ouro |
+| Pedra +4 | 35% | 8.000 ouro |
+| Pedra +5 | 20% | 10.000 ouro |
 
-## Sorte pode ultrapassar a chance base
+Cada tentativa usa 3 pedras do nível anterior. Em falha, as pedras e o ouro são consumidos.
 
-A chance máxima base não considera Sorte.
+## Aprimoramento de Equipamentos
 
-Com Sorte, raça, acessórios e especialização, o jogador pode ultrapassar esses valores.
+Equipamentos podem ir de +0 a +10.
 
-Exemplo:
+| Resultado | Pedra exigida | Chance base | Custo |
+|---|---:|---:|---:|
+| +1 | 3 pedras +0 | 80% | 1.000 ouro |
+| +2 | 3 pedras +1 | 70% | 2.000 ouro |
+| +3 | 3 pedras +2 | 60% | 4.000 ouro |
+| +4 | 3 pedras +3 | 50% | 8.000 ouro |
+| +5 | 3 pedras +4 | 40% | 16.000 ouro |
+| +6 | 3 pedras +5 | 30% | 32.000 ouro |
+| +7 | 3 pedras +5 | 25% | 65.000 ouro |
+| +8 | 3 pedras +5 | 20% | 130.000 ouro |
+| +9 | 3 pedras +5 | 15% | 250.000 ouro |
+| +10 | 3 pedras +5 | 10% | 500.000 ouro |
 
-- +10 base: 10%
-- Com build de artesão: pode ser maior
+Em falha, o item não quebra e não perde nível. Apenas pedras e ouro são consumidos.
 
-Para upgrades iniciais, personagens especializados podem chegar a 100%.
+## Sorte e Bonus Aditivos
 
-Isso cria papéis sociais/econômicos:
+A chance final usa:
 
-- PvP player
-- Artesão
-- Coletor
-- Comerciante
-- Especialista em upgrade
+`chanceFinal = chanceBase + bonusSorte + bonusRaca + bonusEvento + bonusGuild`
+
+Na v1.8.0, Sorte usa `luck * 0.005`; bonus de raça, evento e guilda entram como hooks aditivos. A chance final é limitada a 100%.
+
+## Mercado
+
+Jogadores podem negociar equipamentos, materiais, pedras de aprimoramento, consumíveis e itens raros quando as regras de vínculo permitirem.
 
 ## Motivo do sistema
 
-O sistema cria:
-
-- Demanda constante por equipamentos dropados.
-- Demanda por pedras.
-- Valor para itens comuns/raros/épicos.
-- Especialização real para jogadores com Sorte.
-- Mercado vivo.
-
-## Regras importantes
-
-- Não vender poder direto no cash shop.
-- Evitar que itens pagos substituam craft.
-- Evitar inflação infinita de itens inúteis.
-- Manter item protegido na falha, mas consumir recurso.
+O sistema cria demanda constante por equipamentos dropados, fragmentos, pedras e ouro. Também abre espaço para papéis sociais como PvP player, artesão, coletor, comerciante e especialista em upgrade.

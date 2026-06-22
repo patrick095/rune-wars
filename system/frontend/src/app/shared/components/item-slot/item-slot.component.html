@@ -3,17 +3,30 @@
   [class.has-item]="item"
   [class.equipment-slot]="isEquipmentSlot"
   [class.disabled]="disabled"
+  [class.tooltip-above]="tooltipPlacement === 'above'"
+  [class.tooltip-below]="tooltipPlacement === 'below'"
   [attr.aria-label]="item?.name || equipmentType || 'Slot vazio'"
-  draggable="true"
+  [style.borderColor]="rarityBorderColor || undefined"
+  [style.boxShadow]="rarityBorderColor ? '0 0 6px ' + rarityBorderColor + '66' : undefined"
+  [attr.draggable]="item && !disabled ? true : null"
   (dragstart)="onDragStart($event)"
   (dragover)="onDragOver($event)"
   (drop)="onDrop($event)"
   (click)="onClick()"
-  (mouseenter)="showTooltip = true"
+  (mouseenter)="showTooltip = true; onTooltipPointer($event)"
+  (mousemove)="onTooltipPointer($event)"
   (mouseleave)="showTooltip = false"
 >
   <img *ngIf="item?.iconPath || item?.icon" [src]="item!.iconPath || item!.icon" [alt]="item!.name" class="item-icon" onerror="this.style.display='none'" />
   <span *ngIf="!item && equipmentType" class="slot-label">{{ equipmentType }}</span>
+  <span *ngIf="item && item.quantity && item.quantity > 1" class="quantity-badge">{{ item.quantity }}</span>
 
-  <app-item-tooltip *ngIf="showTooltip && item" [item]="item"></app-item-tooltip>
+  <div
+    *ngIf="showTooltip && item"
+    class="floating-tooltip-layer"
+    [style.left.px]="tooltipX"
+    [style.top.px]="tooltipY"
+  >
+    <app-item-tooltip [item]="item"></app-item-tooltip>
+  </div>
 </div>

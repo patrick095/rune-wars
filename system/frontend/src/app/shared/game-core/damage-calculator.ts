@@ -10,7 +10,14 @@ export class DamageCalculator {
     const dx = impactX - targetX;
     const dy = impactY - targetY;
     const distance = Math.sqrt(dx * dx + dy * dy);
+    return this.calculateByDistance(distance, baseDamage, excavationRadius);
+  }
 
+  calculateByDistance(
+    distance: number,
+    baseDamage: number,
+    excavationRadius = 60
+  ): number {
     if (excavationRadius <= 0 || distance > excavationRadius) return 0;
 
     // Linear: 100% at distance 0, 50% at edge of blast radius

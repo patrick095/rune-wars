@@ -1,0 +1,57 @@
+<section class="blacksmith-shell">
+  <header class="blacksmith-header">
+    <button type="button" class="icon-button" (click)="goBack()" aria-label="Voltar">&lt;</button>
+    <div>
+      <h1>Ferreiro</h1>
+      <p>{{ character?.name || 'Personagem' }}</p>
+    </div>
+    <div class="gold-pill">
+      <span></span>
+      <strong>{{ gold | number:'1.0-0' }}</strong>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Abas do ferreiro">
+    <button type="button" [class.active]="activeTab === 'craft'" (click)="setTab('craft')">Craft</button>
+    <button type="button" [class.active]="activeTab === 'dismantle'" (click)="setTab('dismantle')">Desmontagem</button>
+    <button type="button" [class.active]="activeTab === 'upgrade'" (click)="setTab('upgrade')">Aprimoramento</button>
+    <button type="button" [class.active]="activeTab === 'future'" (click)="setTab('future')">Em breve</button>
+  </nav>
+
+  @if (initialLoading) {
+    <div class="status">Carregando...</div>
+  } @else if (error) {
+    <div class="status error">{{ error }}</div>
+  } @else if (!character) {
+    <div class="status error">Nenhum personagem ativo.</div>
+  } @else {
+    @switch (activeTab) {
+      @case ('craft') {
+        <app-ferreiro-craft-tab
+          [character]="character"
+          [inventory]="inventory"
+          (changed)="refreshAll()"
+        ></app-ferreiro-craft-tab>
+      }
+      @case ('dismantle') {
+        <app-ferreiro-dismantle-tab
+          [character]="character"
+          [inventory]="inventory"
+          (changed)="refreshAll()"
+        ></app-ferreiro-dismantle-tab>
+      }
+      @case ('upgrade') {
+        <app-ferreiro-upgrade-tab
+          [character]="character"
+          [inventory]="inventory"
+          (changed)="refreshAll()"
+        ></app-ferreiro-upgrade-tab>
+      }
+      @default {
+        <div class="future-panel">
+          <span>...</span>
+        </div>
+      }
+    }
+  }
+</section>
