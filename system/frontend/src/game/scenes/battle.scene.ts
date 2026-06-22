@@ -81,6 +81,7 @@ import type { SpawnNormalizationContext } from "../terrain/spawn-selector";
 import {
     CHARACTER_BODY_HALF_WIDTH,
     CHARACTER_BODY_HEIGHT,
+    characterBodyOverlapsTerrain,
     findSafeGroundedPosition,
     resolveCharacterTerrainOverlap,
 } from "../terrain/character-placement";
@@ -3957,7 +3958,12 @@ export class BattleScene extends Phaser.Scene {
                     );
                 }
 
-                this.resolveTeleportShot(isPlayerShot, resolvedImpact, impact);
+                this.resolveTeleportShot(
+                    isPlayerShot,
+                    resolvedImpact,
+                    impact,
+                    traveledPath,
+                );
 
                 const effectiveRadius = resolvedExcavationRadius;
                 const distanceToTarget =
@@ -5420,6 +5426,7 @@ export class BattleScene extends Phaser.Scene {
         isPlayerShot: boolean,
         impactPoint: { x: number; y: number },
         impact: ProjectileImpactResult,
+        traveledPath: Array<{ x: number; y: number }>,
     ): void {
         if (!isPlayerShot || !this.teleportShotArmed) return;
 
@@ -5442,16 +5449,18 @@ export class BattleScene extends Phaser.Scene {
                       PROJECTILE_COLLISION_RADIUS,
                   )
                 : null) ?? impactPoint;
-        const teleported = this.teleportActor(
-            "player",
-            teleportAnchor.x,
-            teleportAnchor.y,
-            {
+        const teleported =
+            (impact.hitTerrain &&
+                this.teleportPlayerNearTerrainImpact(
+                    teleportAnchor,
+                    impactPoint,
+                    traveledPath,
+                )) ||
+            this.teleportActor("player", teleportAnchor.x, teleportAnchor.y, {
                 searchUp: 180,
                 searchDown: WORLD_HEIGHT,
                 searchRadiusX: 96,
-            },
-        );
+            });
         if (teleported) {
             this.showItemFloatingText(
                 this.playerStats.x,
@@ -5564,6 +5573,208 @@ export class BattleScene extends Phaser.Scene {
         }
         this.syncActorAssets();
         return true;
+    }
+
+    private teleportPlayerNearTerrainImpact(
+        terrainPoint: { x: number; y: number },
+        impactPoint: { x: number; y: number },
+        traveledPath: Array<{ x: number; y: number }>,
+    ): boolean {
+        const previous = this.findPointBeforeImpact(traveledPath, impactPoint);
+        if (!previous) return false;
+
+        const dx = impactPoint.x - previous.x;
+        const dy = impactPoint.y - previous.y;
+        if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return false;
+
+        const sprite = this.playerSprite;
+        const halfWidth = sprite.width / 2;
+        const height = sprite.height;
+        const halfHeight = height / 2;
+        const trajectoryPlacement =
+            this.findClearTeleportPlacementAlongIncomingPath(
+                terrainPoint,
+                dx,
+                dy,
+                halfWidth,
+                halfHeight,
+                height,
+            );
+        if (trajectoryPlacement) {
+            sprite.setPosition(trajectoryPlacement.x, trajectoryPlacement.y);
+            this.playerStats.x = sprite.x;
+            this.playerStats.y = sprite.y;
+            this.syncActorAssets();
+            return true;
+        }
+
+        const primaryAxis =
+            Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical";
+        const axisOrder =
+            primaryAxis === "horizontal"
+                ? (["horizontal", "vertical"] as const)
+                : (["vertical", "horizontal"] as const);
+
+        for (const axis of axisOrder) {
+            const placement = this.findClearTeleportPlacementOnImpactSide(
+                terrainPoint,
+                axis,
+                dx,
+                dy,
+                halfWidth,
+                halfHeight,
+                height,
+            );
+            if (!placement) continue;
+
+            sprite.setPosition(placement.x, placement.y);
+            this.playerStats.x = sprite.x;
+            this.playerStats.y = sprite.y;
+            this.syncActorAssets();
+            return true;
+        }
+
+        return false;
+    }
+
+    private findClearTeleportPlacementAlongIncomingPath(
+        terrainPoint: { x: number; y: number },
+        dx: number,
+        dy: number,
+        halfWidth: number,
+        halfHeight: number,
+        height: number,
+    ): { x: number; y: number } | null {
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length < 0.001) return null;
+
+        const incomingX = -dx / length;
+        const incomingY = -dy / length;
+        const supportDistance =
+            halfWidth * Math.abs(incomingX) +
+            halfHeight * Math.abs(incomingY);
+        const clearance = 3;
+        const backOffsets = [0, 4, 8, 12, 18, 26, 36, 48, 64, 80];
+        const perpendicularOffsets = [
+            0, -4, 4, -8, 8, -12, 12, -18, 18, -26, 26, -36, 36, -48, 48,
+        ];
+        const perpendicularX = -incomingY;
+        const perpendicularY = incomingX;
+
+        for (const backOffset of backOffsets) {
+            const distance = supportDistance + clearance + backOffset;
+            const baseX = terrainPoint.x + incomingX * distance;
+            const baseY = terrainPoint.y + incomingY * distance;
+
+            for (const perpendicularOffset of perpendicularOffsets) {
+                const x = baseX + perpendicularX * perpendicularOffset;
+                const y = baseY + perpendicularY * perpendicularOffset;
+                const placement = this.getClearTeleportPlacement(
+                    x,
+                    y,
+                    halfWidth,
+                    halfHeight,
+                    height,
+                );
+                if (placement) return placement;
+            }
+        }
+
+        return null;
+    }
+
+    private findPointBeforeImpact(
+        traveledPath: Array<{ x: number; y: number }>,
+        impactPoint: { x: number; y: number },
+    ): { x: number; y: number } | null {
+        for (let i = traveledPath.length - 2; i >= 0; i--) {
+            const point = traveledPath[i];
+            if (
+                Phaser.Math.Distance.Squared(
+                    point.x,
+                    point.y,
+                    impactPoint.x,
+                    impactPoint.y,
+                ) > 1
+            ) {
+                return point;
+            }
+        }
+
+        return null;
+    }
+
+    private findClearTeleportPlacementOnImpactSide(
+        terrainPoint: { x: number; y: number },
+        axis: "horizontal" | "vertical",
+        dx: number,
+        dy: number,
+        halfWidth: number,
+        halfHeight: number,
+        height: number,
+    ): { x: number; y: number } | null {
+        const clearance = 3;
+        const side =
+            axis === "horizontal" ? (dx >= 0 ? -1 : 1) : dy >= 0 ? -1 : 1;
+        const backOffsets = [0, 4, 8, 12, 18, 26, 36, 48];
+        const perpendicularOffsets = [
+            0, -4, 4, -8, 8, -12, 12, -18, 18, -26, 26, -36, 36, -48, 48,
+        ];
+
+        for (const backOffset of backOffsets) {
+            for (const perpendicularOffset of perpendicularOffsets) {
+                const x =
+                    axis === "horizontal"
+                        ? terrainPoint.x +
+                          side * (halfWidth + clearance + backOffset)
+                        : terrainPoint.x + perpendicularOffset;
+                const y =
+                    axis === "vertical"
+                        ? terrainPoint.y +
+                          side * (halfHeight + clearance + backOffset)
+                        : terrainPoint.y + perpendicularOffset;
+                const placement = this.getClearTeleportPlacement(
+                    x,
+                    y,
+                    halfWidth,
+                    halfHeight,
+                    height,
+                );
+                if (placement) return placement;
+            }
+        }
+
+        return null;
+    }
+
+    private getClearTeleportPlacement(
+        x: number,
+        y: number,
+        halfWidth: number,
+        halfHeight: number,
+        height: number,
+    ): { x: number; y: number } | null {
+        const clampedX = Phaser.Math.Clamp(
+            x,
+            Math.max(72, halfWidth),
+            Math.min(MAP_WORLD_WIDTH - 72, WORLD_WIDTH - halfWidth),
+        );
+        const clampedY = Phaser.Math.Clamp(
+            y,
+            halfHeight,
+            WORLD_HEIGHT - halfHeight,
+        );
+
+        if (
+            characterBodyOverlapsTerrain(this.terrainEngine, clampedX, clampedY, {
+                halfWidth,
+                height,
+            })
+        ) {
+            return null;
+        }
+
+        return { x: clampedX, y: clampedY };
     }
 
     private findNearestTerrainPoint(
