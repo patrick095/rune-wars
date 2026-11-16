@@ -40,6 +40,9 @@ import mapF2S3 from "../../app/shared/game-core/maps/dungeon-f2-s3.json";
 // [v1.5.0] novos componentes integrados
 import { BattleHud, BattleHudState } from "../hud/battle-hud";
 import { BattleInputController } from "../input/battle-input-controller";
+import { preloadRuneWarsAssets } from "../assets/rune-wars-assets";
+import { ModularCharacterRenderer } from "../character/modular-character-renderer";
+import { getWeaponVisualProfile } from "../character/weapon-visual-profile";
 
 interface DungeonSceneData {
     phaseIndex?: number;
@@ -101,7 +104,8 @@ export class DungeonScene extends Phaser.Scene {
     private state!: DungeonState;
     private difficulty: DungeonDifficulty = "easy";
     private turn = 0;
-    private player!: Phaser.GameObjects.Rectangle;
+    private player!: Phaser.GameObjects.Container;
+    private playerRenderer!: ModularCharacterRenderer;
     private crystal?: Phaser.GameObjects.Rectangle;
     private exitPortal?: Phaser.GameObjects.Arc;
     private enemySprites = new Map<string, Phaser.GameObjects.Container>();
@@ -161,6 +165,8 @@ export class DungeonScene extends Phaser.Scene {
     }
 
     preload(): void {
+        preloadRuneWarsAssets(this);
+
         if (!this.textures.exists("terrain_dungeon_bg")) {
             this.load.image(
                 "terrain_dungeon_bg",
@@ -252,6 +258,7 @@ export class DungeonScene extends Phaser.Scene {
     }
 
     override update(_time: number, delta: number): void {
+        this.playerRenderer?.update(delta);
         this.handleKeyboardInput(delta);
 
         // [v1.5.0] BattleHud update — sincroniza estado com HUD unificado
@@ -292,9 +299,18 @@ export class DungeonScene extends Phaser.Scene {
         this.batPatrols.clear();
         const playerX = 96;
         const playerY = this.findGroundY(playerX) - 28;
-        this.player = this.add
-            .rectangle(playerX, playerY, 34, 54, 0x4488ff)
-            .setDepth(5);
+        this.playerRenderer = new ModularCharacterRenderer(this, {
+            race: "human",
+            x: playerX,
+            y: playerY,
+            facing: "right",
+            weaponId: this.state.playerState.weaponId,
+            characterDisplaySize: 72,
+            weaponDisplaySize: 34,
+        });
+        this.playerRenderer.setDepth(5);
+        this.playerRenderer.setAimAngle(this.angle);
+        this.player = this.playerRenderer.container;
         this.add
             .text(playerX, playerY + 38, this.playerName, {
                 fontSize: "11px",
@@ -673,6 +689,8 @@ export class DungeonScene extends Phaser.Scene {
         if (this.busy) return;
         this.angle = Math.max(5, Math.min(175, this.angle + delta));
         this.angleText.setText(`${this.angle}°`);
+        this.playerRenderer.setAimAngle(this.angle);
+        this.playerRenderer.play("aim");
     }
 
     private movePlayer(deltaX: number): void {
@@ -715,6 +733,8 @@ export class DungeonScene extends Phaser.Scene {
         this.power = 0;
         btn.setFillStyle(0xcc8800);
         btnText.setText("...");
+        this.playerRenderer.setAimAngle(this.angle);
+        this.playerRenderer.play("aim");
 
         this.powerInterval = setInterval(() => {
             this.power = Math.min(100, this.power + 2);
@@ -753,6 +773,10 @@ export class DungeonScene extends Phaser.Scene {
         const target = this.state.enemies.find((enemy) => enemy.alive);
         if (!target) return;
         this.busy = true;
+        const weaponId = this.state.playerState.weaponId;
+        this.playerRenderer.setWeapon(weaponId);
+        this.playerRenderer.setAimAngle(this.angle);
+        this.playerRenderer.play(getWeaponVisualProfile(weaponId).animation, true);
         const projectile = this.add
             .circle(this.player.x, this.player.y - 20, 6, 0xffd166)
             .setDepth(10);

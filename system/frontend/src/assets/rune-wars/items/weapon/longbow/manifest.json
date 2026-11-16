@@ -1,28 +1,32 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "itemId": "longbow",
   "name": "Arco Longo Elfico",
   "slot": "weapon",
-  "visualLayer": "weapon",
-  "icon": "icon.png",
-  "iconSize": {
-    "width": 144,
-    "height": 144
+  "states": {
+    "weapon_idle": "weapon_idle.png",
+    "weapon_ready": "weapon_ready.png",
+    "weapon_aim": "weapon_aim.png",
+    "weapon_fire": "weapon_fire.png"
   },
-  "animationStates": {
-    "idle": [
-      "idle_0.png"
+  "fallbacks": {},
+  "visualProfile": {
+    "animation": "shoot",
+    "weaponState": "weapon_fire",
+    "projectile": "arrow",
+    "effects": [
+      "bow_release",
+      "trail_wind"
     ],
-    "aim": [
-      "aim_0.png"
-    ],
-    "shoot": [
-      "aim_0.png"
-    ]
+    "recoil": {
+      "x": -1,
+      "y": 0,
+      "durationMs": 70
+    }
   },
-  "sourceMode": "battle-weapon-icon-and-sprite-upscale",
+  "placeholder": true,
   "notes": [
-    "Icon is a 3x upscale of the current weapon icon.",
-    "Aim/shoot layer starts from the current weapon sprite and should be replaced by hand-aligned equipment frames."
+    "v1.9.0 technical weapon state placeholder generated from current idle/aim assets.",
+    "weapon_fire may fall back to weapon_aim when a distinct fire sprite is not available."
   ]
 }

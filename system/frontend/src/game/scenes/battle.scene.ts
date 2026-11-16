@@ -127,14 +127,13 @@ import { GhostTrace } from "../hud/ghost-trace";
 import { BattleHud, BattleHudState } from "../hud/battle-hud";
 import { BattleInputController } from "../input/battle-input-controller";
 import { MapModifierManager } from "../map/map-modifier-manager";
-import { CharacterSprite, Race } from "../character/character-sprite";
-import { CharacterAnimator } from "../character/character-animator";
+import { ModularCharacterRenderer } from "../character/modular-character-renderer";
+import { RuneWarsRaceId } from "../character/asset-manifest.types";
 import {
     preloadRuneWarsAssets,
     runeWarsItemIconKey,
     runeWarsItemLayerKey,
     runeWarsProjectileKey,
-    runeWarsWeaponLayerKey,
 } from "../assets/rune-wars-assets";
 import mapPlains from "../../app/shared/game-core/maps/map-plains.json";
 import mapMysticCastle from "../../app/shared/game-core/maps/map-mystic-castle.json";
@@ -444,11 +443,9 @@ export class BattleScene extends Phaser.Scene {
     private battleHud!: BattleHud; // [v1.5.0]
     private battleInputController!: BattleInputController; // [v1.5.0]
     private mapModifierManager!: MapModifierManager; // [v1.5.0]
-    // [v1.5.0] CharacterSprite e CharacterAnimator para player e enemy
-    private playerCharacterSprite!: CharacterSprite;
-    private aiCharacterSprite!: CharacterSprite;
-    private playerCharacterAnimator!: CharacterAnimator;
-    private aiCharacterAnimator!: CharacterAnimator;
+    // [v1.9.0] Modular character renderers for synced layers and anchors.
+    private playerCharacterSprite!: ModularCharacterRenderer;
+    private aiCharacterSprite!: ModularCharacterRenderer;
     private effectsHud!: EffectsHud;
     private trajectory = new TrajectoryIndicator();
     private resultOverlay = new ResultOverlay();
@@ -1050,57 +1047,29 @@ export class BattleScene extends Phaser.Scene {
         // [v1.5.0] MapModifierManager — power-up orbs on the map
         this.mapModifierManager = new MapModifierManager();
 
-        // [v1.5.0] CharacterSprite for player
-        this.playerCharacterSprite = CharacterSprite.create(
-            this,
-            (this.playerRace as Race) ?? "human",
-            this.playerStats.x,
-            this.playerStats.y,
-        );
-        this.playerCharacterSprite.container.setDepth(10);
-        this.playerCharacterSprite.equip(
-            "weapon",
-            runeWarsWeaponLayerKey(this.playerWeapon.id),
-        );
+        // [v1.9.0] Modular renderer for player visual layers.
+        this.playerCharacterSprite = new ModularCharacterRenderer(this, {
+            race: this.resolvePlayableRace(this.playerRace),
+            x: this.playerStats.x,
+            y: this.characterVisualY(this.playerStats.y),
+            facing: "right",
+            weaponId: this.playerWeapon.id,
+        });
+        this.playerCharacterSprite.setDepth(10);
 
-        // [v1.5.0] CharacterSprite for enemy — use configured race or fallback
-        const aiRace: Race =
+        // [v1.9.0] Modular renderer for enemy visual layers.
+        const aiRace: RuneWarsRaceId =
             this.battleMode === "dungeon"
                 ? "dwarf"
-                : ((this.opponentRace as Race) ?? "elf");
-        this.aiCharacterSprite = CharacterSprite.create(
-            this,
-            aiRace,
-            this.aiStats.x,
-            this.aiStats.y,
-        );
-        this.aiCharacterSprite.container.setDepth(10);
-        this.aiCharacterSprite.setFlipX(true);
-        this.aiCharacterSprite.equip(
-            "weapon",
-            runeWarsWeaponLayerKey(this.aiWeapon.id),
-        );
-
-        // [v1.5.0] CharacterAnimator — uses the base sprite layer
-        const playerBaseSprite = this.playerCharacterSprite.base;
-        if (
-            playerBaseSprite &&
-            playerBaseSprite instanceof Phaser.GameObjects.Sprite
-        ) {
-            this.playerCharacterAnimator = new CharacterAnimator(
-                this,
-                playerBaseSprite,
-                (this.playerRace as Race) ?? "human",
-            );
-        }
-        const aiBaseSprite = this.aiCharacterSprite.base;
-        if (aiBaseSprite && aiBaseSprite instanceof Phaser.GameObjects.Sprite) {
-            this.aiCharacterAnimator = new CharacterAnimator(
-                this,
-                aiBaseSprite,
-                aiRace,
-            );
-        }
+                : this.resolvePlayableRace(this.opponentRace, "elf");
+        this.aiCharacterSprite = new ModularCharacterRenderer(this, {
+            race: aiRace,
+            x: this.aiStats.x,
+            y: this.characterVisualY(this.aiStats.y),
+            facing: "left",
+            weaponId: this.aiWeapon.id,
+        });
+        this.aiCharacterSprite.setDepth(10);
 
         if (this.dungeonStageConfig) {
             this.createDungeonStageObjects(mapMeta, spawnContext);
@@ -1497,18 +1466,26 @@ export class BattleScene extends Phaser.Scene {
             this.battleHud.update(hudState);
         }
 
-        // [v1.5.0] Sync CharacterSprite positions with sprite positions
+        // [v1.9.0] Sync modular visual renderers with gameplay proxy sprites.
         if (this.playerCharacterSprite) {
             this.playerCharacterSprite.setPosition(
                 this.playerSprite.x,
-                this.playerSprite.y,
+                this.characterVisualY(this.playerSprite.y),
             );
+            this.playerCharacterSprite.setAimAngle(
+                this.visualAimAngle(this.currentAngle, this.playerStats.facing),
+            );
+            this.playerCharacterSprite.update(delta);
         }
         if (this.aiCharacterSprite) {
             this.aiCharacterSprite.setPosition(
                 this.aiSprite.x,
-                this.aiSprite.y,
+                this.characterVisualY(this.aiSprite.y),
             );
+            this.aiCharacterSprite.setAimAngle(
+                this.visualAimAngle(this.currentAngle, "left"),
+            );
+            this.aiCharacterSprite.update(delta);
         }
     }
 
@@ -1961,6 +1938,32 @@ export class BattleScene extends Phaser.Scene {
     private weaponSpriteKey(id: string): string {
         if (id === "ice-book") return "weapon_icebook_sprite";
         return `weapon_${id}_sprite`; // handles "magic-grenade" → "weapon_magic-grenade_sprite"
+    }
+
+    private resolvePlayableRace(
+        race: string | undefined,
+        fallback: RuneWarsRaceId = "human",
+    ): RuneWarsRaceId {
+        if (
+            race === "human" ||
+            race === "elf" ||
+            race === "celestial" ||
+            race === "demonoid" ||
+            race === "beast" ||
+            race === "dwarf"
+        ) {
+            return race;
+        }
+        return fallback;
+    }
+
+    private characterVisualY(spriteY: number): number {
+        return spriteY + 32;
+    }
+
+    private visualAimAngle(angle: number, facing: "left" | "right"): number {
+        const localAngle = facing === "left" ? 180 - angle : -angle;
+        return Phaser.Math.Clamp(localAngle, -85, 85);
     }
 
     private applyProjectileVisual(
@@ -2740,8 +2743,8 @@ export class BattleScene extends Phaser.Scene {
 
         this.lastPlayerShot = { force, angle };
 
-        // [v1.5.0] CharacterAnimator: transition to shoot state
-        this.playerCharacterAnimator?.transition("shoot");
+        // [v1.9.0] Visual-only modular attack animation.
+        this.playerCharacterSprite?.play("shoot", true);
 
         const { shots, delayedShots } = this.shotModifierSystem.resolve(
             this.getWorldAngle(angle),
@@ -3057,8 +3060,8 @@ export class BattleScene extends Phaser.Scene {
             this.playerStats.y,
         );
 
-        // [v1.5.0] CharacterAnimator: AI shoot animation
-        this.aiCharacterAnimator?.transition("shoot");
+        // [v1.9.0] Visual-only modular attack animation.
+        this.aiCharacterSprite?.play("shoot", true);
 
         const wind = this.windSystem.getCurrent();
 
@@ -4464,11 +4467,10 @@ export class BattleScene extends Phaser.Scene {
                 this.updateDungeonMonsterVisual(targetMonster);
                 this.syncPrimaryDungeonMonster();
             } else {
-                // [v1.5.0] CharacterAnimator: AI damage/die animation
                 if (this.aiStats.hp <= 0) {
-                    this.aiCharacterAnimator?.transition("die");
+                    this.aiCharacterSprite?.play("death", true);
                 } else {
-                    this.aiCharacterAnimator?.transition("damage");
+                    this.aiCharacterSprite?.play("hit", true);
                 }
             }
         } else {
@@ -4480,11 +4482,10 @@ export class BattleScene extends Phaser.Scene {
                 damage,
                 "#44aaff",
             );
-            // [v1.5.0] CharacterAnimator: player damage/die animation
             if (this.playerStats.hp <= 0) {
-                this.playerCharacterAnimator?.transition("die");
+                this.playerCharacterSprite?.play("death", true);
             } else {
-                this.playerCharacterAnimator?.transition("damage");
+                this.playerCharacterSprite?.play("hit", true);
             }
         }
 
@@ -5036,7 +5037,7 @@ export class BattleScene extends Phaser.Scene {
         this.playerWeapon = weapon;
         this.applyProjectileVisual(this.projectileArc, id);
         this.playerWeaponIcon?.setTexture(this.weaponSpriteKey(id));
-        this.playerCharacterSprite?.equip("weapon", runeWarsWeaponLayerKey(id));
+        this.playerCharacterSprite?.setWeapon(id);
         this.clampCurrentAngleForWeapon();
         this.refreshHud();
     }
@@ -5046,7 +5047,7 @@ export class BattleScene extends Phaser.Scene {
         if (!weapon) return;
         this.aiWeapon = weapon;
         this.aiWeaponIcon?.setTexture(this.weaponSpriteKey(id));
-        this.aiCharacterSprite?.equip("weapon", runeWarsWeaponLayerKey(id));
+        this.aiCharacterSprite?.setWeapon(id);
         this.refreshHud();
     }
 
@@ -5116,27 +5117,16 @@ export class BattleScene extends Phaser.Scene {
             this.battleMode === "dungeon" ? 0xffcc88 : 0xffffff,
         );
         this.aiCharacterSprite?.destroy();
-        const aiRace: Race = this.battleMode === "dungeon" ? "dwarf" : "elf";
-        this.aiCharacterSprite = CharacterSprite.create(
-            this,
-            aiRace,
-            this.aiSprite.x,
-            this.aiSprite.y,
-        );
-        this.aiCharacterSprite.container.setDepth(10);
-        this.aiCharacterSprite.setFlipX(true);
-        this.aiCharacterSprite.equip(
-            "weapon",
-            runeWarsWeaponLayerKey(this.aiWeapon.id),
-        );
-        const aiBaseSprite = this.aiCharacterSprite.base;
-        if (aiBaseSprite) {
-            this.aiCharacterAnimator = new CharacterAnimator(
-                this,
-                aiBaseSprite,
-                aiRace,
-            );
-        }
+        const aiRace: RuneWarsRaceId =
+            this.battleMode === "dungeon" ? "dwarf" : "elf";
+        this.aiCharacterSprite = new ModularCharacterRenderer(this, {
+            race: aiRace,
+            x: this.aiSprite.x,
+            y: this.characterVisualY(this.aiSprite.y),
+            facing: "left",
+            weaponId: this.aiWeapon.id,
+        });
+        this.aiCharacterSprite.setDepth(10);
 
         // Camera bounds
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);

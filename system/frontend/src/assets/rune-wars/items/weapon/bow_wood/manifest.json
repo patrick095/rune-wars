@@ -1,21 +1,33 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "itemId": "bow_wood",
   "name": "Arco de Madeira",
   "slot": "weapon",
-  "visualLayer": "weapon",
-  "icon": "icon.png",
-  "iconSize": {
-    "width": 144,
-    "height": 144
+  "states": {
+    "weapon_idle": "weapon_idle.png",
+    "weapon_ready": "weapon_ready.png",
+    "weapon_aim": "weapon_aim.png"
   },
-  "animationStates": {
-    "idle": [
-      "idle_0.png"
-    ]
+  "fallbacks": {
+    "weapon_fire": "weapon_aim"
   },
-  "sourceMode": "icon-as-initial-layer-placeholder",
+  "visualProfile": {
+    "animation": "shoot",
+    "weaponState": "weapon_fire",
+    "projectile": "arrow",
+    "effects": [
+      "bow_release",
+      "trail_wind"
+    ],
+    "recoil": {
+      "x": -1,
+      "y": 0,
+      "durationMs": 70
+    }
+  },
+  "placeholder": true,
   "notes": [
-    "Layer frame is a 3x upscale of the current icon and should be replaced by aligned character equipment art."
+    "v1.9.0 technical weapon state placeholder generated from current idle/aim assets.",
+    "weapon_fire may fall back to weapon_aim when a distinct fire sprite is not available."
   ]
 }

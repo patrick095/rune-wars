@@ -17,6 +17,9 @@ import { BattleHud, BattleHudState } from "../hud/battle-hud";
 import { BattleInputController } from "../input/battle-input-controller";
 // [v1.8.0] AcademyConfig
 import { AcademyConfig } from "../../app/academy/academy-config";
+import { preloadRuneWarsAssets } from "../assets/rune-wars-assets";
+import { ModularCharacterRenderer } from "../character/modular-character-renderer";
+import { getWeaponVisualProfile } from "../character/weapon-visual-profile";
 
 type AcademyMode =
     | "free"
@@ -109,10 +112,10 @@ export class AcademyScene extends Phaser.Scene {
     // Player position
     private playerX = 80;
     private playerY = 0;
-    private playerSprite!: Phaser.GameObjects.Rectangle;
+    private playerSprite!: ModularCharacterRenderer;
 
     // Dummy player (dummy_player target type)
-    private dummyPlayerSprite: Phaser.GameObjects.Rectangle | null = null;
+    private dummyPlayerSprite: ModularCharacterRenderer | null = null;
     private dummyPlayerX = 0;
     private dummyPlayerY = 0;
     private dummyFireCooldown = 0; // seconds until next AI shot
@@ -153,6 +156,10 @@ export class AcademyScene extends Phaser.Scene {
 
     constructor() {
         super({ key: "AcademyScene" });
+    }
+
+    preload(): void {
+        preloadRuneWarsAssets(this);
     }
 
     create(): void {
@@ -201,9 +208,17 @@ export class AcademyScene extends Phaser.Scene {
 
         // Player
         this.playerY = height * 0.65;
-        this.playerSprite = this.add
-            .rectangle(this.playerX, this.playerY, 40, 60, 0x4488ff)
-            .setDepth(2);
+        this.playerSprite = new ModularCharacterRenderer(this, {
+            race: "human",
+            x: this.playerX,
+            y: this.playerY,
+            facing: "right",
+            weaponId: this.currentWeapon.id,
+            characterDisplaySize: 72,
+            weaponDisplaySize: 34,
+        });
+        this.playerSprite.setDepth(2);
+        this.playerSprite.setAimAngle(this.currentAngle);
         this.add
             .text(this.playerX, this.playerY + 38, "Você", {
                 fontSize: "11px",
@@ -312,6 +327,8 @@ export class AcademyScene extends Phaser.Scene {
 
     override update(_time: number, delta: number): void {
         const dt = delta / 1000;
+        this.playerSprite?.update(delta);
+        this.dummyPlayerSprite?.update(delta);
 
         if (!this.isAnimating) {
             this.handleKeyboardInput(dt);
@@ -513,6 +530,8 @@ export class AcademyScene extends Phaser.Scene {
             Math.min(175, this.currentAngle + delta),
         );
         this.angleText.setText(`${this.currentAngle}°`);
+        this.playerSprite.setAimAngle(this.currentAngle);
+        this.playerSprite.play("aim");
         this.updateTrajectoryPreview();
     }
 
@@ -526,6 +545,8 @@ export class AcademyScene extends Phaser.Scene {
         this.powerValue = 0;
         btn.setFillStyle(0xcc8800);
         btnText.setText("...");
+        this.playerSprite.setAimAngle(this.currentAngle);
+        this.playerSprite.play("aim");
 
         this.powerInterval = setInterval(() => {
             this.powerValue = Math.min(100, this.powerValue + 2);
@@ -563,6 +584,12 @@ export class AcademyScene extends Phaser.Scene {
 
     private fireShot(angle: number, force: number): void {
         this.trajectory.clear();
+        this.playerSprite.setWeapon(this.currentWeapon.id);
+        this.playerSprite.setAimAngle(angle);
+        this.playerSprite.play(
+            getWeaponVisualProfile(this.currentWeapon.id).animation,
+            true,
+        );
 
         const profile = this.currentWeapon.physicsProfile;
         const config: ProjectileConfig = {
@@ -601,6 +628,12 @@ export class AcademyScene extends Phaser.Scene {
 
         // Dummy fires with same weapon profile but angle mirrored (facing left)
         const profile = this.currentWeapon.physicsProfile;
+        this.dummyPlayerSprite.setWeapon(this.currentWeapon.id);
+        this.dummyPlayerSprite.setAimAngle(shot.angle);
+        this.dummyPlayerSprite.play(
+            getWeaponVisualProfile(this.currentWeapon.id).animation,
+            true,
+        );
         const config: ProjectileConfig = {
             angle: 180 - shot.angle, // mirror for left-facing direction
             force: shot.force,
@@ -720,11 +753,10 @@ export class AcademyScene extends Phaser.Scene {
 
     private showDummyHit(): void {
         // Visual flash on player — no real HP loss
-        const originalColor = 0x4488ff;
-        this.playerSprite.setFillStyle(0xff4444);
+        this.playerSprite.play("hit", true);
+        this.playerSprite.setAlpha(0.45);
         this.time.delayedCall(200, () => {
-            if (this.playerSprite.active)
-                this.playerSprite.setFillStyle(originalColor);
+            if (this.playerSprite.container.active) this.playerSprite.setAlpha(1);
         });
         const floatText = this.add
             .text(this.playerX, this.playerY - 30, "ESQUIVA!", {
@@ -869,10 +901,11 @@ export class AcademyScene extends Phaser.Scene {
         if (!this.dummyPlayerSprite) return;
 
         // Flash dummy
-        this.dummyPlayerSprite.setFillStyle(0xffffff);
+        this.dummyPlayerSprite.play("hit", true);
+        this.dummyPlayerSprite.setAlpha(0.45);
         this.time.delayedCall(150, () => {
-            if (this.dummyPlayerSprite?.active)
-                this.dummyPlayerSprite!.setFillStyle(0xff4444);
+            if (this.dummyPlayerSprite?.container.active)
+                this.dummyPlayerSprite.setAlpha(1);
         });
 
         const floatText = this.add
@@ -949,15 +982,17 @@ export class AcademyScene extends Phaser.Scene {
         if (targetType === "dummy_player") {
             // Single dummy player sprite on the right
             this.dummyPlayerY = height * 0.65;
-            this.dummyPlayerSprite = this.add
-                .rectangle(
-                    this.dummyPlayerX,
-                    this.dummyPlayerY,
-                    40,
-                    60,
-                    0xff4444,
-                )
-                .setDepth(2);
+            this.dummyPlayerSprite = new ModularCharacterRenderer(this, {
+                race: "human",
+                x: this.dummyPlayerX,
+                y: this.dummyPlayerY,
+                facing: "left",
+                weaponId: this.currentWeapon.id,
+                characterDisplaySize: 72,
+                weaponDisplaySize: 34,
+            });
+            this.dummyPlayerSprite.setDepth(2);
+            this.dummyPlayerSprite.setAimAngle(45);
             this.add
                 .text(this.dummyPlayerX, this.dummyPlayerY + 38, "Inimigo", {
                     fontSize: "11px",
@@ -1031,6 +1066,14 @@ export class AcademyScene extends Phaser.Scene {
         this.currentWeapon = weapon;
         const color = WEAPON_COLORS[id] ?? 0xffff00;
         this.projectileArc.setFillStyle(color);
+        this.playerSprite.setWeapon(id);
+        this.playerSprite.setAimAngle(this.currentAngle);
+        this.playerSprite.play("aim");
+        if (this.dummyPlayerSprite) {
+            this.dummyPlayerSprite.setWeapon(id);
+            this.dummyPlayerSprite.setAimAngle(45);
+            this.dummyPlayerSprite.play("aim");
+        }
         this.updateTrajectoryPreview();
     }
 

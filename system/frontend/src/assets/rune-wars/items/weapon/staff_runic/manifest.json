@@ -1,21 +1,29 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "itemId": "staff_runic",
   "name": "Cajado Runico",
   "slot": "weapon",
-  "visualLayer": "weapon",
-  "icon": "icon.png",
-  "iconSize": {
-    "width": 144,
-    "height": 144
+  "states": {
+    "weapon_idle": "weapon_idle.png",
+    "weapon_ready": "weapon_ready.png",
+    "weapon_aim": "weapon_aim.png"
   },
-  "animationStates": {
-    "idle": [
-      "idle_0.png"
-    ]
+  "fallbacks": {
+    "weapon_fire": "weapon_aim"
   },
-  "sourceMode": "icon-as-initial-layer-placeholder",
+  "visualProfile": {
+    "animation": "cast",
+    "weaponState": "weapon_aim",
+    "projectile": "runic_bolt",
+    "effects": [
+      "rune_circle",
+      "staff_glow"
+    ],
+    "castAura": "staff_glow"
+  },
+  "placeholder": true,
   "notes": [
-    "Layer frame is a 3x upscale of the current icon and should be replaced by aligned character equipment art."
+    "v1.9.0 technical weapon state placeholder generated from current idle/aim assets.",
+    "weapon_fire may fall back to weapon_aim when a distinct fire sprite is not available."
   ]
 }

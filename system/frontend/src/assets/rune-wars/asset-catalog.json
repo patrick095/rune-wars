@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "scale": 3,
   "source": "system/frontend/src/assets",
   "root": "assets/rune-wars",
@@ -17,13 +17,15 @@
   },
   "renderOrder": [
     "back",
-    "base",
+    "body",
     "armor",
     "face",
     "hair",
     "helmet",
     "weapon",
-    "effect"
+    "cape",
+    "wing",
+    "effects"
   ],
   "characters": [
     {
@@ -381,53 +383,189 @@
   ],
   "projectiles": [
     {
+      "id": "cannonball",
       "weaponId": "cannon",
       "manifest": "assets/rune-wars/projectiles/cannon/manifest.json",
+      "asset": "assets/rune-wars/projectiles/cannon/projectile.png",
       "projectileAsset": "assets/rune-wars/projectiles/cannon/projectile.png",
       "trailAsset": "assets/rune-wars/projectiles/cannon/trail.png",
       "impactAsset": "assets/rune-wars/projectiles/cannon/impact.png"
     },
     {
+      "id": "arrow",
       "weaponId": "longbow",
       "manifest": "assets/rune-wars/projectiles/longbow/manifest.json",
+      "asset": "assets/rune-wars/projectiles/longbow/projectile.png",
       "projectileAsset": "assets/rune-wars/projectiles/longbow/projectile.png",
       "trailAsset": "assets/rune-wars/projectiles/longbow/trail.png",
       "impactAsset": "assets/rune-wars/projectiles/longbow/impact.png"
     },
     {
+      "id": "tnt_bundle",
       "weaponId": "tnt",
       "manifest": "assets/rune-wars/projectiles/tnt/manifest.json",
+      "asset": "assets/rune-wars/projectiles/tnt/projectile.png",
       "projectileAsset": "assets/rune-wars/projectiles/tnt/projectile.png",
       "trailAsset": "assets/rune-wars/projectiles/tnt/trail.png",
       "impactAsset": "assets/rune-wars/projectiles/tnt/impact.png"
     },
     {
+      "id": "boomerang",
       "weaponId": "boomerang",
       "manifest": "assets/rune-wars/projectiles/boomerang/manifest.json",
+      "asset": "assets/rune-wars/projectiles/boomerang/projectile.png",
       "projectileAsset": "assets/rune-wars/projectiles/boomerang/projectile.png",
       "trailAsset": "assets/rune-wars/projectiles/boomerang/trail.png",
       "impactAsset": "assets/rune-wars/projectiles/boomerang/impact.png"
     },
     {
+      "id": "ice_shard",
       "weaponId": "ice-book",
       "manifest": "assets/rune-wars/projectiles/ice-book/manifest.json",
+      "asset": "assets/rune-wars/projectiles/ice-book/projectile.png",
       "projectileAsset": "assets/rune-wars/projectiles/ice-book/projectile.png",
       "trailAsset": "assets/rune-wars/projectiles/ice-book/trail.png",
       "impactAsset": "assets/rune-wars/projectiles/ice-book/impact.png"
     },
     {
+      "id": "potion",
       "weaponId": "potion",
       "manifest": "assets/rune-wars/projectiles/potion/manifest.json",
+      "asset": "assets/rune-wars/projectiles/potion/projectile.png",
       "projectileAsset": "assets/rune-wars/projectiles/potion/projectile.png",
       "trailAsset": "assets/rune-wars/projectiles/potion/trail.png",
       "impactAsset": "assets/rune-wars/projectiles/potion/impact.png"
     },
     {
+      "id": "magic_grenade",
       "weaponId": "magic-grenade",
       "manifest": "assets/rune-wars/projectiles/magic-grenade/manifest.json",
+      "asset": "assets/rune-wars/projectiles/magic-grenade/projectile.png",
       "projectileAsset": "assets/rune-wars/projectiles/magic-grenade/projectile.png",
       "trailAsset": "assets/rune-wars/projectiles/magic-grenade/trail.png",
       "impactAsset": "assets/rune-wars/projectiles/magic-grenade/impact.png"
+    },
+    {
+      "id": "arrow",
+      "weaponId": "bow_wood",
+      "manifest": "assets/rune-wars/projectiles/longbow/manifest.json",
+      "asset": "assets/rune-wars/projectiles/longbow/projectile.png",
+      "projectileAsset": "assets/rune-wars/projectiles/longbow/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/longbow/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/longbow/impact.png"
+    },
+    {
+      "id": "runic_bolt",
+      "weaponId": "staff_runic",
+      "manifest": "assets/rune-wars/projectiles/ice-book/manifest.json",
+      "asset": "assets/rune-wars/projectiles/ice-book/projectile.png",
+      "projectileAsset": "assets/rune-wars/projectiles/ice-book/projectile.png",
+      "trailAsset": "assets/rune-wars/projectiles/ice-book/trail.png",
+      "impactAsset": "assets/rune-wars/projectiles/ice-book/impact.png"
+    }
+  ],
+  "origin": {
+    "x": 96,
+    "y": 154
+  },
+  "requiredLayers": [
+    "body",
+    "hair",
+    "helmet",
+    "weapon",
+    "effects"
+  ],
+  "races": [
+    "human",
+    "elf",
+    "celestial",
+    "demonoid",
+    "beast"
+  ],
+  "legacyRaces": [
+    "dwarf"
+  ],
+  "animationSet": "rune_wars_base_v1",
+  "weapons": [
+    {
+      "id": "cannon",
+      "name": "Canhao Runico",
+      "manifest": "assets/rune-wars/items/weapon/cannon/manifest.json"
+    },
+    {
+      "id": "longbow",
+      "name": "Arco Longo Elfico",
+      "manifest": "assets/rune-wars/items/weapon/longbow/manifest.json"
+    },
+    {
+      "id": "tnt",
+      "name": "TNT Alquimico",
+      "manifest": "assets/rune-wars/items/weapon/tnt/manifest.json"
+    },
+    {
+      "id": "boomerang",
+      "name": "Bumerangue Arcano",
+      "manifest": "assets/rune-wars/items/weapon/boomerang/manifest.json"
+    },
+    {
+      "id": "ice-book",
+      "name": "Grimorio de Gelo",
+      "manifest": "assets/rune-wars/items/weapon/ice-book/manifest.json"
+    },
+    {
+      "id": "potion",
+      "name": "Pocao Explosiva",
+      "manifest": "assets/rune-wars/items/weapon/potion/manifest.json"
+    },
+    {
+      "id": "magic-grenade",
+      "name": "Granada Magica",
+      "manifest": "assets/rune-wars/items/weapon/magic-grenade/manifest.json"
+    },
+    {
+      "id": "bow_wood",
+      "name": "Arco de Madeira",
+      "manifest": "assets/rune-wars/items/weapon/bow_wood/manifest.json"
+    },
+    {
+      "id": "staff_runic",
+      "name": "Cajado Runico",
+      "manifest": "assets/rune-wars/items/weapon/staff_runic/manifest.json"
+    }
+  ],
+  "effects": [
+    {
+      "id": "muzzle_flash"
+    },
+    {
+      "id": "smoke_puff"
+    },
+    {
+      "id": "bow_release"
+    },
+    {
+      "id": "trail_wind"
+    },
+    {
+      "id": "spark_arcane"
+    },
+    {
+      "id": "glass_glint"
+    },
+    {
+      "id": "fuse_glow"
+    },
+    {
+      "id": "arcane_trail"
+    },
+    {
+      "id": "rune_circle"
+    },
+    {
+      "id": "frost_glow"
+    },
+    {
+      "id": "staff_glow"
     }
   ]
 }

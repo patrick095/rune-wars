@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 2,
+  "raceId": "beast",
+  "name": "Feral",
+  "frameSize": {
+    "width": 192,
+    "height": 192
+  },
+  "origin": {
+    "x": 96,
+    "y": 154
+  },
+  "layers": [
+    "back",
+    "body",
+    "armor",
+    "face",
+    "hair",
+    "helmet",
+    "weapon",
+    "cape",
+    "wing",
+    "effects"
+  ],
+  "anchors": "anchors.json",
+  "animations": {
+    "idle": {
+      "fps": 6,
+      "loop": true,
+      "frames": [
+        "idle_01",
+        "idle_02",
+        "idle_03",
+        "idle_04"
+      ]
+    },
+    "walk": {
+      "fps": 10,
+      "loop": true,
+      "frames": [
+        "walk_01",
+        "walk_02",
+        "walk_03",
+        "walk_04",
+        "walk_05",
+        "walk_06"
+      ]
+    },
+    "aim": {
+      "fps": 1,
+      "loop": false,
+      "frames": [
+        "aim"
+      ]
+    },
+    "throw_light": {
+      "fps": 14,
+      "loop": false,
+      "frames": [
+        "throw_light_01",
+        "throw_light_02",
+        "throw_light_03"
+      ]
+    },
+    "throw_heavy": {
+      "fps": 12,
+      "loop": false,
+      "frames": [
+        "throw_heavy_01",
+        "throw_heavy_02",
+        "throw_heavy_03",
+        "throw_heavy_04"
+      ]
+    },
+    "shoot": {
+      "fps": 14,
+      "loop": false,
+      "frames": [
+        "shoot_01",
+        "shoot_02",
+        "shoot_03"
+      ]
+    },
+    "cast": {
+      "fps": 1,
+      "loop": false,
+      "frames": [
+        "cast"
+      ]
+    },
+    "hit": {
+      "fps": 10,
+      "loop": false,
+      "frames": [
+        "hit_01",
+        "hit_02"
+      ]
+    },
+    "death": {
+      "fps": 8,
+      "loop": false,
+      "frames": [
+        "death_01",
+        "death_02",
+        "death_03",
+        "death_04",
+        "death_05"
+      ]
+    },
+    "win": {
+      "fps": 8,
+      "loop": true,
+      "frames": [
+        "win_01",
+        "win_02",
+        "win_03",
+        "win_04"
+      ]
+    }
+  },
+  "placeholder": true,
+  "legacyFallback": false,
+  "notes": [
+    "v1.9.0 technical placeholder generated from current idle/battle assets.",
+    "Replace with final per-frame transparent PNG art without changing manifest shape."
+  ]
+}
